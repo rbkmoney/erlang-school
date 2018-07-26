@@ -34,7 +34,6 @@ seq(From, To, Step) when From < To, Step < 0 ->
 seq(From, To, Step) ->
   [From | seq(From + Step, To, Step)].
 
-<<<<<<< HEAD
 filter(Func, List) ->
   filter(Func, List, []).
 filter(_, [], Acc) ->
@@ -43,14 +42,6 @@ filter(Func, [H|T], Acc) ->
   case Func(H) of
     true -> filter(Func, T, [H| Acc]);
     false -> filter(Func, T, Acc)
-=======
-filter(_Func, []) ->
-  [];
-filter(Func, [H|T]) ->
-  case Func(H) of
-    true -> [H|filter(Func, T)];
-    false -> filter(Func, T)
->>>>>>> upstream/a.shaporin
   end.
 
 zip([], []) ->
