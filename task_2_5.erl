@@ -6,14 +6,6 @@ test() ->
   Matrix = read_integers(Content,[]),
   transpose(Matrix).
 
-
-string_list_to_int_list(List) ->
-  string_list_to_int_list(List,[]).
-string_list_to_int_list([],Acc) ->
-  lists:reverse(Acc);
-string_list_to_int_list([Head | Tail],Acc) ->
-  string_list_to_int_list(Tail,[list_to_integer(Head) | Acc]).
-
 %Нашел реализацию на stackoverflow и доработал под свои нужды
 read_integers(Device,Acc) ->
   case file:read_line(Device) of
@@ -21,7 +13,8 @@ read_integers(Device,Acc) ->
         lists:reverse(Acc);
     {ok, Line} ->
         StrNumbers = string:split(string:strip(Line, right, 10),",",all),
-        read_integers(Device,[string_list_to_int_list(StrNumbers)| Acc])
+        F = fun(X) -> list_to_integer(X) end,
+        read_integers(Device,[lists:map(F,StrNumbers)| Acc])
   end.
 
 
