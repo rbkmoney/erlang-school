@@ -1,8 +1,8 @@
 -module(task_2_2).
 -export([test/0]).
--define(verbose_handle(Arg), try Arg() catch _:Err1:Stack1  ->
-  erlang:display(Stack1),
-  erlang:throw(Err1)
+-define(verbose_handle(Arg), try Arg() catch Class:Err  ->
+  io:format("~p ~p~n",[Class,Err]),
+  erlang:raise(Class,Err,erlang:get_stacktrace())
 end).
 
 test() ->

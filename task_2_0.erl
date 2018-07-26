@@ -5,11 +5,11 @@ seq(Start,Finish) ->
   seq(Start,Finish,1).
 
 seq(_,_,Step) when Step == 0 ->
-  erlang:throw(step_is_zero);
+  erlang:error(badarg,[Step]);
 seq(Start,Finish,Step) when Start > Finish, Step > 0 ->
-  erlang:throw(illegal_argument);
+  erlang:error(badarg,[Start,Finish,Step]);
 seq(Start,Finish,Step) when Start < Finish, Step < 0 ->
-  erlang:throw(illegal_argument);
+  erlang:error(badarg,[Start,Finish,Step]);
 seq(Start,Finish,Step) ->
   seq(Start,Finish,Step,[]).
 
