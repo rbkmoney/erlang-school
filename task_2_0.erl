@@ -34,12 +34,14 @@ seq(From, To, Step) when From < To, Step < 0 ->
 seq(From, To, Step) ->
   [From | seq(From + Step, To, Step)].
 
-filter(_Func, []) ->
-  [];
-filter(Func, [H|T]) ->
+filter(Func, List) ->
+  filter(Func, List, []).
+filter(_, [], Acc) ->
+  lists:reverse(Acc);
+filter(Func, [H|T], Acc) ->
   case Func(H) of
-    true -> [H|filter(Func, T)];
-    false -> filter(Func, T)
+    true -> filter(Func, T, [H| Acc]);
+    false -> filter(Func, T, Acc)
   end.
 
 zip([], []) ->
