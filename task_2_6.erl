@@ -26,23 +26,22 @@ parse_cell(Str, List) ->
 parse_cell([], Stack, _) ->
   case length(Stack) of
     1 -> hd(Stack);
-    _ -> throw(invalid_expr)
+    _ -> error(badarg)
   end;
 parse_cell([Token|Tail], Stack, List) ->
   case Token of
-    "$" ++ N -> parse_cell(Tail, [parse_cell(lists:nth(list_to_integer(N), List), List)|Stack], List);
+    "$" ++ N -> parse_cell(Tail, [parse_cell(lists:nth(list_to_integer(N), List), List) | Stack], List);
     "+" -> parse_cell(Tail, reduce(fun(A, B) -> A + B end, Stack), List);
     "-" -> parse_cell(Tail, reduce(fun(A, B) -> A - B end, Stack), List);
     "*" -> parse_cell(Tail, reduce(fun(A, B) -> A * B end, Stack), List);
-    "/" -> parse_cell(Tail, reduce(fun(A, B) -> A / B end, Stack), List);
+    "/" -> parse_cell(Tail, reduce(fun(A, B) -> A div B end, Stack), List);
     _ -> parse_cell(Tail, [list_to_integer(Token)|Stack], List)
   end.
 
-reduce(F, Stack = [A,B|Tail]) ->
-  case length(Stack) < 2 of
-    true  -> throw(invalid_expr);
-    false -> [F(B, A)|Tail]
-  end.
+reduce(F, [A,B|Tail]) ->
+  [F(B, A)|Tail];
+reduce(_, _) ->
+  error(badarg).
 
 readcsv(Filename) ->
   case file:read_file(Filename) of
