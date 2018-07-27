@@ -28,8 +28,7 @@ parse_cell([], Stack, _) ->
     1 -> hd(Stack);
     _ -> throw(invalid_expr)
   end;
-parse_cell([Head|Tail], Stack, List) ->
-  Token = Head,
+parse_cell([Token|Tail], Stack, List) ->
   case Token of
     "$" ++ N -> parse_cell(Tail, [parse_cell(lists:nth(list_to_integer(N), List), List)|Stack], List);
     "+" -> parse_cell(Tail, reduce(fun(A, B) -> A + B end, Stack), List);
@@ -48,5 +47,5 @@ reduce(F, Stack = [A,B|Tail]) ->
 readcsv(Filename) ->
   case file:read_file(Filename) of
     {ok, FileBin} -> string:tokens(erlang:binary_to_list(FileBin), ",\n");
-    {error, Reason} -> {error, Reason}
+    {error, Reason} -> error(Reason)
   end.
