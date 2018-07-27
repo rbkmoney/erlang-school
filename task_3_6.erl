@@ -7,6 +7,7 @@ test() ->
  test.
 
 monitor(Fun) ->
+  io:format("Monitor process: ~p~n",[self()]),
   PID = spawn(Fun),
   io:format("Created process ~p~n",[PID]),
   Ref = erlang:monitor(process,PID),
@@ -14,5 +15,6 @@ monitor(Fun) ->
     io:format("Process down, restarting~n"),
     monitor(Fun);
   stop ->
-    exit(stop)
+    io:format("Stoping monitor~n"),
+    exit(stopped)
   end.
