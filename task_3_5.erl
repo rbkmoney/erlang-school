@@ -18,6 +18,5 @@ proc_foo(Bar, Ct) ->
 
 proc_bar() ->
   receive
-    { request_bar, Resp } -> io:format("bar~n"), Resp ! { receive_bar, self() }, proc_bar();
-    end_bar -> ok
+    { request_bar, Resp } -> io:format("bar~n"), Resp ! { receive_bar, self() }, proc_bar()
   end.
