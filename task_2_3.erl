@@ -12,8 +12,8 @@ fold_1(Fun,Acc,[{Key, Value} | Tail]) ->
   fold_1(Fun,Fun(Key,Value,Acc),Tail).
 
 test() ->
-  Fun = fun(K,V,AccIn) when is_list(K) -> AccIn + V end,
-  Map = #{"key1" => 1,"key2" => 6, "key7" => 4},
+  Fun = fun(_,V,AccIn) -> AccIn + V end,
+  Map = #{key => 1,key2 => 6, key7 => 4},
   Acc = 0,
   Sample = maps:fold(Fun,Acc,Map),
   Sample = fold(Fun,0,Map),
