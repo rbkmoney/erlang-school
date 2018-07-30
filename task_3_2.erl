@@ -64,8 +64,7 @@ waiter(Clients, Eating, Waiting, Busy) ->
 checkForks(Forks) ->
   forksPid ! {check, Forks, self()},
   receive
-    {fork_status, Status} -> Status;
-    _ -> false
+    {fork_status, Status} -> Status
   end.
 
 forks(List) ->
