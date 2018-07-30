@@ -4,19 +4,20 @@
 -export([test/0]).
 
 test() ->
-  Bar = spawn_link(fun() -> proc_bar() end),
-  spawn_link(fun() -> proc_foo(Bar, 10) end),
-  test_exited.
-
-proc_foo(Bar, 0) -> Bar ! end_bar;
-proc_foo(Bar, Ct) ->
-  io:format("foo "),
-  Bar ! { request_bar, self() },
+  Parent = self(),
+  Bar = spawn(fun() -> dubious_api(Parent) end),
+  erlang:monitor(process, Bar),
+  Bar ! get_user_data,
   receive
-    { receive_bar, Bar } -> proc_foo(Bar, Ct - 1)
+    {'DOWN', _, process, Bar, _} -> test();
+    {ok, Code } -> Code
   end.
 
-proc_bar() ->
+dubious_api(Parent) ->
   receive
-    { request_bar, Resp } -> io:format("bar~n"), Resp ! { receive_bar, self() }, proc_bar()
+    get_user_data ->
+      case (rand:uniform(10) div 2 == 0) of
+        true -> io:format("Request failed!~n"), exit(self(), 503);
+        false -> Parent ! { ok, 200 }
+      end
   end.

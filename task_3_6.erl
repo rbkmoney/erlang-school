@@ -18,10 +18,11 @@ supervise(Fun) ->
   receive
     {'EXIT', Worker, Reason} ->
       io:format("[SV] Proc ~p exited with ~p. Restarting...~n", [Worker, Reason]),
-      process_flag(trap_exit, false),
       supervise(Fun);
+    {'EXIT', _, Reason} ->
+      io:format("[SV] terminating supervisor...~n"),
+      exit(Worker, Reason);
     terminate ->
       io:format("[SV] terminating supervisor...~n"),
-      exit(Worker, supervisor_terminated),
-      process_flag(trap_exit, false)
+      exit(Worker, supervisor_terminated)
   end.
