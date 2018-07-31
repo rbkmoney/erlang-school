@@ -2,7 +2,7 @@
 -export([test/0,pmap/2,particle/3]).
  %Параллельный map
  test() ->
-  F = fun(X) -> X*2 end,
+  F = fun(X) -> X * 2 end,
   List = [1,3,5,7,11],
   Sample = lists:map(F,List),
   Sample = pmap(F,List),
@@ -10,15 +10,13 @@
 
 pmap(Fun,List) ->
   PIDs = [spawn_link(task_3_1,particle,[Fun,Element,self()]) || Element <- List],
-  collect([],lists:flatlength(PIDs)).
+  [collect(Elem) || Elem <- PIDs].
 
-collect(Results,0)->
-  Results;
-collect(Results,Left) ->
+collect(PID) ->
   receive
-    {done, Val} ->
-      collect(Results ++ [Val],Left-1)
+    {done,PID,Val} ->
+      Val
   end.
 
  particle(Fun,Elem,CollectorId) ->
-  CollectorId ! {done,Fun(Elem)}.
+  CollectorId ! {done,self(),Fun(Elem)}.

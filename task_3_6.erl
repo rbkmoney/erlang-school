@@ -8,14 +8,14 @@ test() ->
  test.
 
 supervisor(Fun) ->
-  PID = spawn(Fun),
+  process_flag(trap_exit,true),
+  PID = spawn_link(Fun),
   io:format("Created process ~p~n",[PID]),
-  Ref = erlang:monitor(process,PID),
   receive
-    {'DOWN',Ref,_,PID,_} ->
-      erlang:demonitor(Ref),
+    {'EXIT',PID,_} ->
       supervisor(Fun);
+    {'EXIT',_,Reason} ->
+      exit(Reason);
     stop ->
-      erlang:demonitor(Ref),
       exit(stopped)
   end.
