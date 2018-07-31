@@ -11,16 +11,6 @@ test() ->
   spawn_link(phil,philosopher,["Donald",4,thinking,[false,false],ForkPID,Iter]),
   spawn_link(phil,philosopher,["Edna",5,thinking,[false,false],ForkPID,Iter]),
   start.
-  % Надо делать через алгоритм для каждого философа
-  % Каждый философ берет левую вилку
-  % Если вилки справа нет, то он кладет левую вилку
-  % Если он поел, то кладет обе вилки: сначала правую потом левую
-
-
-  %TO DO: процесс, хранящий информацию о вилках и обрабатывающий запросы от философов
-
-right(Num) ->
-    Num.
 
   left(Num) ->
     case Num == 1 of
@@ -62,19 +52,17 @@ create_forkMap() ->
 
   philosopher(_,_,_,_,_,0) ->
     over;
-  philosopher(Name,Num,thinking,Forks,ForkPID,Iterations) ->
-    %Forks - список из двух элементов - первый есть ли вилка в левой руке, второй, есть ли в правой
+  philosopher(Name,Num,thinking,[HasLeft | HasRight],ForkPID,Iterations) ->
     timer:sleep(rand:uniform(50)),
-    Right = right(Num),
+    Right = Num,
     Left = left(Num),
-    [HasLeft | HasRight] = Forks,
     case HasLeft of
       false ->
         case ask_for_fork(Left,ForkPID) of
           accepted ->
             philosopher(Name,Num,thinking,[true | HasRight],ForkPID,Iterations - 1);
           denied ->
-            philosopher(Name,Num,thinking,Forks,ForkPID,Iterations - 1)
+            philosopher(Name,Num,thinking,[HasLeft | HasRight],ForkPID,Iterations - 1)
         end;
       true ->
         case ask_for_fork(Right,ForkPID) of
@@ -89,7 +77,7 @@ create_forkMap() ->
 
   philosopher(Name,Num,eating,_,ForkPID,Iterations) ->
     timer:sleep(rand:uniform(50)),
-    Right = right(Num),
+    Right = Num,
     Left = left(Num),
     ForkPID ! {release,Right},
     ForkPID ! {release,Left},
