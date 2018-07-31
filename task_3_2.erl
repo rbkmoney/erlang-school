@@ -1,4 +1,4 @@
--module(phil).
+-module(task_3_2).
 -export([test/0,fork/1,philosopher/6]).
 
 test() ->
@@ -9,7 +9,8 @@ test() ->
   spawn_link(phil,philosopher,["Betty",2,thinking,[false,false],ForkPID,Iter]),
   spawn_link(phil,philosopher,["Charlie",3,thinking,[false,false],ForkPID,Iter]),
   spawn_link(phil,philosopher,["Donald",4,thinking,[false,false],ForkPID,Iter]),
-  spawn_link(phil,philosopher,["Edna",5,thinking,[false,false],ForkPID,Iter]).
+  spawn_link(phil,philosopher,["Edna",5,thinking,[false,false],ForkPID,Iter]),
+  start.
   % Надо делать через алгоритм для каждого философа
   % Каждый философ берет левую вилку
   % Если вилки справа нет, то он кладет левую вилку
@@ -38,18 +39,15 @@ create_forkMap() ->
   fork(ForkMap) ->
     receive
       {take,Source,Num} ->
-        %io:format("Someone wants to take fork: ~p ",[Num]),
         case maps:find(Num,ForkMap) of
           {ok,free} ->
-            %io:format("Fork ~p is given ~n",[Num]),
             Source ! accepted,
             fork(maps:update(Num,taken,ForkMap));
           _Else ->
-            %io:format("Fork ~p is not given ~n",[Num]),
             Source ! denied
         end;
-        {release,Num} ->
-          fork(maps:update(Num,free,ForkMap))
+      {release,Num} ->
+        fork(maps:update(Num,free,ForkMap))
     end,
     fork(ForkMap).
 
@@ -61,6 +59,7 @@ create_forkMap() ->
       denied ->
         denied
       end.
+
   philosopher(_,_,_,_,_,0) ->
     over;
   philosopher(Name,Num,thinking,Forks,ForkPID,Iterations) ->
@@ -68,29 +67,25 @@ create_forkMap() ->
     timer:sleep(rand:uniform(50)),
     Right = right(Num),
     Left = left(Num),
-      %Решил поесть
-      [HasLeft | HasRight] = Forks,
-      case HasLeft of
-        false ->
-          case ask_for_fork(Left,ForkPID) of
-            accepted ->
-              %io:format("~p takes fork ~p~n",[Name,Left]),
-              philosopher(Name,Num,thinking,[true | HasRight],ForkPID,Iterations - 1);
-            denied ->
-              philosopher(Name,Num,thinking,Forks,ForkPID,Iterations - 1)
-            end;
-        true ->
-          case ask_for_fork(Right,ForkPID) of
-            accepted ->
-              %io:format("~p takes fork ~p~n",[Name,Right]),
-              io:format("~p is now eating~n",[Name]),
-              philosopher(Name,Num,eating,[true,true],ForkPID,Iterations-1);
-            denied ->
-              ForkPID ! {release,Left},
-              %io:format("~p releases fork ~p~n",[Name,Left]),
-              philosopher(Name,Num,thinking,[false,false],ForkPID,Iterations-1)
-          end
+    [HasLeft | HasRight] = Forks,
+    case HasLeft of
+      false ->
+        case ask_for_fork(Left,ForkPID) of
+          accepted ->
+            philosopher(Name,Num,thinking,[true | HasRight],ForkPID,Iterations - 1);
+          denied ->
+            philosopher(Name,Num,thinking,Forks,ForkPID,Iterations - 1)
         end;
+      true ->
+        case ask_for_fork(Right,ForkPID) of
+          accepted ->
+            io:format("~p is now eating~n",[Name]),
+            philosopher(Name,Num,eating,[true,true],ForkPID,Iterations-1);
+          denied ->
+            ForkPID ! {release,Left},
+            philosopher(Name,Num,thinking,[false,false],ForkPID,Iterations-1)
+        end
+      end;
 
   philosopher(Name,Num,eating,_,ForkPID,Iterations) ->
     timer:sleep(rand:uniform(50)),
