@@ -1,0 +1,4 @@
+#Erlang
+*.beam
+#Misc
+*.txt
