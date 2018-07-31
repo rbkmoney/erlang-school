@@ -27,7 +27,8 @@ test() ->
       end
     end, Pids),
 
-  CacheDB ! terminate.
+  CacheDB ! terminate,
+  ok.
 
 cache_proc(Parent) ->
   task_3_3:create(),

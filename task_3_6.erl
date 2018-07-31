@@ -17,12 +17,12 @@ supervise(Fun) ->
   io:format("[SV] Watching proc ~p~n", [Worker]),
   receive
     {'EXIT', Worker, Reason} ->
-      io:format("[SV] Proc ~p exited with ~p. Restarting...~n", [Worker, Reason]),
+      io:format("[SV] Proc ~p exited with reason ~p. Restarting...~n", [Worker, Reason]),
       supervise(Fun);
     {'EXIT', _, Reason} ->
-      io:format("[SV] terminating supervisor...~n"),
+      io:format("[SV] Terminating supervisor with reason ~p~n", [Reason]),
       exit(Worker, Reason);
     terminate ->
-      io:format("[SV] terminating supervisor...~n"),
+      io:format("[SV] Supervisor termination requested by user~n"),
       exit(Worker, supervisor_terminated)
   end.
