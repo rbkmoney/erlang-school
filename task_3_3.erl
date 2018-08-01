@@ -17,7 +17,7 @@ lookup(Key) ->
 
 insert(Key, Value) ->
   try
-    ets:insert_new(database,{Key, Value})
+    ets:insert(database,{Key, Value})
   catch
     error:badarg ->
       new(),
