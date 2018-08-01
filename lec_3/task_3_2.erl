@@ -17,7 +17,8 @@ philosopher(Name, OwnedForks, MaxLife) ->
   waiterPid ! { new_client, self(), OwnedForks },
 
   receive
-    start_eating -> forksPid ! { reserve_forks, OwnedForks },
+    start_eating ->
+      forksPid ! { reserve_forks, OwnedForks },
       waiterPid ! {client_eating, self(), OwnedForks }
   end,
 
@@ -32,8 +33,9 @@ philosopher(Name, OwnedForks, MaxLife) ->
 process_waitlist([]) -> false;
 process_waitlist([{ClientPid, OwnedForks}|T]) ->
   case checkForks(OwnedForks) of
-    true -> ClientPid ! start_eating,
-            true;
+    true ->
+      ClientPid ! start_eating,
+      true;
     false -> process_waitlist(T)
   end.
 
@@ -87,11 +89,9 @@ room() ->
   register(waiterPid, spawn(fun() -> waiter(5, 0, [], false) end)),
   register(roomPid, self()),
 
-  lists:map(fun({N, F}) -> spawn(fun() -> philosopher(N, F, 3) end) end, lists:zip(NameList, ForkList)),
+  lists:foreach(fun({N, F}) -> spawn(fun() -> philosopher(N, F, 3) end) end, lists:zip(NameList, ForkList)),
 
   receive
     no_clients_left -> io:format("No clients left~n"), unregister(roomPid), ok
     after 30000 -> unregister(forksPid), unregister(waiterPid), unregister(roomPid), timeout
   end.
-
-%%3/13
