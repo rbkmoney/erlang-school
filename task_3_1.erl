@@ -18,6 +18,5 @@ collect(PID) ->
       Val
   end.
 
-
  particle(Fun,Elem,CollectorId) ->
   CollectorId ! {done,self(),Fun(Elem)}.
