@@ -1,4 +1,4 @@
-#Erlang
+#Erlang beam files
 *.beam
-#Misc
+#Others
 *.txt

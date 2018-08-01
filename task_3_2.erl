@@ -1,25 +1,35 @@
 -module(task_3_2).
--export([test/0,fork/1,philosopher/6]).
+-export([test/0,fork/1,philosopher_/4]).
 
 test() ->
   ForkMap = create_forkMap(),
   ForkPID = spawn_link(phil,fork,[ForkMap]),
   Iter = 20,
-  spawn_link(phil,philosopher,["Adam",1,thinking,[false,false],ForkPID,Iter]),
-  spawn_link(phil,philosopher,["Betty",2,thinking,[false,false],ForkPID,Iter]),
-  spawn_link(phil,philosopher,["Charlie",3,thinking,[false,false],ForkPID,Iter]),
-  spawn_link(phil,philosopher,["Donald",4,thinking,[false,false],ForkPID,Iter]),
-  spawn_link(phil,philosopher,["Edna",5,thinking,[false,false],ForkPID,Iter]),
-  start.
+  PIDs = [spawn_link(ph,philosopher_,[Item,thinking,ForkPID,Iter]) || Item <- lists:seq(1,5)],
+  [send_finish(Elem) || Elem <- PIDs],
+  collect_over(PIDs),
+  ForkPID ! finish,
+  test_over.
 
-  left(Num) ->
-    case Num == 1 of
-      true ->
-        5;
-      false ->
-        Num - 1
+  get_forks_nums(Num) ->
+    {Num,right(Num)}.
+
+  right(Num) ->
+    (Num rem 5) + 1.
+
+  release(Fork,PID) ->
+    PID ! {release,Fork}.
+
+  send_finish(PID) ->
+    PID ! {finish,self()}.
+
+  collect_over([]) ->
+    all_finished;
+  collect_over([PID | Rest]) ->
+    receive
+      {over,PID} ->
+        collect_over(Rest)
       end.
-
 
 create_forkMap() ->
   Nums = lists:seq(1,5),
@@ -27,19 +37,23 @@ create_forkMap() ->
   maps:from_list(lists:zip(Nums,Items)).
 
   fork(ForkMap) ->
-    receive
-      {take,Source,Num} ->
-        case maps:find(Num,ForkMap) of
-          {ok,free} ->
-            Source ! accepted,
-            fork(maps:update(Num,taken,ForkMap));
-          _Else ->
-            Source ! denied
-        end;
-      {release,Num} ->
-        fork(maps:update(Num,free,ForkMap))
-    end,
-    fork(ForkMap).
+    NewMap =
+      receive
+        {take,Source,Num} ->
+          case maps:find(Num,ForkMap) of
+            {ok,free} ->
+              Source ! accepted,
+              maps:update(Num,taken,ForkMap);
+            _Else ->
+              Source ! denied,
+              ForkMap
+          end;
+        {release,Num} ->
+          maps:update(Num,free,ForkMap);
+        finish ->
+          exit(task_finished)
+      end,
+    fork(NewMap).
 
   ask_for_fork(ForkNum,ForkPID) ->
     ForkPID ! {take, self(),ForkNum},
@@ -50,36 +64,42 @@ create_forkMap() ->
         denied
       end.
 
-  philosopher(_,_,_,_,_,0) ->
-    over;
-  philosopher(Name,Num,thinking,[HasLeft | HasRight],ForkPID,Iterations) ->
-    timer:sleep(rand:uniform(50)),
-    Right = Num,
-    Left = left(Num),
-    case HasLeft of
-      false ->
-        case ask_for_fork(Left,ForkPID) of
-          accepted ->
-            philosopher(Name,Num,thinking,[true | HasRight],ForkPID,Iterations - 1);
-          denied ->
-            philosopher(Name,Num,thinking,[HasLeft | HasRight],ForkPID,Iterations - 1)
-        end;
-      true ->
+philosopher_(_,_,_,0) ->
+  receive
+    {finish,PID} ->
+      PID ! {over,self()}
+  end;
+philosopher_(Num,eating,ForkPID,Iterations) ->
+    timer:sleep(rand:uniform(100)),
+    {Left,Right} = get_forks_nums(Num),
+    release(Right,ForkPID),
+    release(Left,ForkPID),
+    philosopher(Num,thinking,ForkPID,Iterations-1);
+
+philosopher_(Num,thinking,ForkPID,Iterations) ->
+  timer:sleep(rand:uniform(100)),
+  philosopher(Num,hungry,ForkPID,Iterations-1);
+
+philosopher_(Num,hungry_retry,ForkPID,Iterations) ->
+  timer:sleep(rand:uniform(100)),
+  philosopher_(Num,hungry,ForkPID,Iterations);
+philosopher_(Num,hungry,ForkPID,Iterations) ->
+  {Left,Right} = get_forks_nums(Num),
+  NewState =
+    case ask_for_fork(Left,ForkPID) of
+      accepted ->
         case ask_for_fork(Right,ForkPID) of
           accepted ->
-            io:format("~p is now eating~n",[Name]),
-            philosopher(Name,Num,eating,[true,true],ForkPID,Iterations-1);
+            eating;
           denied ->
-            ForkPID ! {release,Left},
-            philosopher(Name,Num,thinking,[false,false],ForkPID,Iterations-1)
-        end
-      end;
+            release(Left,ForkPID),
+            hungry_retry
+        end;
+      denied ->
+        hungry_retry
+      end,
+  philosopher(Num,NewState,ForkPID,Iterations-1).
 
-  philosopher(Name,Num,eating,_,ForkPID,Iterations) ->
-    timer:sleep(rand:uniform(50)),
-    Right = Num,
-    Left = left(Num),
-    ForkPID ! {release,Right},
-    ForkPID ! {release,Left},
-    io:format("~p is no longer eating~n",[Name]),
-    philosopher(Name,Num,thinking,[false,false],ForkPID,Iterations-1).
+philosopher(Num,NewState,ForkPID,Iterations) ->
+  io:format("~p is now ~p ~n",[Num,NewState]),
+  philosopher_(Num,NewState,ForkPID,Iterations).
