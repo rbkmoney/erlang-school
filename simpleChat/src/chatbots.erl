@@ -9,6 +9,9 @@ start_link(Name) ->
 init(Name) ->
     {ok, Name, generate_timeout()}.
 
+lol() ->
+    lol.
+
 generate_timeout() ->
     1500 + rand:uniform(2500).
 

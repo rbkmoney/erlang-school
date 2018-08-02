@@ -12,6 +12,7 @@ init(undefined) ->
     {ok,[]}.
 
 send_message(Username,Message) ->
+    lager:info("Got a message~n"),
     gen_server:cast(?MODULE, {send,{Username,Message,erlang:localtime()}}).
 
 messages() ->

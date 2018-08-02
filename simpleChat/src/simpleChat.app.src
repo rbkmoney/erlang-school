@@ -4,7 +4,8 @@
   {registered, []},
   {mod, { simpleChat_app, []}},
   {applications,
-   [kernel,
+   [lager,
+    kernel,
     stdlib
    ]},
   {env,[]},
