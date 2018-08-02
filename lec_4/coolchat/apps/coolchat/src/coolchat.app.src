@@ -1,16 +1,18 @@
 {application, coolchat,
- [{description, "A chat application"},
-  {vsn, "0.1.0"},
-  {registered, []},
-  {mod, { coolchat_app, []}},
-  {applications,
-   [kernel,
-    stdlib
-   ]},
-  {env,[]},
-  {modules, []},
+    [{description, "A chat application"},
+        {vsn, "0.1.0"},
+        {registered, []},
+        {mod, {coolchat_app, []}},
+        {applications, [
+            kernel,
+            stdlib,
+            lager
+        ]},
+        {env, []},
+        {modules, []},
 
-  {maintainers, []},
-  {licenses, ["Apache 2.0"]},
-  {links, []}
- ]}.
+        {maintainers, []},
+        {licenses, ["Apache 2.0"]},
+        {links, []}
+    ]
+}.

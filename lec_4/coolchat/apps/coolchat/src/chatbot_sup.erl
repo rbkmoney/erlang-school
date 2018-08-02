@@ -32,12 +32,14 @@ init([]) ->
         intensity => 0,
         period => 1
     },
-    Bots = [
-        #{id => bot_1, start => {chat_bot, start_link, ['FirstBot']}},
-        #{id => bot_2, start => {chat_bot, start_link, ['SecondBot']}},
-        #{id => bot_3, start => {chat_bot, start_link, ['ThirdBot']}},
-        #{id => bot_4, start => {chat_bot, start_link, ['FourthBot']}}
-    ],
+    BotIds = [bot_1, bot_2, bot_3, bot_4],
+    BotNames = ["FirstBot", "SecondBot", "ThirdBot", "FourthBot"],
+    Bots = lists:map(
+        fun({I, N}) ->
+            #{id => I, start => {chat_bot, start_link, [N]}}
+        end,
+        lists:zip(BotIds, BotNames)
+    ),
     {ok, {SupArgs, Bots}}.
 
 %%====================================================================
