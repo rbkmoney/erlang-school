@@ -6,6 +6,8 @@
 
 -define(SERVER,?MODULE).
 
+-spec start_link() ->
+    {ok,pid()}.
 start_link() ->
     supervisor:start_link({local,?SERVER}, ?MODULE,[]).
 

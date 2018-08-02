@@ -20,6 +20,8 @@
 %%====================================================================
 
 %There must be a spec for supervisor:start_link somewhere
+-spec start_link() ->
+    {ok,pid()}.
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
