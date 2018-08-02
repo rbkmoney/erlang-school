@@ -42,7 +42,7 @@ init([]) ->
     },
     Bots = #{
         id => bots,
-        start => {chatbots,start_link,[]}
+        start => {chatbots_sup,start_link,[]}
     },
     {ok,{SupArgs,[Room,Bots]}}.
 

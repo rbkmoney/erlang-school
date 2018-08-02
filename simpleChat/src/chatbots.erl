@@ -13,7 +13,7 @@ generate_timeout() ->
     1500 + rand:uniform(2500).
 
 handle_info(timeout, State) ->
-    rooms:send_message(State, "Hello"),
+    rooms:send_message(State, "Hello, I'm " ++ atom_to_list(State)),
     {noreply,State,generate_timeout()}.
 
 %Have to implement

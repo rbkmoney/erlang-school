@@ -1,7 +1,7 @@
 -module(rooms).
 -behaviour(gen_server).
 
--export([send_message/2,get_messages/0]).
+-export([send_message/2,get_messages/0, get_last_messages/1]).
 -export([handle_cast/2,handle_call/3,init/1,start_link/0]).
 
 
@@ -14,7 +14,7 @@ init(undefined) ->
 send_message(Username,Message) ->
     gen_server:cast(?MODULE, {send,{Username,Message,erlang:localtime()}}).
 
-get_messages() ->
+messages() ->
     gen_server:call(?MODULE,{get}).
 
 handle_cast({send,Message},State) ->
@@ -22,3 +22,13 @@ handle_cast({send,Message},State) ->
 
 handle_call({get},_From,State) ->
     {reply,State,State}.
+
+get_messages() ->
+    get_last_messages(erlang:length(messages())).
+
+get_last_messages(Num) ->
+    F = fun({Name,Msg,Time}) ->
+        {{_,_,_},{H,M,_}} = Time,
+        io:format("~p:~p  ~p: ~p~n",[H,M,Name,Msg])
+    end,
+    lists:foreach(F,lists:sublist(messages(),Num)).
