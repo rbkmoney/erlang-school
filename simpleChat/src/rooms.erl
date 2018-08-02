@@ -24,9 +24,13 @@ handle_cast({send,Message},State) ->
 handle_call({get},_From,State) ->
     {reply,State,State}.
 
+-spec get_messages() ->
+    no_return().
 get_messages() ->
     get_last_messages(erlang:length(messages())).
 
+-spec get_last_messages(non_neg_integer()) ->
+    no_return().
 get_last_messages(Num) ->
     lager:info("User asked for messages"),
     F = fun({Name,Msg,Time}) ->

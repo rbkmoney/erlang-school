@@ -19,6 +19,7 @@
 %% API functions
 %%====================================================================
 
+%There must be a spec for supervisor:start_link somewhere
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
@@ -30,6 +31,9 @@ start_link() ->
 %% Optional keys are restart, shutdown, type, modules.
 %% Before OTP 18 tuples must be used to specify a child. e.g.
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
+
+%-spec init([]) ->
+%    {ok,map(),list()}.
 init([]) ->
     lager:info("Application supervisor initialized"),
     SupArgs = #{
