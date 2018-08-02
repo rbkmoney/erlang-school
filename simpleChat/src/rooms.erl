@@ -9,10 +9,10 @@ start_link() ->
     gen_server:start_link({local,rooms},?MODULE,undefined,[]).
 
 init(undefined) ->
+    lager:info("Room server initialized"),
     {ok,[]}.
 
 send_message(Username,Message) ->
-    lager:info("Got a message~n"),
     gen_server:cast(?MODULE, {send,{Username,Message,erlang:localtime()}}).
 
 messages() ->
@@ -28,6 +28,7 @@ get_messages() ->
     get_last_messages(erlang:length(messages())).
 
 get_last_messages(Num) ->
+    lager:info("User asked for messages"),
     F = fun({Name,Msg,Time}) ->
         {{_,_,_},{H,M,_}} = Time,
         io:format("~p:~p  ~p: ~p~n",[H,M,Name,Msg])
