@@ -55,9 +55,13 @@ init(undefined) ->
     lager:info("New chat room has been created~n"),
     {ok, State}.
 
+-spec handle_call(get_messages, any(), state()) ->
+    {reply, chat_messages(), state()}.
 handle_call(get_messages, _, State = #{messages := Messages}) ->
     {reply, Messages, State}.
 
+-spec handle_cast({new_message, chat_message()}, state()) ->
+    {noreply, state()}.
 handle_cast({new_message, NewMsg}, State = #{messages := Messages}) ->
     lager:info("New message ~p", [NewMsg]),
     {noreply, State#{messages := [NewMsg | Messages]}}.

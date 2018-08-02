@@ -20,12 +20,18 @@ start_link(BotName) ->
 init([BotName | _Args]) ->
     {ok, #{username => BotName}, ?TIMEOUT}.
 
+-spec handle_call(any(), any(), state()) ->
+    {noreply, state(), timeout()}.
 handle_call(_, _, State) ->
     {noreply, State, ?TIMEOUT}.
 
+-spec handle_cast(any(), state()) ->
+    {noreply, state(), timeout()}.
 handle_cast(_, State) ->
     {noreply, State, ?TIMEOUT}.
 
+-spec handle_info(timeout, state()) ->
+    {noreply, state(), timeout()}.
 handle_info(timeout, State = #{username := Name}) ->
     chat_room:new_message(Name, "Test from " ++ Name),
     {noreply, State, ?TIMEOUT}.

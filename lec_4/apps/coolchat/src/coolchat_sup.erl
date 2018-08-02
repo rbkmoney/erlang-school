@@ -1,4 +1,4 @@
--module(chatbot_sup).
+-module(coolchat_sup).
 -author("Kehitt").
 
 -behaviour(supervisor).
@@ -15,6 +15,8 @@
 %% API functions
 %%====================================================================
 
+-spec start_link() ->
+    {ok, pid()} | {error, _}.
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
@@ -26,21 +28,23 @@ start_link() ->
 %% Optional keys are restart, shutdown, type, modules.
 %% Before OTP 18 tuples must be used to specify a child. e.g.
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
+-spec init([]) ->
+    {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
     SupArgs = #{
         strategy => one_for_one,
         intensity => 0,
         period => 1
     },
-    BotIds = [bot_1, bot_2, bot_3, bot_4],
-    BotNames = ["FirstBot", "SecondBot", "ThirdBot", "FourthBot"],
-    Bots = lists:map(
-        fun({I, N}) ->
-            #{id => I, start => {chat_bot, start_link, [N]}}
-        end,
-        lists:zip(BotIds, BotNames)
-    ),
-    {ok, {SupArgs, Bots}}.
+    ChatRoom = #{
+        id => chat_room,
+        start => {chat_room, start_link, []}
+    },
+    BotsSup = #{
+        id => bots_supervisor,
+        start => {chatbot_sup, start_link, []}
+    },
+    {ok, {SupArgs, [ChatRoom, BotsSup]}}.
 
 %%====================================================================
 %% Internal functions

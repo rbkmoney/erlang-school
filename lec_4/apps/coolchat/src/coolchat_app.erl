@@ -14,10 +14,14 @@
 %% API
 %%====================================================================
 
+-spec start(any(), any()) ->
+    {ok, pid()} | {error, _}.
 start(_StartType, _StartArgs) ->
     coolchat_sup:start_link().
 
 %%--------------------------------------------------------------------
+-spec stop(any()) ->
+    ok.
 stop(_State) ->
     ok.
 

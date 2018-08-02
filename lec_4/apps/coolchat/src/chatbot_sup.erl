@@ -1,4 +1,4 @@
--module(coolchat_sup).
+-module(chatbot_sup).
 -author("Kehitt").
 
 -behaviour(supervisor).
@@ -32,15 +32,17 @@ init([]) ->
         intensity => 0,
         period => 1
     },
-    ChatRoom = #{
-        id => chat_room,
-        start => {chat_room, start_link, []}
-    },
-    BotsSup = #{
-        id => bots_supervisor,
-        start => {chatbot_sup, start_link, []}
-    },
-    {ok, {SupArgs, [ChatRoom, BotsSup]}}.
+    BotNames = ["FirstBot", "SecondBot", "ThirdBot", "FourthBot"],
+    Bots = lists:map(
+        fun(N) ->
+            #{
+                id => list_to_atom("id" ++ N),
+                start => {chat_bot, start_link, [N]}
+            }
+        end,
+        BotNames
+    ),
+    {ok, {SupArgs, Bots}}.
 
 %%====================================================================
 %% Internal functions
