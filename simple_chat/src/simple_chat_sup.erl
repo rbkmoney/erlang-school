@@ -49,10 +49,7 @@ init([]) ->
     },
     Bots = #{
         id => bots,
+        type => supervisor,
         start => {chatbots_sup,start_link,[]}
     },
     {ok,{SupArgs,[Room,Bots]}}.
-
-%%====================================================================
-%% Internal functions
-%%====================================================================

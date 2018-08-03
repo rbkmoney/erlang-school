@@ -19,8 +19,8 @@ init([]) ->
         period => 1
     },
     ChatBots = [
-        #{id => bot_1, start => {chatbots, start_link, ['Adam']}},
-        #{id => bot_2, start => {chatbots, start_link, ['Betty']}},
-        #{id => bot_3, start => {chatbots, start_link, ['Charlie']}}
+        #{id => bot_1, type => worker, start => {chatbots, start_link, ['Adam']}},
+        #{id => bot_2, type => worker, start => {chatbots, start_link, ['Betty']}},
+        #{id => bot_3, type => worker, start => {chatbots, start_link, ['Charlie']}}
     ],
     {ok,{SupArgs,ChatBots}}.

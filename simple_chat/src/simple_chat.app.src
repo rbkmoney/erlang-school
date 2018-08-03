@@ -2,7 +2,7 @@
  [{description, "An OTP application"},
   {vsn, "0.1.0"},
   {registered, []},
-  {mod, { simpleChat_app, []}},
+  {mod, { simple_chat_app, []}},
   {applications,
    [
     kernel,

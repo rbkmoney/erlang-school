@@ -15,11 +15,9 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    simpleChat_sup:start_link().
+    simple_chat_sup:start_link().
 
 %%--------------------------------------------------------------------
--spec stop(_) ->
-    ok.
 stop(_State) ->
     ok.
 
