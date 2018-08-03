@@ -63,7 +63,8 @@ handle_call({get_messages, Num}, _, State = #{messages := Messages}) ->
             {_, LTime, _} = L, {_, RTime, _} = R,
             LTime > RTime
         end,
-        Messages),
+        Messages
+    ),
     LimitedMessages = lists:sublist(Sorted, Num),
     {reply, LimitedMessages, State}.
 
