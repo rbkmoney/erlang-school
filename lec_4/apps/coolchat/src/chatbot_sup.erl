@@ -15,6 +15,8 @@
 %% API functions
 %%====================================================================
 
+-spec start_link() ->
+    {ok, pid()} | {error, _}.
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
@@ -26,12 +28,10 @@ start_link() ->
 %% Optional keys are restart, shutdown, type, modules.
 %% Before OTP 18 tuples must be used to specify a child. e.g.
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
+-spec init([]) ->
+    {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
-    SupArgs = #{
-        strategy => one_for_one,
-        intensity => 0,
-        period => 1
-    },
+    SupArgs = #{},
     BotNames = ["FirstBot", "SecondBot", "ThirdBot", "FourthBot"],
     Bots = lists:map(
         fun(N) ->

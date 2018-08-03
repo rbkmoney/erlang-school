@@ -5,7 +5,7 @@
 -export([new_message/2, get_messages/0, format_messages/1]).
 
 -type chat_messages() :: [chat_message()].
--type chat_message() :: {string(), calendar:time(), string()}.
+-type chat_message() :: {nonempty_string(), calendar:time(), string()}.
 
 %% gen_server
 -behavior(gen_server).
@@ -19,7 +19,7 @@
 %% API
 %%
 
--spec new_message(string(), string()) ->
+-spec new_message(nonempty_string(), string()) ->
     ok.
 new_message(Username, Msg) ->
     gen_server:cast(chat_room, {new_message, {Username, erlang:time(), Msg}}).
@@ -29,8 +29,8 @@ new_message(Username, Msg) ->
 get_messages() ->
     gen_server:call(chat_room, get_messages).
 
--spec format_messages(integer()) ->
-    no_return().
+-spec format_messages(non_neg_integer()) ->
+    ok.
 format_messages(Num) ->
     lists:foreach(
         fun({Name, Time, Message}) ->

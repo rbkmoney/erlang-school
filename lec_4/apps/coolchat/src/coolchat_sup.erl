@@ -31,11 +31,7 @@ start_link() ->
 -spec init([]) ->
     {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
-    SupArgs = #{
-        strategy => one_for_one,
-        intensity => 0,
-        period => 1
-    },
+    SupArgs = #{},
     ChatRoom = #{
         id => chat_room,
         start => {chat_room, start_link, []}
