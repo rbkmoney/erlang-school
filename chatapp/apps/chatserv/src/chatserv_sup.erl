@@ -13,7 +13,7 @@
 %% Supervisor callbacks
 -export([init/1]).
 
--define(SERVER, ?MODULE).
+-define(SERVER, chsv_top_sup).
 
 %%
 %% API

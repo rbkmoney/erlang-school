@@ -8,7 +8,7 @@
 %% Supervisor callbacks
 -export([init/1]).
 
--define(SERVER, ?MODULE).
+-define(SERVER, chsv_client_sup).
 
 %%%
 %%% API functions
@@ -26,7 +26,17 @@ start_link() ->
 init([]) ->
     lager:notice("~p root supervisor starting", [?SERVER]),
     SupFlags = #{},
-    Children = [],
+    Children = [
+        #{
+            id => socket_manager,
+            start => {chatserv_socket_manager, start_link, []}
+        },
+        #{
+            id => socket_supervisor,
+            start => {chatserv_socket_sup, start_link, []},
+            type => supervisor
+        }
+    ],
     {ok, {SupFlags, Children}}.
 
 %%%

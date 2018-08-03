@@ -1,4 +1,4 @@
--module(chatserv_room_sup).
+-module(chatserv_socket_sup).
 
 -behaviour(supervisor).
 
@@ -8,7 +8,7 @@
 %% Supervisor callbacks
 -export([init/1]).
 
--define(SERVER, chsv_room_sup).
+-define(SERVER, chsv_socket_sup).
 
 %%%
 %%% API functions
@@ -24,9 +24,15 @@ start_link() ->
 -spec init(Args :: term()) ->
     chatserv_sup:sv_init_result().
 init([]) ->
-    lager:notice("~p root supervisor starting", [?SERVER]),
-    SupFlags = #{},
-    Children = [],
+    lager:notice("~p supervisor starting", [?SERVER]),
+    SupFlags = #{
+        stategy => simple_one_for_one
+    },
+    Children = [#{
+        id => sockn,
+        start => {chatserv_socket, start_link, []},
+        shutdown => brutal_kill
+    }],
     {ok, {SupFlags, Children}}.
 
 %%%
