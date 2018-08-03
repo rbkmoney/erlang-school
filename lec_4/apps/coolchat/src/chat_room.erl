@@ -2,10 +2,10 @@
 -author("Kehitt").
 
 %% API
--export([new_message/2, get_messages/0, format_messages/1]).
+-export([new_message/2, get_messages/1, format_messages/1]).
 
 -type chat_messages() :: [chat_message()].
--type chat_message() :: {nonempty_string(), calendar:time(), string()}.
+-type chat_message() :: {nonempty_string(), calendar:datetime(), string()}.
 
 %% gen_server
 -behavior(gen_server).
@@ -22,12 +22,12 @@
 -spec new_message(nonempty_string(), string()) ->
     ok.
 new_message(Username, Msg) ->
-    gen_server:cast(chat_room, {new_message, {Username, erlang:time(), Msg}}).
+    gen_server:cast(chat_room, {new_message, {Username, erlang:universaltime(), Msg}}).
 
--spec get_messages() ->
+-spec get_messages(non_neg_integer()) ->
     chat_messages().
-get_messages() ->
-    gen_server:call(chat_room, get_messages).
+get_messages(Num) ->
+    gen_server:call(chat_room, {get_messages, Num}).
 
 -spec format_messages(non_neg_integer()) ->
     ok.
@@ -36,7 +36,7 @@ format_messages(Num) ->
         fun({Name, Time, Message}) ->
             io:format("~p ~p ~p~n", [Time, Name, Message])
         end,
-        lists:sublist(get_messages(), Num)
+        get_messages(Num)
     ).
 
 %%
@@ -55,10 +55,16 @@ init(undefined) ->
     lager:info("New chat room has been created~n"),
     {ok, State}.
 
--spec handle_call(get_messages, any(), state()) ->
+-spec handle_call({get_messages, non_neg_integer()}, any(), state()) ->
     {reply, chat_messages(), state()}.
-handle_call(get_messages, _, State = #{messages := Messages}) ->
-    {reply, Messages, State}.
+handle_call({get_messages, Num}, _, State = #{messages := Messages}) ->
+    Sorted = lists:sort(
+        fun(L, R) ->
+            {_, LTime, _} = L, {_, RTime, _} = R,
+            LTime > RTime
+        end, Messages),
+    LimitedMessages = lists:sublist(Sorted, Num),
+    {reply, LimitedMessages, State}.
 
 -spec handle_cast({new_message, chat_message()}, state()) ->
     {noreply, state()}.

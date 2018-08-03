@@ -38,7 +38,8 @@ init([]) ->
     },
     BotsSup = #{
         id => bots_supervisor,
-        start => {chatbot_sup, start_link, []}
+        start => {chatbot_sup, start_link, []},
+        type => supervisor
     },
     {ok, {SupArgs, [ChatRoom, BotsSup]}}.
 
