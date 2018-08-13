@@ -1,4 +1,4 @@
--module(chatserv_client_sup).
+-module(chatserv_messaging_sup).
 
 -behaviour(supervisor).
 
@@ -8,7 +8,7 @@
 %% Supervisor callbacks
 -export([init/1]).
 
--define(SERVER, chsv_client_sup).
+-define(SERVER, chsv_messaging_sup).
 
 %%%
 %%% API functions
@@ -30,13 +30,13 @@ init([]) ->
     },
     Children = [
         #{
-            id => socket_supervisor,
-            start => {chatserv_socket_sup, start_link, []},
+            id => room_supervisor,
+            start => {chatserv_room_sup, start_link, []},
             type => supervisor
         },
         #{
-            id => socket_manager,
-            start => {chatserv_socket_manager, start_link, []}
+            id => room_manager,
+            start => {chatserv_room_manager, start_link, []}
         }
     ],
     {ok, {SupFlags, Children}}.

@@ -36,7 +36,7 @@ init([]) ->
     Children = [
         #{
             id => room_sup,
-            start => {chatserv_room_sup, start_link, []},
+            start => {chatserv_messaging_sup, start_link, []},
             type => supervisor
         },
         #{

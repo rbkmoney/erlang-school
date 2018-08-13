@@ -10,25 +10,32 @@
 
 -define(SERVER, chsv_room_sup).
 
-%%%
-%%% API functions
-%%%
+%%
+%% API functions
+%%
 -spec start_link() ->
     chatserv_sup:sv_sl_result().
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
-%%%
-%%% Supervisor callbacks
-%%%
+%%
+%% Supervisor callbacks
+%%
 -spec init(Args :: term()) ->
     chatserv_sup:sv_init_result().
 init([]) ->
-    lager:notice("~p root supervisor starting", [?SERVER]),
-    SupFlags = #{},
-    Children = [],
+    lager:notice("~p supervisor starting", [?SERVER]),
+    SupFlags = #{
+        strategy => simple_one_for_one
+    },
+    Children = [#{
+        id => roomn,
+        start => {chatserv_room, start_link, []},
+        restart => permanent,
+        shutdown => brutal_kill
+    }],
     {ok, {SupFlags, Children}}.
 
-%%%
-%%% Internal functions
-%%%
+%%
+%% Internal functions
+%%
