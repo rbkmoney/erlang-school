@@ -1,6 +1,6 @@
 -module(client).
 
--export([start/0,start/2,client/2,send/2,stop/1,test/0]).
+-export([start/0,start/1,start/3,client/3,send/2,stop/1,test/0]).
 
 test() ->
     PID = start(),
@@ -12,15 +12,18 @@ test() ->
     stop(PID2).
 
 start() ->
-    start("localhost",1234).
+    start("Igor","localhost",1234).
 
-start(Host, Port) ->
-    spawn(?MODULE, client, [Host, Port]). % наверное надо будет переделать на спаунлинк с трапэкзитом
+start(Username) ->
+    start(Username,"localhost",1234).
 
-client(Host, Port) ->
+start(Username,Host, Port) ->
+    spawn(?MODULE, client, [Username,Host, Port]). % наверное надо будет переделать на спаунлинк с трапэкзитом
+
+client(Username,Host, Port) ->
     lager:info("Client ~p wants to connect to ~p:~p",[self(),Host,Port]),
     {ok, Socket} = gen_tcp:connect(Host,Port,[binary,{active,true},{packet, 2}]),
-    loop(Socket).
+    loop(Username,Socket).
 
 send(Pid, Msg) when is_binary(Msg) ->
     Pid ! {send, Msg},
@@ -33,18 +36,24 @@ stop(Pid) ->
     Pid ! stop,
     ok.
 
-loop(Socket) ->
+loop(Username,Socket) ->
     receive
         {send, Msg} ->
             lager:info("Client ~p sends message ~p",[self(),Msg]),
-            gen_tcp:send(Socket,Msg),
-            loop(Socket);
+            gen_tcp:send(Socket,term_to_binary({Username,Msg})),
+            loop(Username,Socket);
         {tcp, Socket, Msg} ->
-            lager:info("Client ~p received a message ~p",[self(),Msg]),
-            io:format("New message: ~p~n",[binary_to_list(Msg)]),
-            loop(Socket);
+            DecodedMsg = binary_to_term(Msg),
+            lager:info("Client ~p received a message ~p",[self(),DecodedMsg]),
+            F = fun(Message) ->
+                {Username,Time,Text} = Message,
+                {{YY,MM,DD}, {H,M,_}} = Time,
+                io:format("~p (~p/~p/~p ~p:~p): ~p~n",[Username,DD,MM,YY,H,M,binary_to_list(Text)])
+            end,
+            F(DecodedMsg),
+            loop(Username,Socket);
         stop ->
             lager:info("Client ~p closes connection", [self()])
         after 500 ->
-            loop(Socket)
+            loop(Username,Socket)
     end.

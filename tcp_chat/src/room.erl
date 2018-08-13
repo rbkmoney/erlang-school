@@ -10,7 +10,7 @@ start_link() ->
 
 init(undefined) ->
     start(),
-    {ok,nostate}.
+    {ok,[]}.
 
 start() ->
     start(1234).
@@ -36,16 +36,19 @@ accept(Id,ListenSocket) ->
 loop(Id, Socket, ListenSocket) ->
     case gen_tcp:recv(Socket,0) of
         {ok, Msg} ->
-            lager:info("Socket ~p received a message ~p",[Id,Msg]),
-            gen_tcp:send(Socket,Msg),
+            {Username, Text} = binary_to_term(Msg),
+            lager:info("Socket ~p received a message ~p",[Id,{Username,Text}]),
+            FullMsg = {Username,erlang:localtime(),Text},
+            gen_server:cast(?MODULE, {send,FullMsg}),
+            gen_tcp:send(Socket,term_to_binary(FullMsg)),
             loop(Id,Socket,ListenSocket);
         {error, closed} ->
             lager:info("Socket ~p stopped",[Socket]),
             accept(Id,ListenSocket)
     end.
 
-handle_cast(_,_) ->
-    {noreply,nostate}.
+handle_cast({send,Message},State) ->
+    {noreply,[Message| State]}.
 
 handle_call(_,_,State) ->
     {reply,ok,State}.

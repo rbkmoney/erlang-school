@@ -280,3 +280,215 @@
 2018-08-13 16:36:15.791 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
 2018-08-13 16:36:15.791 [info] <0.191.0>@room:loop:43 Socket #Port<0.15> stopped
 2018-08-13 16:36:15.791 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 16:46:58.929 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 16:46:58.936 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 16:46:58.941 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 16:46:58.941 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 16:46:58.941 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 16:48:34.249 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 16:48:34.262 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 16:55:49.292 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"A">>
+2018-08-13 16:55:49.292 [info] <0.191.0>@room:loop:39 Socket 1 received a message <<"A">>
+2018-08-13 16:55:49.292 [info] <0.194.0>@client:loop:43 Client <0.194.0> received a message <<"A">>
+2018-08-13 17:14:50.911 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 17:14:50.919 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 17:14:50.925 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:14:50.925 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:14:50.925 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 17:15:00.701 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 17:15:00.701 [info] <0.195.0>@client:client:21 Client <0.195.0> wants to connect to "localhost":1234
+2018-08-13 17:15:00.715 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 17:15:00.715 [info] <0.192.0>@room:accept:33 Socket 2 is now busy
+2018-08-13 17:15:00.715 [info] <0.195.0>@client:loop:39 Client <0.195.0> sends message <<"MESSAGE B">>
+2018-08-13 17:15:00.715 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"MESSAGE A">>
+2018-08-13 17:15:00.715 [info] <0.191.0>@room:loop:39 Socket 1 received a message <<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,66>>
+2018-08-13 17:15:00.715 [info] <0.192.0>@room:loop:39 Socket 2 received a message <<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,65>>
+2018-08-13 17:15:00.715 [info] <0.195.0>@client:loop:43 Client <0.195.0> received a message <<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,66>>
+2018-08-13 17:15:00.715 [info] <0.194.0>@client:loop:43 Client <0.194.0> received a message <<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,65>>
+2018-08-13 17:15:01.202 [info] <0.194.0>@client:loop:47 Client <0.194.0> closes connection
+2018-08-13 17:15:01.202 [info] <0.195.0>@client:loop:47 Client <0.195.0> closes connection
+2018-08-13 17:15:01.203 [info] <0.192.0>@room:loop:44 Socket #Port<0.16> stopped
+2018-08-13 17:15:01.203 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:15:01.203 [info] <0.191.0>@room:loop:44 Socket #Port<0.15> stopped
+2018-08-13 17:15:01.203 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:15:29.971 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 17:15:29.979 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 17:15:29.985 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:15:29.985 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:15:29.985 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 17:15:34.003 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 17:15:34.003 [info] <0.195.0>@client:client:21 Client <0.195.0> wants to connect to "localhost":1234
+2018-08-13 17:15:34.017 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 17:15:34.017 [info] <0.192.0>@room:accept:33 Socket 2 is now busy
+2018-08-13 17:15:34.017 [info] <0.195.0>@client:loop:39 Client <0.195.0> sends message <<"MESSAGE B">>
+2018-08-13 17:15:34.017 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"MESSAGE A">>
+2018-08-13 17:15:34.017 [info] <0.191.0>@room:loop:39 Socket 1 received a message <<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,66>>
+2018-08-13 17:15:34.017 [info] <0.192.0>@room:loop:39 Socket 2 received a message <<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,65>>
+2018-08-13 17:15:34.017 [info] <0.195.0>@client:loop:43 Client <0.195.0> received a message <<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,66>>
+2018-08-13 17:15:34.017 [info] <0.194.0>@client:loop:43 Client <0.194.0> received a message <<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,65>>
+2018-08-13 17:15:34.504 [info] <0.194.0>@client:loop:47 Client <0.194.0> closes connection
+2018-08-13 17:15:34.504 [info] <0.195.0>@client:loop:47 Client <0.195.0> closes connection
+2018-08-13 17:15:34.504 [info] <0.192.0>@room:loop:44 Socket #Port<0.16> stopped
+2018-08-13 17:15:34.504 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:15:34.504 [info] <0.191.0>@room:loop:44 Socket #Port<0.15> stopped
+2018-08-13 17:15:34.504 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:16:22.784 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 17:16:22.794 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 17:16:22.799 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:16:22.799 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:16:22.799 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 17:16:26.322 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 17:16:26.322 [info] <0.195.0>@client:client:21 Client <0.195.0> wants to connect to "localhost":1234
+2018-08-13 17:16:26.336 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"MESSAGE A">>
+2018-08-13 17:16:26.336 [info] <0.195.0>@client:loop:39 Client <0.195.0> sends message <<"MESSAGE B">>
+2018-08-13 17:16:26.336 [info] <0.192.0>@room:accept:33 Socket 2 is now busy
+2018-08-13 17:16:26.336 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 17:16:26.336 [info] <0.191.0>@room:loop:39 Socket 1 received a message {"Igor",<<"MESSAGE B">>}
+2018-08-13 17:16:26.336 [info] <0.192.0>@room:loop:39 Socket 2 received a message {"Igor",<<"MESSAGE A">>}
+2018-08-13 17:16:26.336 [info] <0.195.0>@client:loop:43 Client <0.195.0> received a message <<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,66>>
+2018-08-13 17:16:26.336 [info] <0.194.0>@client:loop:43 Client <0.194.0> received a message <<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,65>>
+2018-08-13 17:16:26.823 [info] <0.194.0>@client:loop:47 Client <0.194.0> closes connection
+2018-08-13 17:16:26.823 [info] <0.195.0>@client:loop:47 Client <0.195.0> closes connection
+2018-08-13 17:16:26.823 [info] <0.192.0>@room:loop:44 Socket #Port<0.16> stopped
+2018-08-13 17:16:26.823 [info] <0.191.0>@room:loop:44 Socket #Port<0.15> stopped
+2018-08-13 17:16:26.823 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:16:26.823 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:17:10.472 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 17:17:10.481 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 17:17:10.488 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:17:10.488 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:17:10.488 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 17:17:15.389 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 17:17:15.389 [info] <0.195.0>@client:client:21 Client <0.195.0> wants to connect to "localhost":1234
+2018-08-13 17:17:15.402 [info] <0.195.0>@client:loop:39 Client <0.195.0> sends message <<"MESSAGE B">>
+2018-08-13 17:17:15.402 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 17:17:15.402 [info] <0.191.0>@room:loop:39 Socket 1 received a message {"Igor",<<"MESSAGE B">>}
+2018-08-13 17:17:15.402 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"MESSAGE A">>
+2018-08-13 17:17:15.402 [info] <0.192.0>@room:accept:33 Socket 2 is now busy
+2018-08-13 17:17:15.402 [info] <0.195.0>@client:loop:43 Client <0.195.0> received a message {"Igor",<<"MESSAGE B">>}
+2018-08-13 17:17:15.402 [info] <0.192.0>@room:loop:39 Socket 2 received a message {"Igor",<<"MESSAGE A">>}
+2018-08-13 17:17:15.402 [info] <0.194.0>@client:loop:43 Client <0.194.0> received a message {"Igor",<<"MESSAGE A">>}
+2018-08-13 17:17:15.889 [info] <0.195.0>@client:loop:47 Client <0.195.0> closes connection
+2018-08-13 17:17:15.889 [info] <0.194.0>@client:loop:47 Client <0.194.0> closes connection
+2018-08-13 17:17:15.890 [info] <0.191.0>@room:loop:44 Socket #Port<0.15> stopped
+2018-08-13 17:17:15.890 [info] <0.192.0>@room:loop:44 Socket #Port<0.16> stopped
+2018-08-13 17:17:15.890 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:17:15.890 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:20:37.867 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 17:20:37.874 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 17:20:37.880 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:20:37.880 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:20:37.880 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 17:20:41.861 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 17:20:41.861 [info] <0.195.0>@client:client:21 Client <0.195.0> wants to connect to "localhost":1234
+2018-08-13 17:20:41.874 [info] <0.195.0>@client:loop:39 Client <0.195.0> sends message <<"MESSAGE B">>
+2018-08-13 17:20:41.874 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 17:20:41.875 [info] <0.192.0>@room:accept:33 Socket 2 is now busy
+2018-08-13 17:20:41.875 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"MESSAGE A">>
+2018-08-13 17:20:42.362 [info] <0.194.0>@client:loop:47 Client <0.194.0> closes connection
+2018-08-13 17:20:42.362 [info] <0.195.0>@client:loop:47 Client <0.195.0> closes connection
+2018-08-13 17:23:20.692 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 17:23:20.703 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 17:23:20.709 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:23:20.709 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:23:20.709 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 17:23:25.411 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 17:23:25.411 [info] <0.195.0>@client:client:21 Client <0.195.0> wants to connect to "localhost":1234
+2018-08-13 17:23:25.424 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 17:23:25.424 [info] <0.192.0>@room:accept:33 Socket 2 is now busy
+2018-08-13 17:23:25.424 [info] <0.195.0>@client:loop:39 Client <0.195.0> sends message <<"MESSAGE B">>
+2018-08-13 17:23:25.424 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"MESSAGE A">>
+2018-08-13 17:23:25.424 [info] <0.191.0>@room:loop:40 Socket 1 received a message {"Igor",<<"MESSAGE B">>}
+2018-08-13 17:23:25.424 [info] <0.192.0>@room:loop:40 Socket 2 received a message {"Igor",<<"MESSAGE A">>}
+2018-08-13 17:23:25.425 [info] <0.195.0>@client:loop:43 Client <0.195.0> received a message {"Igor",{{2018,8,13},{17,23,25}},<<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,66>>}
+2018-08-13 17:23:25.425 [info] <0.194.0>@client:loop:43 Client <0.194.0> received a message {"Igor",{{2018,8,13},{17,23,25}},<<131,104,2,107,0,4,73,103,111,114,109,0,0,0,9,77,69,83,83,65,71,69,32,65>>}
+2018-08-13 17:23:25.912 [info] <0.194.0>@client:loop:47 Client <0.194.0> closes connection
+2018-08-13 17:23:25.912 [info] <0.195.0>@client:loop:47 Client <0.195.0> closes connection
+2018-08-13 17:23:25.912 [info] <0.191.0>@room:loop:46 Socket #Port<0.15> stopped
+2018-08-13 17:23:25.913 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:23:25.913 [info] <0.192.0>@room:loop:46 Socket #Port<0.16> stopped
+2018-08-13 17:23:25.913 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:24:22.835 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 17:24:22.843 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 17:24:22.848 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:24:22.848 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:24:22.848 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 17:24:34.996 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 17:24:34.996 [info] <0.195.0>@client:client:21 Client <0.195.0> wants to connect to "localhost":1234
+2018-08-13 17:24:35.009 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 17:24:35.010 [info] <0.192.0>@room:accept:33 Socket 2 is now busy
+2018-08-13 17:24:35.010 [info] <0.195.0>@client:loop:39 Client <0.195.0> sends message <<"MESSAGE B">>
+2018-08-13 17:24:35.010 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"MESSAGE A">>
+2018-08-13 17:24:35.010 [info] <0.191.0>@room:loop:40 Socket 1 received a message {"Igor",<<"MESSAGE B">>}
+2018-08-13 17:24:35.010 [info] <0.192.0>@room:loop:40 Socket 2 received a message {"Igor",<<"MESSAGE A">>}
+2018-08-13 17:24:35.010 [info] <0.195.0>@client:loop:43 Client <0.195.0> received a message {"Igor",{{2018,8,13},{17,24,35}},<<"MESSAGE B">>}
+2018-08-13 17:24:35.010 [info] <0.194.0>@client:loop:43 Client <0.194.0> received a message {"Igor",{{2018,8,13},{17,24,35}},<<"MESSAGE A">>}
+2018-08-13 17:24:35.496 [info] <0.194.0>@client:loop:47 Client <0.194.0> closes connection
+2018-08-13 17:24:35.496 [info] <0.195.0>@client:loop:47 Client <0.195.0> closes connection
+2018-08-13 17:24:35.497 [info] <0.192.0>@room:loop:46 Socket #Port<0.16> stopped
+2018-08-13 17:24:35.497 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:24:35.497 [info] <0.191.0>@room:loop:46 Socket #Port<0.15> stopped
+2018-08-13 17:24:35.497 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:29:00.625 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 17:29:00.633 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 17:29:00.639 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:29:00.639 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:29:00.639 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 17:29:04.153 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 17:29:04.153 [info] <0.195.0>@client:client:21 Client <0.195.0> wants to connect to "localhost":1234
+2018-08-13 17:29:04.167 [info] <0.195.0>@client:loop:39 Client <0.195.0> sends message <<"MESSAGE B">>
+2018-08-13 17:29:04.167 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"MESSAGE A">>
+2018-08-13 17:29:04.167 [info] <0.192.0>@room:accept:33 Socket 2 is now busy
+2018-08-13 17:29:04.167 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 17:29:04.167 [info] <0.192.0>@room:loop:40 Socket 2 received a message {"Igor",<<"MESSAGE A">>}
+2018-08-13 17:29:04.167 [info] <0.191.0>@room:loop:40 Socket 1 received a message {"Igor",<<"MESSAGE B">>}
+2018-08-13 17:29:04.167 [info] <0.195.0>@client:loop:44 Client <0.195.0> received a message {"Igor",{{2018,8,13},{17,29,4}},<<"MESSAGE B">>}
+2018-08-13 17:29:04.167 [info] <0.194.0>@client:loop:44 Client <0.194.0> received a message {"Igor",{{2018,8,13},{17,29,4}},<<"MESSAGE A">>}
+2018-08-13 17:29:04.653 [info] <0.194.0>@client:loop:53 Client <0.194.0> closes connection
+2018-08-13 17:29:04.653 [info] <0.195.0>@client:loop:53 Client <0.195.0> closes connection
+2018-08-13 17:29:04.654 [info] <0.191.0>@room:loop:46 Socket #Port<0.15> stopped
+2018-08-13 17:29:04.654 [info] <0.192.0>@room:loop:46 Socket #Port<0.16> stopped
+2018-08-13 17:29:04.654 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:29:04.654 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:29:42.876 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 17:29:42.888 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 17:29:42.895 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:29:42.895 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:29:42.895 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 17:29:47.443 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 17:29:47.443 [info] <0.195.0>@client:client:21 Client <0.195.0> wants to connect to "localhost":1234
+2018-08-13 17:29:47.457 [info] <0.195.0>@client:loop:39 Client <0.195.0> sends message <<"MESSAGE B">>
+2018-08-13 17:29:47.457 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"MESSAGE A">>
+2018-08-13 17:29:47.457 [info] <0.192.0>@room:accept:33 Socket 2 is now busy
+2018-08-13 17:29:47.457 [info] <0.192.0>@room:loop:40 Socket 2 received a message {"Igor",<<"MESSAGE A">>}
+2018-08-13 17:29:47.457 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 17:29:47.457 [info] <0.191.0>@room:loop:40 Socket 1 received a message {"Igor",<<"MESSAGE B">>}
+2018-08-13 17:29:47.457 [info] <0.194.0>@client:loop:44 Client <0.194.0> received a message {"Igor",{{2018,8,13},{17,29,47}},<<"MESSAGE A">>}
+2018-08-13 17:29:47.457 [info] <0.195.0>@client:loop:44 Client <0.195.0> received a message {"Igor",{{2018,8,13},{17,29,47}},<<"MESSAGE B">>}
+2018-08-13 17:29:47.944 [info] <0.194.0>@client:loop:53 Client <0.194.0> closes connection
+2018-08-13 17:29:47.944 [info] <0.195.0>@client:loop:53 Client <0.195.0> closes connection
+2018-08-13 17:29:47.944 [info] <0.192.0>@room:loop:46 Socket #Port<0.16> stopped
+2018-08-13 17:29:47.944 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:29:47.944 [info] <0.191.0>@room:loop:46 Socket #Port<0.15> stopped
+2018-08-13 17:29:47.944 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:30:31.080 [info] <0.187.0>@tcp_chat_sup:init:34 App supervisor initialized
+2018-08-13 17:30:31.087 [info] <0.189.0>@room:room:22 Room started on port 1234
+2018-08-13 17:30:31.093 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
+2018-08-13 17:30:31.093 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:30:31.093 [info] <0.193.0>@room:accept:31 Socket 3 is waiting
+2018-08-13 17:30:37.991 [info] <0.194.0>@client:client:21 Client <0.194.0> wants to connect to "localhost":1234
+2018-08-13 17:30:37.991 [info] <0.195.0>@client:client:21 Client <0.195.0> wants to connect to "localhost":1234
+2018-08-13 17:30:38.004 [info] <0.195.0>@client:loop:39 Client <0.195.0> sends message <<"MESSAGE B">>
+2018-08-13 17:30:38.004 [info] <0.191.0>@room:accept:33 Socket 1 is now busy
+2018-08-13 17:30:38.004 [info] <0.191.0>@room:loop:40 Socket 1 received a message {"Igor",<<"MESSAGE B">>}
+2018-08-13 17:30:38.004 [info] <0.194.0>@client:loop:39 Client <0.194.0> sends message <<"MESSAGE A">>
+2018-08-13 17:30:38.004 [info] <0.195.0>@client:loop:44 Client <0.195.0> received a message {"Igor",{{2018,8,13},{17,30,38}},<<"MESSAGE B">>}
+2018-08-13 17:30:38.004 [info] <0.192.0>@room:accept:33 Socket 2 is now busy
+2018-08-13 17:30:38.004 [info] <0.192.0>@room:loop:40 Socket 2 received a message {"Igor",<<"MESSAGE A">>}
+2018-08-13 17:30:38.004 [info] <0.194.0>@client:loop:44 Client <0.194.0> received a message {"Igor",{{2018,8,13},{17,30,38}},<<"MESSAGE A">>}
+2018-08-13 17:30:38.491 [info] <0.194.0>@client:loop:53 Client <0.194.0> closes connection
+2018-08-13 17:30:38.491 [info] <0.195.0>@client:loop:53 Client <0.195.0> closes connection
+2018-08-13 17:30:38.492 [info] <0.192.0>@room:loop:46 Socket #Port<0.16> stopped
+2018-08-13 17:30:38.492 [info] <0.191.0>@room:loop:46 Socket #Port<0.15> stopped
+2018-08-13 17:30:38.492 [info] <0.192.0>@room:accept:31 Socket 2 is waiting
+2018-08-13 17:30:38.492 [info] <0.191.0>@room:accept:31 Socket 1 is waiting
