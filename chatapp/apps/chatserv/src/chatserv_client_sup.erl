@@ -25,7 +25,9 @@ start_link() ->
     chatserv_sup:sv_init_result().
 init([]) ->
     lager:notice("~p root supervisor starting", [?SERVER]),
-    SupFlags = #{},
+    SupFlags = #{
+        strategy => one_for_all
+    },
     Children = [
         #{
             id => socket_manager,

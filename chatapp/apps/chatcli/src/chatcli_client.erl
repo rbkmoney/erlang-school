@@ -1,0 +1,66 @@
+-module(chatcli_client).
+-behavior(gen_server).
+
+%%API
+-type client_state() :: #{
+    socket := gen_tcp:socket() | undefined
+}.
+
+%% gen_server
+-export([
+    start_link/0,
+    init/1,
+    handle_call/3,
+    handle_continue/2,
+    handle_cast/2,
+    handle_info/2
+]).
+
+%%
+%% gen_server
+%%
+
+-spec start_link() ->
+    {ok, pid()} | {error, term()}.
+start_link() ->
+    gen_server:start_link({local, chat_client}, ?MODULE, [], []).
+
+-spec init([]) -> {ok, client_state(), {continue, connect_to_server}}.
+init([]) ->
+    {ok, #{
+        socket => undefined
+    }, {
+        continue, connect_to_server
+    }}.
+
+-spec handle_call(any(), any(), client_state()) ->
+    {noreply, client_state()}.
+handle_call(_, _, State) ->
+    {noreply, State}.
+
+-spec handle_cast(any(), client_state()) ->
+    {noreply, client_state()}.
+handle_cast(_, State) ->
+    {noreply, State}.
+
+-spec handle_continue(connect_to_server, client_state()) ->
+    {noreply, client_state()}.
+handle_continue(connect_to_server, State) ->
+    {ok, Sock} = gen_tcp:connect("0.0.0.0", 8888, [{active, once}]),
+    gen_tcp:send(Sock, <<"ping">>),
+    {noreply, State#{socket:=Sock}}.
+
+-spec handle_info({tcp, gen_tcp:socket(), any()} | {tcp_closed, gen_tcp:socket()}, client_state()) ->
+    {noreply, client_state()}.
+handle_info({tcp, Sock, Data}, State = #{socket := Sock}) ->
+    io:format("~p~n", [Data]),
+    inet:setopts(Sock, [{active, once}]),
+    {noreply, State};
+handle_info({tcp_closed, Sock}, State = #{socket := Sock}) ->
+    lager:info("Tcp connection closed"),
+    {stop, shutdown, State}.
+
+%%
+%% Internal
+%%
+

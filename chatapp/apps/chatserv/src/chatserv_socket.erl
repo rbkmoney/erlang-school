@@ -8,7 +8,6 @@
 %% gen_server
 -behavior(gen_server).
 -export([
-    start_link/0,
     start_link/1,
     init/1,
     handle_call/3,
@@ -21,12 +20,10 @@
 %% gen_server
 %%
 
-start_link() ->
-    ignore.
 -spec start_link(gen_tcp:socket()) ->
     {ok, pid()} | {error, _}.
 start_link(LSock) ->
-    gen_server:start_link(?MODULE, [LSock], []).
+    gen_server:start_link(?MODULE, LSock, []).
 
 -spec init(gen_tcp:socket()) ->
     {ok, socket_state(), {continue, start_accept}}.
@@ -48,12 +45,21 @@ handle_cast({server_reply, Data}, State = #{socket := ASock}) ->
     {noreply, socket_state()}.
 handle_continue(start_accept, State = #{socket := LSock}) ->
     {ok, ASock} = gen_tcp:accept(LSock),
+    lager:info("New client connected ~p", [ASock]),
     gen_server:cast(socket_manager, {client_connected, self()}),
     {noreply, State#{socket := ASock}}.
 
--spec handle_info({tcp, gen_tcp:socket(), any()}, socket_state()) ->
+-spec handle_info(
+        {tcp, gen_tcp:socket(), any()} | {tcp_closed, gen_tcp:socket()},
+        socket_state()) ->
     {noreply, socket_state()}.
 handle_info({tcp, ASock, Data}, State = #{socket := ASock}) ->
-    gen_server:cast(socket_manager, {client_data, self(), Data}),
-    inet:setopts(ASock, [{active,once}]),
-    {noreply, State}.
+    %gen_server:cast(socket_manager, {client_data, self(), Data}),
+    %@todo parse data in this process
+    lager:info("Recieved data: ~p", [Data]),
+    gen_tcp:send(ASock, <<"pong">>),
+    inet:setopts(ASock, [{active, once}]),
+    {noreply, State};
+handle_info({tcp_closed, ASock}, State = #{socket := ASock}) ->
+    lager:info("Tcp connection closed"),
+    {stop, shutdown, State}.
