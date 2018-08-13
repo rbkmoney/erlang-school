@@ -41,12 +41,12 @@ handle_call(_, _, State) ->
 handle_cast({client_connected, _Pid}, State = #{clients := Clients, listener := LSocket}) ->
     {ok, Pid} = supervisor:start_child(chsv_socket_sup, [LSocket]),
     erlang:monitor(process, Pid),
-    {noreply, State#{clients := Clients ++ Pid}}.
+    {noreply, State#{clients := [Clients|Pid]}}.
 
 -spec handle_continue(spawn_acceptors, socket_manager_state()) ->
     {noreply, socket_manager_state()}.
 handle_continue(spawn_acceptors, State) ->
-    {ok, LSocket} = gen_tcp:listen(8888, [{active, once}]),
+    {ok, LSocket} = gen_tcp:listen(8888, [binary, {active, once}]),
     NewSockets = lists:map(
         fun(_) ->
             {ok, Pid} = supervisor:start_child(chsv_socket_sup, [LSocket]),

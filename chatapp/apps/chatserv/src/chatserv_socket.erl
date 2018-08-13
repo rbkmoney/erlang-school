@@ -53,13 +53,24 @@ handle_continue(start_accept, State = #{socket := LSock}) ->
         {tcp, gen_tcp:socket(), any()} | {tcp_closed, gen_tcp:socket()},
         socket_state()) ->
     {noreply, socket_state()}.
-handle_info({tcp, ASock, Data}, State = #{socket := ASock}) ->
-    %gen_server:cast(socket_manager, {client_data, self(), Data}),
-    %@todo parse data in this process
-    lager:info("Recieved data: ~p", [Data]),
-    gen_tcp:send(ASock, <<"pong">>),
+handle_info({tcp, ASock, <<Type, Rest/binary>>}, State = #{socket := ASock}) ->
+    lager:info("Recieved packet type ~p, data: ~p", [Type, Rest]),
+    handle_packet(Type, Rest, ASock),
     inet:setopts(ASock, [{active, once}]),
     {noreply, State};
 handle_info({tcp_closed, ASock}, State = #{socket := ASock}) ->
     lager:info("Tcp connection closed"),
     {stop, shutdown, State}.
+
+%%
+%% Internal functions
+%%q
+
+handle_packet(1, <<0>>, Socket) ->
+    gen_tcp:send(Socket, <<0>>);
+handle_packet(2, <<RoomId:16/unsigned>>, Socket) ->
+    gen_tcp:send(Socket, <<1, RoomId:16/unsigned>>);
+handle_packet(3, <<Name/binary>>, Socket) ->
+    gen_tcp:send(Socket, <<1, Name/binary>>);
+handle_packet(4, <<Message/binary>>, Socket) ->
+    gen_tcp:send(Socket, <<1, Message/binary>>).

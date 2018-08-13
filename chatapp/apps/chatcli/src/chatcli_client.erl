@@ -6,6 +6,13 @@
     socket := gen_tcp:socket() | undefined
 }.
 
+-export([
+    get_room_list/0,
+    join_room/1,
+    set_name/1,
+    send_message/1
+]).
+
 %% gen_server
 -export([
     start_link/0,
@@ -15,6 +22,22 @@
     handle_cast/2,
     handle_info/2
 ]).
+
+%%
+%% API
+%%
+
+get_room_list() ->
+    gen_server:cast(chat_client, get_room_list).
+
+join_room(RoomId) ->
+    gen_server:cast(chat_client, {join_room, RoomId}).
+
+set_name(NewName) ->
+    gen_server:cast(chat_client, {set_name, NewName}).
+
+send_message(NewMessage) ->
+    gen_server:cast(chat_client, {send_message, NewMessage}).
 
 %%
 %% gen_server
@@ -38,16 +61,31 @@ init([]) ->
 handle_call(_, _, State) ->
     {noreply, State}.
 
--spec handle_cast(any(), client_state()) ->
+-spec handle_cast(get_room_list |
+                {join_room, non_neg_integer()} |
+                {set_name, nonempty_string()} |
+                {send_message, nonempty_string()},
+        client_state()) ->
     {noreply, client_state()}.
-handle_cast(_, State) ->
+handle_cast(get_room_list, State = #{socket := Sock}) ->
+    gen_tcp:send(Sock, <<1, 0>>),
+    {noreply, State};
+handle_cast({join_room, RoomId}, State = #{socket := Sock}) ->
+    gen_tcp:send(Sock, <<2, RoomId:16/unsigned>>),
+    {noreply, State};
+handle_cast({set_name, NewName}, State = #{socket := Sock}) ->
+    BinaryName = list_to_binary(NewName),
+    gen_tcp:send(Sock, <<3, BinaryName/bytes>>),
+    {noreply, State};
+handle_cast({send_message, NewMessage}, State = #{socket := Sock}) ->
+    BinaryMessage = list_to_binary(NewMessage),
+    gen_tcp:send(Sock, <<4, BinaryMessage/bytes>>),
     {noreply, State}.
 
 -spec handle_continue(connect_to_server, client_state()) ->
     {noreply, client_state()}.
 handle_continue(connect_to_server, State) ->
-    {ok, Sock} = gen_tcp:connect("0.0.0.0", 8888, [{active, once}]),
-    gen_tcp:send(Sock, <<"ping">>),
+    {ok, Sock} = gen_tcp:connect("0.0.0.0", 8888, [binary, {active, once}]),
     {noreply, State#{socket:=Sock}}.
 
 -spec handle_info({tcp, gen_tcp:socket(), any()} | {tcp_closed, gen_tcp:socket()}, client_state()) ->
