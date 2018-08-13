@@ -38,10 +38,10 @@ init([]) ->
 handle_call(_, _, State) ->
     {noreply, State}.
 
-handle_cast({client_connected, _Pid}, State = #{clients := Clients, listener := LSocket}) ->
+handle_cast({client_connected, _}, State = #{clients := Clients, listener := LSocket}) ->
     {ok, Pid} = supervisor:start_child(chsv_socket_sup, [LSocket]),
     erlang:monitor(process, Pid),
-    {noreply, State#{clients := [Clients|Pid]}}.
+    {noreply, State#{clients := [Pid|Clients]}}.
 
 -spec handle_continue(spawn_acceptors, socket_manager_state()) ->
     {noreply, socket_manager_state()}.

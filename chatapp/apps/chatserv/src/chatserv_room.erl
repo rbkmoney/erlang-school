@@ -25,7 +25,7 @@
 start_link(Id, Name) ->
     gen_server:start_link(?MODULE, [Id, Name], []).
 
--spec init([]) ->
+-spec init([any(), ...]) ->
     {ok, room_state()}.
 init([Id, Name]) ->
     {ok, #{members => [], id => Id, name => Name}}.
