@@ -9,9 +9,8 @@
 -export([
     get_room_list/0,
     join_room/1,
-    set_name/1,
-    send_message/1
-]).
+    set_name/2,
+    send_message/2]).
 
 %% gen_server
 -export([
@@ -33,11 +32,11 @@ get_room_list() ->
 join_room(RoomId) ->
     gen_server:cast(chat_client, {join_room, RoomId}).
 
-set_name(NewName) ->
-    gen_server:cast(chat_client, {set_name, NewName}).
+set_name(RoomId, NewName) ->
+    gen_server:cast(chat_client, {set_name, RoomId, NewName}).
 
-send_message(NewMessage) ->
-    gen_server:cast(chat_client, {send_message, NewMessage}).
+send_message(RoomId, NewMessage) ->
+    gen_server:cast(chat_client, {send_message, RoomId, NewMessage}).
 
 %%
 %% gen_server
@@ -68,18 +67,18 @@ handle_call(_, _, State) ->
         client_state()) ->
     {noreply, client_state()}.
 handle_cast(get_room_list, State = #{socket := Sock}) ->
-    gen_tcp:send(Sock, <<1, 0>>),
+    gen_tcp:send(Sock, <<1, 0, 0>>),
     {noreply, State};
 handle_cast({join_room, RoomId}, State = #{socket := Sock}) ->
-    gen_tcp:send(Sock, <<2, RoomId:16/unsigned>>),
+    gen_tcp:send(Sock, <<2, RoomId:16/unsigned, 0>>),
     {noreply, State};
-handle_cast({set_name, NewName}, State = #{socket := Sock}) ->
+handle_cast({set_name, RoomId, NewName}, State = #{socket := Sock}) ->
     BinaryName = list_to_binary(NewName),
-    gen_tcp:send(Sock, <<3, BinaryName/bytes>>),
+    gen_tcp:send(Sock, <<3, RoomId:16/unsigned, BinaryName/bytes>>),
     {noreply, State};
-handle_cast({send_message, NewMessage}, State = #{socket := Sock}) ->
+handle_cast({send_message, RoomId, NewMessage}, State = #{socket := Sock}) ->
     BinaryMessage = list_to_binary(NewMessage),
-    gen_tcp:send(Sock, <<4, BinaryMessage/bytes>>),
+    gen_tcp:send(Sock, <<4, RoomId:16/unsigned, BinaryMessage/bytes>>),
     {noreply, State}.
 
 -spec handle_continue(connect_to_server, client_state()) ->

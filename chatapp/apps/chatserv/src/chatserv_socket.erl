@@ -53,9 +53,9 @@ handle_continue(start_accept, State = #{socket := LSock}) ->
         {tcp, gen_tcp:socket(), any()} | {tcp_closed, gen_tcp:socket()},
         socket_state()) ->
     {noreply, socket_state()}.
-handle_info({tcp, ASock, <<Type, Rest/binary>>}, State = #{socket := ASock}) ->
-    lager:info("Recieved packet type ~p, data: ~p", [Type, Rest]),
-    handle_packet(Type, Rest, ASock),
+handle_info({tcp, ASock, <<Type, RoomId:16/unsigned, Data/binary>>}, State = #{socket := ASock}) ->
+    lager:info("Recieved packet type ~p, directed to: ~p data: ~p", [Type, RoomId, Data]),
+    handle_packet(Type, RoomId, Data, ASock),
     inet:setopts(ASock, [{active, once}]),
     {noreply, State};
 handle_info({tcp_closed, ASock}, State = #{socket := ASock}) ->
@@ -64,13 +64,20 @@ handle_info({tcp_closed, ASock}, State = #{socket := ASock}) ->
 
 %%
 %% Internal functions
-%%q
+%%
 
-handle_packet(1, <<0>>, Socket) ->
-    gen_tcp:send(Socket, <<0>>);
-handle_packet(2, <<RoomId:16/unsigned>>, Socket) ->
-    gen_tcp:send(Socket, <<1, RoomId:16/unsigned>>);
-handle_packet(3, <<Name/binary>>, Socket) ->
-    gen_tcp:send(Socket, <<1, Name/binary>>);
-handle_packet(4, <<Message/binary>>, Socket) ->
-    gen_tcp:send(Socket, <<1, Message/binary>>).
+%%just echo the requests
+%%@todo actual implementations
+
+%system message (only room list for now)
+handle_packet(1, 0, _, Socket) ->
+    gen_tcp:send(Socket, <<1>>);
+%join room
+handle_packet(2, RoomId, _, Socket) ->
+    gen_tcp:send(Socket, <<2, RoomId:16/unsigned>>);
+%set name
+handle_packet(3, RoomId, <<Name/binary>>, Socket) ->
+    gen_tcp:send(Socket, <<3, RoomId:16/unsigned, Name/binary>>);
+%send message
+handle_packet(4, RoomId, <<Message/binary>>, Socket) ->
+    gen_tcp:send(Socket, <<4, RoomId:16/unsigned, Message/binary>>).
