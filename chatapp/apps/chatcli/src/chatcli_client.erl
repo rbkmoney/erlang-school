@@ -105,8 +105,8 @@ handle_info({tcp_closed, Sock}, State = #{socket := Sock}) ->
     ok.
 
 %room list
-handle_packet(_, 1, <<_ResponseMsg/binary>>) ->
-    %io:format("~p~n", [ResponseMsg]),
+handle_packet(_, 1, <<ResponseMsg/binary>>) ->
+    io:format("~p~n", [binary_to_list(ResponseMsg)]),
     ok;
 %join room
 handle_packet(_, 2, <<_RoomId:16/unsigned>>) ->
