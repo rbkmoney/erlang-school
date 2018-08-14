@@ -2,7 +2,8 @@
 
 %% API
 -type socket_state() :: #{
-    socket := gen_tcp:socket()
+    socket := gen_tcp:socket(),
+    joined_rooms := [{non_neg_integer(), pid()}] %pid caching
 }.
 
 %% gen_server
@@ -28,7 +29,7 @@ start_link(LSock) ->
 -spec init(gen_tcp:socket()) ->
     {ok, socket_state(), {continue, start_accept}}.
 init(LSock) ->
-    {ok, #{socket => LSock}, {continue, start_accept}}.
+    {ok, #{socket => LSock, joined_rooms => []}, {continue, start_accept}}.
 
 -spec handle_call(any(), any(), socket_state()) ->
     {noreply, socket_state()}.
@@ -54,10 +55,10 @@ handle_continue(start_accept, State = #{socket := LSock}) ->
         socket_state()) ->
     {noreply, socket_state()}.
 handle_info({tcp, ASock, <<Type, RoomId:16/unsigned, Data/binary>>}, State = #{socket := ASock}) ->
-    lager:info("Recieved packet type ~p, directed to: ~p data: ~p", [Type, RoomId, Data]),
-    handle_packet(Type, RoomId, Data, ASock),
+    lager:info("Received packet type ~p, directed to: ~p data: ~p", [Type, RoomId, Data]),
+    NewState = handle_packet(Type, RoomId, Data, State),
     inet:setopts(ASock, [{active, once}]),
-    {noreply, State};
+    {noreply, NewState};
 handle_info({tcp_closed, ASock}, State = #{socket := ASock}) ->
     lager:info("Tcp connection closed"),
     {stop, shutdown, State}.
@@ -66,18 +67,52 @@ handle_info({tcp_closed, ASock}, State = #{socket := ASock}) ->
 %% Internal functions
 %%
 
-%%just echo the requests
-%%@todo actual implementations
+%%
+%@todo possible refactoring
+
+%@todo change format to include room name and use term to bin
+-spec handle_packet(non_neg_integer(), non_neg_integer(), binary(), socket_state()) ->
+    socket_state().
 
 %system message (only room list for now)
-handle_packet(1, 0, _, Socket) ->
-    gen_tcp:send(Socket, <<1>>);
+handle_packet(1, 0, _, State = #{socket := Socket}) ->
+    RoomList = gen_server:call(room_manager, get_rooms_list),
+    ResponseMsg = room_list_to_bin(RoomList),
+    gen_tcp:send(Socket, <<0, 1, ResponseMsg/binary>>),
+    State;
 %join room
-handle_packet(2, RoomId, _, Socket) ->
-    gen_tcp:send(Socket, <<2, RoomId:16/unsigned>>);
+handle_packet(2, RoomId, _, State = #{socket := Socket, joined_rooms := Rooms}) ->
+    RoomList = gen_server:call(room_manager, get_rooms_list),
+    {RoomName, Pid} = lists:keyfind(RoomId, 1, RoomList),
+    gen_server:cast(Pid, {join_room, self()}),
+    gen_tcp:send(Socket, <<0, 2, RoomId:16/unsigned>>),
+    State#{joined_rooms := [{RoomName, Pid} | Rooms]};
 %set name
-handle_packet(3, RoomId, <<Name/binary>>, Socket) ->
-    gen_tcp:send(Socket, <<3, RoomId:16/unsigned, Name/binary>>);
+handle_packet(3, RoomId, <<Name/binary>>, State = #{socket := Socket, joined_rooms := Rooms}) ->
+    gen_server:cast(room_pid_by_id(RoomId, Rooms), {set_name, self(), binary_to_list(Name)}),
+    gen_tcp:send(Socket, <<0, 3, RoomId:16/unsigned, Name/binary>>),
+    State;
 %send message
-handle_packet(4, RoomId, <<Message/binary>>, Socket) ->
-    gen_tcp:send(Socket, <<4, RoomId:16/unsigned, Message/binary>>).
+handle_packet(4, RoomId, <<Message/binary>>, State = #{socket := Socket, joined_rooms := Rooms}) ->
+    gen_server:cast(room_pid_by_id(RoomId, Rooms), {send_message, self(), binary_to_list(Message)}),
+    gen_tcp:send(Socket, <<0, 4, RoomId:16/unsigned, Message/binary>>),
+    State.
+
+
+%room_list_to_bin
+-spec room_list_to_bin([{non_neg_integer(), pid()}]) ->
+    binary().
+room_list_to_bin(RoomList) ->
+    room_list_to_bin(RoomList, []).
+
+room_list_to_bin([], Stack) ->
+    list_to_binary(lists:reverse(Stack));
+room_list_to_bin([{Id, _}|T], Stack) ->
+    room_list_to_bin(T, [Id | Stack]).
+
+%room_pid_by_id
+-spec room_pid_by_id(non_neg_integer(), [{non_neg_integer(), pid()}]) ->
+    pid().
+room_pid_by_id(RoomId, Rooms) ->
+    {_, Pid} = lists:keyfind(RoomId, 1, Rooms),
+    Pid.

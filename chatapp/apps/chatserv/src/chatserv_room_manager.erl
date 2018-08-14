@@ -33,8 +33,8 @@ init([]) ->
         continue, load_rooms
     }}.
 
-handle_call(_, _, State) ->
-    {noreply, State}.
+handle_call(get_rooms_list, _, State = #{rooms := Rooms}) ->
+    {reply, Rooms, State}.
 
 handle_cast(_, State) ->
     {noreply, State}.

@@ -89,8 +89,8 @@ handle_continue(connect_to_server, State) ->
 
 -spec handle_info({tcp, gen_tcp:socket(), any()} | {tcp_closed, gen_tcp:socket()}, client_state()) ->
     {noreply, client_state()}.
-handle_info({tcp, Sock, Data}, State = #{socket := Sock}) ->
-    io:format("~p~n", [Data]),
+handle_info({tcp, Sock, <<Error, Type, Rest/binary>>}, State = #{socket := Sock}) ->
+    handle_packet(Error, Type, Rest),
     inet:setopts(Sock, [{active, once}]),
     {noreply, State};
 handle_info({tcp_closed, Sock}, State = #{socket := Sock}) ->
@@ -100,4 +100,36 @@ handle_info({tcp_closed, Sock}, State = #{socket := Sock}) ->
 %%
 %% Internal
 %%
+
+-spec handle_packet(non_neg_integer(), non_neg_integer(), binary()) ->
+    ok.
+
+%room list
+handle_packet(_, 1, <<_ResponseMsg/binary>>) ->
+    %io:format("~p~n", [ResponseMsg]),
+    ok;
+%join room
+handle_packet(_, 2, <<_RoomId:16/unsigned>>) ->
+    %io:format("~p~n", [RoomId]),
+    ok;
+%set name
+handle_packet(_, 3, <<_RoomId:16/unsigned, _Name/binary>>) ->
+    %io:format("~p, ~p~n", [RoomId, Name]),
+    ok;
+%send message
+handle_packet(_, 4, <<_RoomId:16/unsigned, _Message/binary>>) ->
+    %io:format("~p, ~p~n", [RoomId, Message])
+    ok;
+%receive messages
+handle_packet(_, 5, <<RoomId:16/unsigned, MessagesBin/binary>>) ->
+    MessageList = binary_to_term(MessagesBin),
+
+    lists:foreach(
+        fun({Time, Username, Message}) ->
+            io:format("[Client][Room:~p][~p][~p] ~p~n", [RoomId, Time, Username, Message])
+        end,
+        MessageList
+    ).
+
+
 
