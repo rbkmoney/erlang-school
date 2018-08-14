@@ -2,14 +2,18 @@
 
 -export([start/0,start/1,start/3,client/3,send/2,stop/1,test/0]).
 
+
+-spec test() ->
+    ok.
 test() ->
     PID = start(),
     PID2 = start(),
     send(PID, <<"MESSAGE A">>),
     send(PID2, <<"MESSAGE B">>),
-    timer:sleep(500), %Нужно, чтобы дать серверу время на обруботку ответов
+    timer:sleep(500), %Нужно, чтобы дать серверу время на обработку ответов
     stop(PID),
-    stop(PID2).
+    stop(PID2),
+    ok.
 
 start() ->
     start("Igor","localhost",1234).
@@ -21,21 +25,30 @@ start(Username,Host, Port) ->
     spawn(?MODULE, client, [Username,Host, Port]). % наверное надо будет переделать на спаунлинк с трапэкзитом
 
 client(Username,Host, Port) ->
+    room2:connect(),
     lager:info("Client ~p wants to connect to ~p:~p",[self(),Host,Port]),
     {ok, Socket} = gen_tcp:connect(Host,Port,[binary,{active,true},{packet, 2}]),
     loop(Username,Socket).
 
+
+-spec send(pid(),binary() | list()) ->
+    ok.
 send(Pid, Msg) when is_binary(Msg) ->
     Pid ! {send, Msg},
     ok;
-send(Pid, Msg) ->
+send(Pid, Msg) when is_list(Msg) ->
     Pid ! {send, list_to_binary(Msg)},
-    ok.
+    ok;
+send(_,Msg) ->
+    throw({invalid_input,Msg}).
 
+-spec stop(pid()) ->
+    ok.
 stop(Pid) ->
     Pid ! stop,
     ok.
-
+-spec loop(string(),port()) ->
+    ok.
 loop(Username,Socket) ->
     receive
         {send, Msg} ->

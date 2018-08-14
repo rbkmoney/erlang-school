@@ -31,15 +31,15 @@ start_link() ->
 %% Before OTP 18 tuples must be used to specify a child. e.g.
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
-    lager:info("App supervisor initialized"),
+    lager:notice("App supervisor initialized"),
     SupArgs = #{
         strategy => one_for_all,
         intensity => 0,
         period => 1
     },
     Room = #{
-        id => my_room,
-        start => {room,start_link,[]}
+        id => my_room2,
+        start => {room2,start_link,[]}
     },
     {ok, { SupArgs, [Room]} }.
 
