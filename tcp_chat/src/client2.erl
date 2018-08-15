@@ -2,16 +2,36 @@
 
 -behaviour(gen_server).
 
--export([start_link/0,start_link/1,init/1,handle_cast/2,handle_call/3,handle_info/2]).
+-export([start_link/0,start_link/1,init/1,handle_cast/2,handle_call/3,handle_info/2,terminate/2]).
 
--export([send/1,test/0,close/0]).
+-export([start/0,start/1,send/1,test/0,stop/0]).
 
 test() ->
-    start_link("Igor"),
+    start("Igor"),
     send("Hello, it's me, Mario!!!"),
     send("Hello, it's me, Luigi!!!"),
     timer:sleep(500),
-    close().
+    stop(),
+    tcp_chat_app:stop(a).
+
+start() ->
+    start_link().
+start(Username) when is_list(Username) ->
+    start_link(Username);
+start(Username) ->
+    {throw({invalid_input,Username})}.
+
+send(Msg) when is_binary(Msg) ->
+    lager:info("Casting send message request"),
+    gen_server:cast(?MODULE,{send,Msg});
+send(Msg) when is_list(Msg) ->
+    lager:info("Casting send message request"),
+    gen_server:cast(?MODULE,{send,list_to_binary(Msg)});
+send(Msg) ->
+    {throw({invalid_input,Msg})}.
+
+stop() ->
+    gen_server:cast(?MODULE,stop).
 
 start_link() ->
     gen_server:start_link({local,client2},?MODULE,undefined,[]).
@@ -27,18 +47,6 @@ init(_) ->
     Port = 1234,
     {ok,#{port => Port, user => "Unknown", host => "localhost"}}.
 
-send(Msg) when is_binary(Msg) ->
-    lager:info("Casting send message request"),
-    gen_server:cast(?MODULE,{send,Msg});
-send(Msg) when is_list(Msg) ->
-    lager:info("Casting send message request"),
-    gen_server:cast(?MODULE,{send,list_to_binary(Msg)});
-send(Msg) ->
-    {throw({invalid_input,Msg})}.
-
-close() ->
-    exit(stopped).
-
 handle_cast({send,Msg},State) ->
     room2:connect(),
     lager:info("Handling send message"),
@@ -49,7 +57,9 @@ handle_cast({send,Msg},State) ->
     lager:notice("Connected to ~p:~p",[Host,Port]),
     gen_tcp:send(Socket,term_to_binary({Username,Msg})),
     lager:info("Message '~p' sent",[Msg]),
-    {noreply,State}.
+    {noreply,State};
+handle_cast(stop,State) ->
+    {stop, normal,State}.
 
 handle_call(_,_,State) ->
     {reply,ok,State}.
@@ -65,3 +75,6 @@ handle_info({tcp, _, Msg},State) ->
     end,
     F(DecodedMsg),
     {noreply,State}.
+
+terminate(normal,_) ->
+    ok.
