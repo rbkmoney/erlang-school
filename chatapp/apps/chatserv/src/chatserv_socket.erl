@@ -1,3 +1,5 @@
+%@todo consider moving username (possibly switching to global un) and other data here
+
 -module(chatserv_socket).
 
 %% API

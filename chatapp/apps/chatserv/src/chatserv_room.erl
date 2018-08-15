@@ -50,6 +50,7 @@ handle_call(_, _, State) ->
 
 -spec handle_cast(tuple(), room_state()) ->
     {noreply, room_state()}.
+
 handle_cast({join_room, Pid}, State = #{members := Members, id := Id, name := Name}) ->
     %@todo prevent the same pid from joining the same room multiple times
     NewMember = #{display_name => ?DEFAULT_DISPLAY_NAME, socket_pid => Pid},
@@ -81,6 +82,7 @@ handle_cast({send_message, Pid, NewMessageText},
 %%send_messages
 -spec handle_info(send_messages, room_state()) ->
     {noreply, room_state()}.
+
 handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages := Messages}) when length(Messages) > 0 ->
     lists:foreach(
         fun(Mem) ->
