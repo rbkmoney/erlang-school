@@ -60,7 +60,11 @@ init([]) ->
     {noreply, client_state()}.
 
 handle_continue(connect_to_server, State) ->
-    {ok, Sock} = gen_tcp:connect("0.0.0.0", 8888, [binary, {active, once}]),
+    {ok, ConnIp} = application:get_env(chatserv, listen_ip),
+    {ok, ConnPort} = application:get_env(chatserv, listen_port),
+
+    {ok, Sock} = gen_tcp:connect(ConnIp, ConnPort, [binary, {active, once}]),
+
     {noreply, State#{socket:=Sock}}.
 
 -spec handle_cast(chatlib_sock:packet_types(), client_state()) ->
