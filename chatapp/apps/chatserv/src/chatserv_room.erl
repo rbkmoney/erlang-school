@@ -52,32 +52,49 @@ handle_call(_, _, State) ->
     {noreply, room_state()}.
 
 handle_cast({join_room, Pid}, State = #{members := Members, id := Id, name := Name}) ->
-    %@todo prevent the same pid from joining the same room multiple times
-    NewMember = #{display_name => ?DEFAULT_DISPLAY_NAME, socket_pid => Pid},
-    NewMemberList = [NewMember | Members],
-    lager:info("New user joined room (~p, ~p): ~p. Current member list: ~p", [Id, Name, NewMember, NewMemberList]),
-    {noreply, State#{members := NewMemberList}};
+    case get_member_by_pid(Pid, Members) of
+        false ->
+            NewMember = #{display_name => ?DEFAULT_DISPLAY_NAME, socket_pid => Pid},
+            NewMemberList = [NewMember | Members],
+            lager:info(
+                "New user joined room (~p, ~p): ~p. Current member list: ~p",
+                [Id, Name, NewMember, NewMemberList]
+            ),
+
+            {noreply, State#{members := NewMemberList}};
+        _ ->
+            {noreply, State}
+    end;
 
 handle_cast({set_name, Pid, NewName}, State = #{members := Members}) ->
-    %@todo this needs refactoring
-    %wtf
-    [Member] = lists:filter(fun(M) -> maps:get(socket_pid, M) == Pid end, Members),
-    NewMember = Member#{display_name => NewName},
-    NewMembers = replace(Member, NewMember, Members),
-    lager:info("A member has changed their name. Old: ~p; New: ~p; New list: ~p", [Member, NewMember, NewMembers]),
-    %
-    {noreply, State#{members := NewMembers}};
+    case get_member_by_pid(Pid, Members) of
+        false ->
+            {noreply, State};
+
+        Member ->
+            NewMember = Member#{display_name => NewName},
+            NewMembers = replace(Member, NewMember, Members),
+            lager:info(
+                "A member has changed their name. Old: ~p; New: ~p; New list: ~p",
+                [Member, NewMember, NewMembers]
+            ),
+
+            {noreply, State#{members := NewMembers}}
+    end;
 
 handle_cast({send_message, Pid, NewMessageText},
     State = #{id := Id, name := Name, members:= Members, messages := Messages}) ->
-    %@todo this needs refactoring
-    %no
-    [_Member = #{display_name := MemberName}] = lists:filter(fun(M) -> maps:get(socket_pid, M) == Pid end, Members),
-    NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
-    NewMessages = [NewMessage | Messages],
-    %
-    lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessage]),
-    {noreply, State#{messages := NewMessages}}.
+    case get_member_by_pid(Pid, Members) of
+        false ->
+            {noreply, State};
+
+        #{display_name := MemberName} ->
+            NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
+            NewMessages = [NewMessage | Messages],
+            lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessage]),
+
+            {noreply, State#{messages := NewMessages}}
+    end.
 
 %%send_messages
 -spec handle_info(send_messages, room_state()) ->
@@ -102,6 +119,21 @@ handle_info(send_messages, State) ->
 %%
 %% Internal
 %%
+
+-spec get_member_by_pid(pid(), [room_user()]) ->
+    room_user() | false.
+get_member_by_pid(Pid, Members) ->
+    Results = lists:filter(
+        fun(M) ->
+            maps:get(socket_pid, M) == Pid
+        end,
+        Members
+    ),
+    case length(Results) of
+        1 -> lists:nth(1, Results);
+        _ -> false
+    end.
+
 
 -spec replace(term(), term(), list()) ->
     list().
