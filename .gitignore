@@ -2,3 +2,7 @@
 *.beam
 #Others
 *.txt
+*/_build/
+.DS_Store
+*/log/
+*/.DS_Store
