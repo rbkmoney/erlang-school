@@ -10,7 +10,8 @@
     get_room_list/0,
     join_room/1,
     set_name/2,
-    send_message/2]).
+    send_message/2
+]).
 
 %% gen_server
 -export([
@@ -70,7 +71,7 @@ handle_cast(Message, State = #{socket := Sock}) ->
     gen_tcp:send(Sock, Data),
     {noreply, State}.
 
--spec handle_info( {tcp, gen_tcp:socket(), binary()} | {tcp_closed, gen_tcp:socket()}, client_state()) ->
+-spec handle_info({tcp, gen_tcp:socket(), binary()} | {tcp_closed, gen_tcp:socket()}, client_state()) ->
     {noreply, client_state()}.
 
 handle_info({tcp, Sock, Data}, State = #{socket := Sock}) ->

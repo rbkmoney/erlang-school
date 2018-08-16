@@ -74,7 +74,7 @@ handle_cast({send_message, Pid, NewMessageText},
     %no
     [_Member = #{display_name := MemberName}] = lists:filter(fun(M) -> maps:get(socket_pid, M) == Pid end, Members),
     NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
-    NewMessages = [NewMessage|Messages],
+    NewMessages = [NewMessage | Messages],
     %
     lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessage]),
     {noreply, State#{messages := NewMessages}}.

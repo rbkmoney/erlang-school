@@ -51,8 +51,8 @@ handle_cast({tcp_send, Message}, State = #{socket := ASock}) ->
     {noreply, State}.
 
 -spec handle_info(
-        {tcp, gen_tcp:socket(), any()} | {tcp_closed, gen_tcp:socket()},
-        socket_state()) ->
+    {tcp, gen_tcp:socket(), any()} | {tcp_closed, gen_tcp:socket()},
+    socket_state()) ->
     {noreply, socket_state()}.
 handle_info({tcp, ASock, Data}, State = #{socket := ASock}) ->
     Message = chatlib_sock:decode(Data),
@@ -67,7 +67,7 @@ handle_info({tcp_closed, ASock}, State = #{socket := ASock}) ->
 
 -spec handle_call(any(), any(), socket_state()) ->
     {noreply, socket_state()}.
-handle_call(_, _ , State) ->
+handle_call(_, _, State) ->
     {noreply, State}.
 
 %%
@@ -120,7 +120,7 @@ prep_room_list(RoomList) ->
 
 prep_room_list([], Stack) ->
     lists:reverse(Stack);
-prep_room_list([{Id, _}|T], Stack) ->
+prep_room_list([{Id, _} | T], Stack) ->
     prep_room_list(T, [Id | Stack]).
 
 %room_pid_by_id

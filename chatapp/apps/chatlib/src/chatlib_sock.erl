@@ -3,13 +3,13 @@
 %% API
 -type packet_types() ::
     get_rooms_list |
-    {join_room, RoomId::non_neg_integer()} |
-    {set_name, RoomId::non_neg_integer(), Name::nonempty_string()} |
-    {send_message, RoomId::non_neg_integer(), Message::nonempty_string()} |
-    {server_response, Message::term()} |
+    {join_room, RoomId :: non_neg_integer()} |
+    {set_name, RoomId :: non_neg_integer(), Name :: nonempty_string()} |
+    {send_message, RoomId :: non_neg_integer(), Message :: nonempty_string()} |
+    {server_response, Message :: term()} |
     {receive_messages,
-        RoomId::non_neg_integer(),
-        [{Time::erlang:timestamp(), Name::nonempty_string(), Message::nonempty_string()}]
+        RoomId :: non_neg_integer(),
+        [{Time :: erlang:timestamp(), Name :: nonempty_string(), Message :: nonempty_string()}]
     }.
 
 -export_type([
@@ -32,8 +32,8 @@
 %%
 %% IMPORTANT NOTICE:
 %% At the time of initially writing this I was not aware that term_to_binary supported atoms (for some reason it
-%% badarg'd and I did not understand why, so I assumed it was that). So for now just assume that this protocol is a way
-%% of saving bandwidth (atoms a somewhat big in byte form).
+%% badarg'd and I assumed it was that). So for now just assume that this protocol is a way of saving bandwidth
+%% (atoms are somewhat big in byte form).
 %%
 
 
