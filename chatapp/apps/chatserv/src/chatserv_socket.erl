@@ -86,15 +86,15 @@ handle_packet(get_rooms_list, State = #{socket := Socket}) ->
 
     State;
 
-handle_packet({join_room, RoomId}, State = #{socket := Socket, joined_rooms := Rooms}) ->
+handle_packet({join_room, NewRoomId}, State = #{socket := Socket, joined_rooms := Rooms}) ->
     RoomList = gen_server:call(room_manager, get_rooms_list),
-    {RoomName, Pid} = lists:keyfind(RoomId, 1, RoomList),
+    {RoomId, Pid} = lists:keyfind(NewRoomId, 1, RoomList),
     gen_server:cast(Pid, {join_room, self()}),
 
     Response = chatlib_sock:encode({server_response, {0, RoomId}}),
     gen_tcp:send(Socket, Response),
 
-    State#{joined_rooms := [{RoomName, Pid} | Rooms]};
+    State#{joined_rooms := [{RoomId, Pid} | Rooms]};
 
 handle_packet({set_name, RoomId, Name}, State = #{socket := Socket, joined_rooms := Rooms}) ->
     gen_server:cast(room_pid_by_id(RoomId, Rooms), {set_name, self(), Name}),
