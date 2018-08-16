@@ -66,6 +66,21 @@ handle_cast({join_room, Pid}, State = #{members := Members, id := Id, name := Na
             {noreply, State}
     end;
 
+handle_cast({leave_room, Pid}, State = #{members := Members, id := Id, name := Name}) ->
+    case get_member_by_pid(Pid, Members) of
+        false ->
+            {noreply, State};
+
+        Member ->
+            NewMemberList = lists:delete(Member, Members),
+            lager:info(
+                "User left room (~p, ~p): ~p. Current member list: ~p",
+                [Id, Name, Member, NewMemberList]
+            ),
+
+            {noreply, State#{members := NewMemberList}}
+    end;
+
 handle_cast({set_name, Pid, NewName}, State = #{members := Members}) ->
     case get_member_by_pid(Pid, Members) of
         false ->
@@ -73,13 +88,13 @@ handle_cast({set_name, Pid, NewName}, State = #{members := Members}) ->
 
         Member ->
             NewMember = Member#{display_name => NewName},
-            NewMembers = replace(Member, NewMember, Members),
+            NewMemberList = replace(Member, NewMember, Members),
             lager:info(
                 "A member has changed their name. Old: ~p; New: ~p; New list: ~p",
-                [Member, NewMember, NewMembers]
+                [Member, NewMember, NewMemberList]
             ),
 
-            {noreply, State#{members := NewMembers}}
+            {noreply, State#{members := NewMemberList}}
     end;
 
 handle_cast({send_message, Pid, NewMessageText},

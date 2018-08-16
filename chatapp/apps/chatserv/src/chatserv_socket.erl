@@ -61,8 +61,14 @@ handle_info({tcp, ASock, Data}, State = #{socket := ASock}) ->
     lager:info("Received packet ~p", [Message]),
     inet:setopts(ASock, [{active, once}]),
     {noreply, NewState};
-handle_info({tcp_closed, ASock}, State = #{socket := ASock}) ->
-    lager:info("Tcp connection closed"),
+handle_info({tcp_closed, ASock}, State = #{socket := ASock, joined_rooms := Rooms}) ->
+    lists:foreach(
+        fun({_, Pid}) ->
+            gen_server:cast(Pid, {leave_room, self()})
+        end,
+        Rooms
+    ),
+    lager:info("Tcp connection with ~p closed", [self()]),
     {stop, shutdown, State}.
 
 -spec handle_call(any(), any(), socket_state()) ->
