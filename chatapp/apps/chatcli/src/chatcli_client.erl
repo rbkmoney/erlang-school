@@ -27,7 +27,7 @@
 %%
 
 get_room_list() ->
-    gen_server:cast(chat_client, get_room_list).
+    gen_server:cast(chat_client, get_rooms_list).
 
 join_room(RoomId) ->
     gen_server:cast(chat_client, {join_room, RoomId}).
@@ -55,80 +55,55 @@ init([]) ->
         continue, connect_to_server
     }}.
 
+-spec handle_continue(connect_to_server, client_state()) ->
+    {noreply, client_state()}.
+
+handle_continue(connect_to_server, State) ->
+    {ok, Sock} = gen_tcp:connect("0.0.0.0", 8888, [binary, {active, once}]),
+    {noreply, State#{socket:=Sock}}.
+
+-spec handle_cast(chatlib_sock:packet_types(), client_state()) ->
+    {noreply, client_state()}.
+
+handle_cast(Message, State = #{socket := Sock}) ->
+    Data = chatlib_sock:encode(Message),
+    gen_tcp:send(Sock, Data),
+    {noreply, State}.
+
+-spec handle_info( {tcp, gen_tcp:socket(), binary()} | {tcp_closed, gen_tcp:socket()}, client_state()) ->
+    {noreply, client_state()}.
+
+handle_info({tcp, Sock, Data}, State = #{socket := Sock}) ->
+    Message = chatlib_sock:decode(Data),
+    handle_packet(Message),
+
+    inet:setopts(Sock, [{active, once}]),
+    {noreply, State};
+
+handle_info({tcp_closed, Sock}, State = #{socket := Sock}) ->
+    {stop, shutdown, State}.
+
 -spec handle_call(any(), any(), client_state()) ->
     {noreply, client_state()}.
 handle_call(_, _, State) ->
     {noreply, State}.
 
--spec handle_cast(get_room_list |
-                {join_room, non_neg_integer()} |
-                {set_name, nonempty_string()} |
-                {send_message, nonempty_string()},
-        client_state()) ->
-    {noreply, client_state()}.
-handle_cast(get_room_list, State = #{socket := Sock}) ->
-    gen_tcp:send(Sock, <<1, 0, 0>>),
-    {noreply, State};
-handle_cast({join_room, RoomId}, State = #{socket := Sock}) ->
-    gen_tcp:send(Sock, <<2, RoomId:16/unsigned, 0>>),
-    {noreply, State};
-handle_cast({set_name, RoomId, NewName}, State = #{socket := Sock}) ->
-    BinaryName = list_to_binary(NewName),
-    gen_tcp:send(Sock, <<3, RoomId:16/unsigned, BinaryName/bytes>>),
-    {noreply, State};
-handle_cast({send_message, RoomId, NewMessage}, State = #{socket := Sock}) ->
-    BinaryMessage = list_to_binary(NewMessage),
-    gen_tcp:send(Sock, <<4, RoomId:16/unsigned, BinaryMessage/bytes>>),
-    {noreply, State}.
-
--spec handle_continue(connect_to_server, client_state()) ->
-    {noreply, client_state()}.
-handle_continue(connect_to_server, State) ->
-    {ok, Sock} = gen_tcp:connect("0.0.0.0", 8888, [binary, {active, once}]),
-    {noreply, State#{socket:=Sock}}.
-
--spec handle_info({tcp, gen_tcp:socket(), any()} | {tcp_closed, gen_tcp:socket()}, client_state()) ->
-    {noreply, client_state()}.
-handle_info({tcp, Sock, <<Error, Type, Rest/binary>>}, State = #{socket := Sock}) ->
-    handle_packet(Error, Type, Rest),
-    inet:setopts(Sock, [{active, once}]),
-    {noreply, State};
-handle_info({tcp_closed, Sock}, State = #{socket := Sock}) ->
-    lager:info("Tcp connection closed"),
-    {stop, shutdown, State}.
-
 %%
 %% Internal
 %%
 
--spec handle_packet(non_neg_integer(), non_neg_integer(), binary()) ->
+-spec handle_packet(chatlib_sock:packet_types()) ->
     ok.
 
-%room list
-handle_packet(_, 1, <<ResponseMsg/binary>>) ->
-    io:format("~p~n", [binary_to_list(ResponseMsg)]),
+handle_packet({server_response, MessageTerm}) ->
+    io:format("~p~n", [MessageTerm]),
     ok;
-%join room
-handle_packet(_, 2, <<_RoomId:16/unsigned>>) ->
-    %io:format("~p~n", [RoomId]),
-    ok;
-%set name
-handle_packet(_, 3, <<_RoomId:16/unsigned, _Name/binary>>) ->
-    %io:format("~p, ~p~n", [RoomId, Name]),
-    ok;
-%send message
-handle_packet(_, 4, <<_RoomId:16/unsigned, _Message/binary>>) ->
-    %io:format("~p, ~p~n", [RoomId, Message])
-    ok;
-%receive messages
-handle_packet(_, 5, <<RoomId:16/unsigned, MessagesBin/binary>>) ->
-    MessageList = binary_to_term(MessagesBin),
-
+handle_packet({receive_messages, RoomId, Messages}) ->
     lists:foreach(
         fun({Time, Username, Message}) ->
             io:format("[Client][Room:~p][~p][~p] ~p~n", [RoomId, Time, Username, Message])
         end,
-        MessageList
+        Messages
     ).
 
 

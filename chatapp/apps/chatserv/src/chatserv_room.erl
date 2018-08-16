@@ -87,9 +87,8 @@ handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages :=
     lists:foreach(
         fun(Mem) ->
             Pid = maps:get(socket_pid, Mem),
-            MessagesBin = term_to_binary(Messages),
-            lager:info("Sending new messages to ~p: ~p", [Pid, MessagesBin]),
-            gen_server:cast(Pid, {server_reply, <<0, 5, RoomId:16/unsigned, MessagesBin/binary>>})
+            lager:info("Sending new messages to ~p", [Pid]),
+            gen_server:cast(Pid, {tcp_send, {receive_messages, RoomId, Messages}})
         end,
         Members
     ),
