@@ -35,11 +35,17 @@ init(LSock) ->
 
 -spec handle_continue(start_accept, socket_state()) ->
     {noreply, socket_state()}.
+
 handle_continue(start_accept, State = #{socket := LSock}) ->
-    {ok, ASock} = gen_tcp:accept(LSock),
-    lager:info("New client connected ~p", [ASock]),
-    gen_server:cast(socket_manager, {client_connected, self()}),
-    {noreply, State#{socket := ASock}}.
+    case gen_tcp:accept(LSock) of
+        {ok, ASock} ->
+            lager:info("New client connected ~p", [ASock]),
+            gen_server:cast(socket_manager, {client_connected, self()}),
+
+            {noreply, State#{socket := ASock}};
+        _ ->
+            {stop, shutdown, State}
+    end.
 
 -spec handle_cast({tcp_send, chatlib_sock:packet_type()}, socket_state()) ->
     {noreply, socket_state()}.
