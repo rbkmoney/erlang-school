@@ -6,7 +6,7 @@
 
 -export([start/0,start/1,send/1,test/0,stop/0]).
 
--type state() :: #{port => non_neg_integer(), user => list(), host => list()}.
+-type state() :: #{port => non_neg_integer(), user => string(), host => string()}.
 
 -spec test() ->
     ok.
@@ -14,6 +14,7 @@ test() ->
     start("Igor"),
     send("Hello, it's me, Mario!!!"),
     send("Hello, it's me, Luigi!!!"),
+    lager:info("Test sent messages"),
     timer:sleep(500),
     stop(),
     room:stop(),
@@ -22,6 +23,7 @@ test() ->
 start() ->
     start_link().
 start(Username) when is_list(Username) ->
+    lager:info("Starting client"),
     start_link(Username);
 start(Username) ->
     {throw({invalid_input,Username})}.
@@ -38,11 +40,13 @@ send(Msg) ->
 stop() ->
     gen_server:cast(?MODULE,stop).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 start_link() ->
-    gen_server:start_link({local,client2},?MODULE,undefined,[]).
+    gen_server:start_link({local,client},?MODULE,undefined,[]).
 
 start_link(Username) ->
-    gen_server:start_link({local,client2},?MODULE,Username,[]).
+    gen_server:start_link({local,client},?MODULE,Username,[]).
 
 -spec init(any()) ->
     {ok,state()}.
@@ -53,10 +57,14 @@ init(_) ->
     Port = 1234,
     {ok,#{port => Port, user => "Unknown", host => "localhost"}}.
 
--spec handle_cast({send,<<>>},state()) ->
-    {noreply,state()}.
-handle_cast({send,Msg},State) ->
-    room2:connect(),
+-spec handle_cast
+    ({send, <<>>}, state()) ->
+        {noreply, state()};
+    (stop, state()) ->
+        {stop, normal,state()}.
+handle_cast({send, Msg}, State) ->
+    lager:info("Connecting to room"),
+    room:connect(),
     lager:info("Handling send message"),
     Username = maps:get(user,State),
     Port = maps:get(port,State),
@@ -65,30 +73,33 @@ handle_cast({send,Msg},State) ->
     lager:notice("Connected to ~p:~p",[Host,Port]),
     gen_tcp:send(Socket,term_to_binary({Username,Msg})),
     lager:info("Message '~p' sent",[Msg]),
-    {noreply,State};
-handle_cast(stop,State) ->
-    {stop, normal,State}.
+    {noreply, State};
+handle_cast(stop, State) ->
+    {stop, normal, State}.
 
 -spec handle_call(any(),any(),state()) ->
-    {reply,ok,state()}.
+    {reply, ok, state()}.
 handle_call(_,_,State) ->
-    {reply,ok,State}.
+    {reply, ok, State}.
 
--spec handle_info({tcp,port(),binary()},state()) ->
+-spec handle_info({tcp,Socket :: port(), Message :: binary()}, State :: state()) ->
     {noreply, state()}.
-handle_info({tcp, _Socket, Msg},State) ->
+handle_info({tcp, _Socket, Msg}, State) ->
     DecodedMsg = binary_to_term(Msg),
-    lager:info("Client ~p received a message ~p",[self(),DecodedMsg]),
+    lager:info("Client ~p received a message ~p",[self(), DecodedMsg]),
     F = fun(Message) ->
-        {Username,Time,Text} = Message,
-        {{YY,MM,DD}, {H,M,_}} = Time,
-        io:format("~p (~p/~p/~p ~p:~p): ~p~n",[Username,DD,MM,YY,H,M,binary_to_list(Text)])
+        {Username, Time, Text} = Message,
+        {{YY, MM, DD}, {H, M, _}} = Time,
+        io:format("~p (~p/~p/~p ~p:~p): ~p~n",[Username, DD, MM, YY, H, M, binary_to_list(Text)])
     end,
     F(DecodedMsg),
-    {noreply,State}.
+    {noreply, State};
+handle_info(_,State) ->
+    lager:notice("Catch all"),
+    {noreply, State}.
 
--spec terminate(normal,state()) ->
+-spec terminate(normal, State :: state()) ->
     ok.
-terminate(normal,_State) ->
+terminate(normal, _State) ->
     lager:notice("Terminating client session"),
     ok.

@@ -38,8 +38,8 @@ init([]) ->
         period => 1
     },
     Room = #{
-        id => my_room2,
-        start => {room2,start_link,[]}
+        id => my_room,
+        start => {room,start_link,[]}
     },
     {ok, { SupArgs, [Room]} }.
 
