@@ -41,19 +41,19 @@
 -spec join_to(pid(), pid()) ->
     ok.
 join_to(Pid, From) ->
-    gen_server:cast(Pid, {join_room, From}),
+    _ = gen_server:cast(Pid, {join_room, From}),
     ok.
 
 -spec change_name_in(pid(), pid(), nonempty_string()) ->
     ok.
 change_name_in(Pid, From, Name) ->
-    gen_server:cast(Pid, {set_name, From, Name}),
+    _ = gen_server:cast(Pid, {set_name, From, Name}),
     ok.
 
 -spec send_message_to(pid(), pid(), nonempty_string()) ->
     ok.
 send_message_to(Pid, From, MessageText) ->
-    gen_server:cast(Pid, {send_message, From, MessageText}),
+    _ = gen_server:cast(Pid, {send_message, From, MessageText}),
     ok.
 
 %%
@@ -68,7 +68,7 @@ start_link(Id, Name) ->
 -spec init(list()) ->
     {ok, state()}.
 init([Id, Name]) ->
-    erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
+    _ = erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
     {ok, #{members => [], messages => [], id => Id, name => Name}}.
 
 -spec handle_call(any(), any(), state()) ->
@@ -89,6 +89,7 @@ handle_cast({join_room, Pid}, State = #{members := Members, id := Id, name := Na
                 [Id, Name, NewMember, NewMemberList]
             ),
 
+            erlang:monitor(process, Pid),
             {noreply, State#{members := NewMemberList}};
         _ ->
             {noreply, State}
@@ -136,7 +137,7 @@ handle_cast({send_message, Pid, NewMessageText}, State) ->
     {noreply, State#{messages := NewMessages}}.
 
 %%send_messages
--spec handle_info(send_messages, state()) ->
+-spec handle_info(send_messages | {'DOWN', reference(), process, pid(), atom()}, state()) ->
     {noreply, state()}.
 
 handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages := Messages}) when length(Messages) > 0 ->
@@ -153,6 +154,11 @@ handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages :=
 
 handle_info(send_messages, State) ->
     ok = set_sendout_timeout(),
+    {noreply, State};
+
+handle_info({'DOWN', _Ref, process, Pid, Reason}, State) ->
+    ok = lager:info("Reason ~p", [Reason]),
+    _ = gen_server:cast(self(), {leave_room, Pid}),
     {noreply, State}.
 
 %%
@@ -162,7 +168,7 @@ handle_info(send_messages, State) ->
 -spec set_sendout_timeout() ->
     ok.
 set_sendout_timeout() ->
-    erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
+    _ = erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
     ok.
 
 -spec get_member_by_pid(pid(), [room_user()]) ->
