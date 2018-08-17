@@ -101,8 +101,8 @@ handle_call(_, _, State) ->
     ok.
 
 handle_packet({server_response, MessageTerm}) ->
-    io:format("~p~n", [MessageTerm]),
-    ok;
+    io:format("~p~n", [MessageTerm]);
+
 handle_packet({receive_messages, RoomId, Messages}) ->
     lists:foreach(
         fun({Time, Username, Message}) ->

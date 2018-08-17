@@ -31,8 +31,8 @@ init([]) ->
     Children = [#{
         id => sockn,
         start => {chatserv_socket, start_link, []},
-        restart => temporary,
-        shutdown => brutal_kill
+        restart => temporary
+%%        shutdown => brutal_kill
     }],
     {ok, {SupFlags, Children}}.
 
