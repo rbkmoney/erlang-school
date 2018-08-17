@@ -3,20 +3,24 @@
 %% API
 
 -type room_id() :: non_neg_integer().
+-type message_text() :: nonempty_string().
+-type member_name() :: nonempty_string().
+-type room_message() :: {Time :: erlang:timestamp(), Name :: member_name(), Message :: message_text()}.
 
 -type packet() ::
     get_rooms_list |
     {join_room, RoomId :: room_id()} |
-    {set_name, RoomId :: room_id(), Name :: nonempty_string()} |
-    {send_message, RoomId :: room_id(), Message :: nonempty_string()} |
+    {set_name, RoomId :: room_id(), Name :: member_name()} |
+    {send_message, RoomId :: room_id(), Message :: message_text()} |
     {server_response, Message :: term()} |
-    {receive_messages,
-        RoomId :: room_id(),
-        [{Time :: erlang:timestamp(), Name :: nonempty_string(), Message :: nonempty_string()}]
-    }.
+    {receive_messages, RoomId :: room_id(), [room_message()]}.
 
 -export_type([
-    packet/0
+    packet/0,
+    room_id/0,
+    message_text/0,
+    member_name/0,
+    room_message/0
 ]).
 
 -export([

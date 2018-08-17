@@ -8,6 +8,10 @@
     joined_rooms := [{non_neg_integer(), pid()}] %pid caching
 }.
 
+-export([
+    send_messages_to/3
+]).
+
 %% gen_server
 -behavior(gen_server).
 -export([
@@ -18,6 +22,16 @@
     handle_continue/2,
     handle_info/2
 ]).
+
+%%
+%% API
+%%
+
+-spec send_messages_to(pid(), chatlib_sock:room_id(), [chatlib_sock:room_message()]) ->
+    ok.
+send_messages_to(Pid, RoomId, MessageList) ->
+    gen_server:cast(Pid, {tcp_send, {receive_messages, RoomId, MessageList}}),
+    ok.
 
 %%
 %% gen_server
@@ -101,7 +115,7 @@ handle_packet(get_rooms_list, State = #{socket := Socket}) ->
 handle_packet({join_room, NewRoomId}, State = #{socket := Socket, joined_rooms := Rooms}) ->
     RoomList = gen_server:call(room_manager, get_rooms_list),
     {RoomId, Pid} = lists:keyfind(NewRoomId, 1, RoomList),
-    gen_server:cast(Pid, {join_room, self()}),
+    ok = chatserv_room:join_to(Pid, self()),
 
     Response = chatlib_sock:encode({server_response, {0, RoomId}}),
     ok = gen_tcp:send(Socket, Response),
@@ -109,7 +123,8 @@ handle_packet({join_room, NewRoomId}, State = #{socket := Socket, joined_rooms :
     State#{joined_rooms := [{RoomId, Pid} | Rooms]};
 
 handle_packet({set_name, RoomId, Name}, State = #{socket := Socket, joined_rooms := Rooms}) ->
-    gen_server:cast(room_pid_by_id(RoomId, Rooms), {set_name, self(), Name}),
+    %@todo this actually does not fix the abstraction problem (room_pid_by_id needs to be gone), will fix later
+    ok = chatserv_room:change_name_in(room_pid_by_id(RoomId, Rooms), self(), Name),
 
     Response = chatlib_sock:encode({server_response, {0, RoomId, Name}}),
     ok = gen_tcp:send(Socket, Response),
@@ -117,7 +132,8 @@ handle_packet({set_name, RoomId, Name}, State = #{socket := Socket, joined_rooms
     State;
 
 handle_packet({send_message, RoomId, Message}, State = #{socket := Socket, joined_rooms := Rooms}) ->
-    gen_server:cast(room_pid_by_id(RoomId, Rooms), {send_message, self(), Message}),
+    %@todo this actually does not fix the abstraction problem (room_pid_by_id needs to be gone), will fix later
+    ok = chatserv_room:send_message_to(room_pid_by_id(RoomId, Rooms), self(), Message),
 
     Response = chatlib_sock:encode({server_response, {0, RoomId, Message}}),
     ok = gen_tcp:send(Socket, Response),

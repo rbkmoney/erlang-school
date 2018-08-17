@@ -18,6 +18,12 @@
 
 -type room_message() :: {DateTime :: erlang:timestamp(), Name :: nonempty_string(), Message :: nonempty_string()}.
 
+-export([
+    join_to/2,
+    change_name_in/3,
+    send_message_to/3
+]).
+
 %% gen_server
 -behavior(gen_server).
 -export([
@@ -27,6 +33,28 @@
     handle_cast/2,
     handle_info/2
 ]).
+
+%%
+%% API
+%%
+
+-spec join_to(pid(), pid()) ->
+    ok.
+join_to(Pid, From) ->
+    gen_server:cast(Pid, {join_room, From}),
+    ok.
+
+-spec change_name_in(pid(), pid(), nonempty_string()) ->
+    ok.
+change_name_in(Pid, From, Name) ->
+    gen_server:cast(Pid, {set_name, From, Name}),
+    ok.
+
+-spec send_message_to(pid(), pid(), nonempty_string()) ->
+    ok.
+send_message_to(Pid, From, MessageText) ->
+    gen_server:cast(Pid, {send_message, From, MessageText}),
+    ok.
 
 %%
 %% gen_server
@@ -116,7 +144,7 @@ handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages :=
         fun(Mem) ->
             Pid = maps:get(socket_pid, Mem),
             ok = lager:info("Sending new messages to ~p", [Pid]),
-            gen_server:cast(Pid, {tcp_send, {receive_messages, RoomId, Messages}})
+            ok = chatserv_socket:send_messages_to(Pid, RoomId, Messages)
         end,
         Members
     ),
