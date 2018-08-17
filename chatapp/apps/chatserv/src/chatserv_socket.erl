@@ -30,7 +30,7 @@
 -spec send_messages_to(pid(), chatlib_sock:room_id(), [chatlib_sock:room_message()]) ->
     ok.
 send_messages_to(Pid, RoomId, MessageList) ->
-    gen_server:cast(Pid, {tcp_send, {receive_messages, RoomId, MessageList}}),
+    _ = gen_server:cast(Pid, {tcp_send, {receive_messages, RoomId, MessageList}}),
     ok.
 
 %%
@@ -54,7 +54,7 @@ handle_continue(start_accept, State = #{socket := LSock}) ->
     case gen_tcp:accept(LSock) of
         {ok, ASock} ->
             ok = lager:info("New client connected ~p", [ASock]),
-            gen_server:cast(socket_manager, {client_connected, self()}),
+            _ = gen_server:cast(socket_manager, {client_connected, self()}),
 
             {noreply, State#{socket := ASock}};
         _ ->
@@ -82,12 +82,6 @@ handle_info({tcp, ASock, Data}, State = #{socket := ASock}) ->
     ok = inet:setopts(ASock, [{active, once}]),
     {noreply, NewState};
 handle_info({tcp_closed, ASock}, State = #{socket := ASock, joined_rooms := Rooms}) ->
-    %lists:foreach(
-    %    fun({_, Pid}) ->
-    %        gen_server:cast(Pid, {leave_room, self()})
-    %    end,
-    %    Rooms
-    %),
     ok = lager:info("Tcp connection closed"),
     {stop, shutdown, State}.
 

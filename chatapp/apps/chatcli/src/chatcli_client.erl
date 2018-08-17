@@ -28,16 +28,16 @@
 %%
 
 get_room_list() ->
-    gen_server:cast(chat_client, get_rooms_list).
+    _ = gen_server:cast(chat_client, get_rooms_list).
 
 join_room(RoomId) ->
-    gen_server:cast(chat_client, {join_room, RoomId}).
+    _ = gen_server:cast(chat_client, {join_room, RoomId}).
 
 set_name(RoomId, NewName) ->
-    gen_server:cast(chat_client, {set_name, RoomId, NewName}).
+    _ = gen_server:cast(chat_client, {set_name, RoomId, NewName}).
 
 send_message(RoomId, NewMessage) ->
-    gen_server:cast(chat_client, {send_message, RoomId, NewMessage}).
+    _ = gen_server:cast(chat_client, {send_message, RoomId, NewMessage}).
 
 %%
 %% gen_server
