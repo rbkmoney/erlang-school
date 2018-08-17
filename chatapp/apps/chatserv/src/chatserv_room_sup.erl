@@ -24,7 +24,7 @@ start_link() ->
 -spec init(Args :: term()) ->
     chatserv_sup:sv_init_result().
 init([]) ->
-    lager:notice("~p supervisor starting", [?SERVER]),
+    ok = lager:notice("~p supervisor starting", [?SERVER]),
     SupFlags = #{
         strategy => simple_one_for_one
     },

@@ -1,19 +1,22 @@
 -module(chatlib_sock).
 
 %% API
--type packet_types() ::
+
+-type room_id() :: non_neg_integer().
+
+-type packet() ::
     get_rooms_list |
-    {join_room, RoomId :: non_neg_integer()} |
-    {set_name, RoomId :: non_neg_integer(), Name :: nonempty_string()} |
-    {send_message, RoomId :: non_neg_integer(), Message :: nonempty_string()} |
+    {join_room, RoomId :: room_id()} |
+    {set_name, RoomId :: room_id(), Name :: nonempty_string()} |
+    {send_message, RoomId :: room_id(), Message :: nonempty_string()} |
     {server_response, Message :: term()} |
     {receive_messages,
-        RoomId :: non_neg_integer(),
+        RoomId :: room_id(),
         [{Time :: erlang:timestamp(), Name :: nonempty_string(), Message :: nonempty_string()}]
     }.
 
 -export_type([
-    packet_types/0
+    packet/0
 ]).
 
 -export([
@@ -41,7 +44,7 @@
 %% Encoders
 %%
 
--spec encode(packet_types()) ->
+-spec encode(packet()) ->
     binary().
 
 encode(get_rooms_list) ->
@@ -71,7 +74,7 @@ encode({receive_messages, RoomId, MessagesList}) ->
 %%
 
 -spec decode(binary()) ->
-    packet_types().
+    packet().
 
 decode(<<?PACKET_ID_get_rooms_list>>) ->
     get_rooms_list;

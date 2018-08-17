@@ -5,7 +5,8 @@
     {mod, {chatcli_app, []}},
     {applications, [
         kernel,
-        stdlib
+        stdlib,
+        chatlib
     ]},
     {env, []},
     {modules, []},

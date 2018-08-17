@@ -67,12 +67,12 @@ handle_continue(connect_to_server, State) ->
 
     {noreply, State#{socket:=Sock}}.
 
--spec handle_cast(chatlib_sock:packet_types(), client_state()) ->
+-spec handle_cast(chatlib_sock:packet(), client_state()) ->
     {noreply, client_state()}.
 
 handle_cast(Message, State = #{socket := Sock}) ->
     Data = chatlib_sock:encode(Message),
-    gen_tcp:send(Sock, Data),
+    ok = gen_tcp:send(Sock, Data),
     {noreply, State}.
 
 -spec handle_info({tcp, gen_tcp:socket(), binary()} | {tcp_closed, gen_tcp:socket()}, client_state()) ->
@@ -80,9 +80,9 @@ handle_cast(Message, State = #{socket := Sock}) ->
 
 handle_info({tcp, Sock, Data}, State = #{socket := Sock}) ->
     Message = chatlib_sock:decode(Data),
-    handle_packet(Message),
+    ok = handle_packet(Message),
 
-    inet:setopts(Sock, [{active, once}]),
+    ok = inet:setopts(Sock, [{active, once}]),
     {noreply, State};
 
 handle_info({tcp_closed, Sock}, State = #{socket := Sock}) ->
@@ -97,7 +97,7 @@ handle_call(_, _, State) ->
 %% Internal
 %%
 
--spec handle_packet(chatlib_sock:packet_types()) ->
+-spec handle_packet(chatlib_sock:packet()) ->
     ok.
 
 handle_packet({server_response, MessageTerm}) ->

@@ -2,11 +2,9 @@
     {description, "A chat protocol libary"},
     {vsn, "0.0.1"},
     {registered, []},
-    {mod, {undefined, []}},
     {applications, [
         kernel,
-        stdlib,
-        lager
+        stdlib
     ]},
     {env, []},
     {modules, []},

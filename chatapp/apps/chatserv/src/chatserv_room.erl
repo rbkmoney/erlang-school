@@ -4,7 +4,7 @@
 -define(DEFAULT_DISPLAY_NAME, "New User").
 -define(MESSAGE_SENDOUT_TIMEOUT, 1000).
 
--type room_state() :: #{
+-type state() :: #{
     members := [room_user()],
     messages := [room_message()],
     id := non_neg_integer(), %@todo maybe unneeded
@@ -37,26 +37,26 @@
 start_link(Id, Name) ->
     gen_server:start_link(?MODULE, [Id, Name], []).
 
--spec init([any(), ...]) ->
-    {ok, room_state()}.
+-spec init(list()) ->
+    {ok, state()}.
 init([Id, Name]) ->
     erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
     {ok, #{members => [], messages => [], id => Id, name => Name}}.
 
--spec handle_call(any(), any(), room_state()) ->
-    {noreply, room_state()}.
+-spec handle_call(any(), any(), state()) ->
+    {noreply, state()}.
 handle_call(_, _, State) ->
     {noreply, State}.
 
--spec handle_cast(tuple(), room_state()) ->
-    {noreply, room_state()}.
+-spec handle_cast(tuple(), state()) ->
+    {noreply, state()}.
 
 handle_cast({join_room, Pid}, State = #{members := Members, id := Id, name := Name}) ->
     case get_member_by_pid(Pid, Members) of
         false ->
             NewMember = #{display_name => ?DEFAULT_DISPLAY_NAME, socket_pid => Pid},
             NewMemberList = [NewMember | Members],
-            lager:info(
+            ok = lager:info(
                 "New user joined room (~p, ~p): ~p. Current member list: ~p",
                 [Id, Name, NewMember, NewMemberList]
             ),
@@ -73,7 +73,7 @@ handle_cast({leave_room, Pid}, State = #{members := Members, id := Id, name := N
 
         Member ->
             NewMemberList = lists:delete(Member, Members),
-            lager:info(
+            ok = lager:info(
                 "User left room (~p, ~p): ~p. Current member list: ~p",
                 [Id, Name, Member, NewMemberList]
             ),
@@ -89,7 +89,7 @@ handle_cast({set_name, Pid, NewName}, State = #{members := Members}) ->
         Member ->
             NewMember = Member#{display_name => NewName},
             NewMemberList = replace(Member, NewMember, Members),
-            lager:info(
+            ok = lager:info(
                 "A member has changed their name. Old: ~p; New: ~p; New list: ~p",
                 [Member, NewMember, NewMemberList]
             ),
@@ -97,43 +97,45 @@ handle_cast({set_name, Pid, NewName}, State = #{members := Members}) ->
             {noreply, State#{members := NewMemberList}}
     end;
 
-handle_cast({send_message, Pid, NewMessageText},
-    State = #{id := Id, name := Name, members:= Members, messages := Messages}) ->
-    case get_member_by_pid(Pid, Members) of
-        false ->
-            {noreply, State};
+handle_cast({send_message, Pid, NewMessageText}, State) ->
+    #{id := Id, name := Name, members:= Members, messages := Messages} = State,
+    #{display_name := MemberName} = get_member_by_pid(Pid, Members),
 
-        #{display_name := MemberName} ->
-            NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
-            NewMessages = [NewMessage | Messages],
-            lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessage]),
+    NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
+    NewMessages = [NewMessage | Messages],
+    ok = lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessage]),
 
-            {noreply, State#{messages := NewMessages}}
-    end.
+    {noreply, State#{messages := NewMessages}}.
 
 %%send_messages
--spec handle_info(send_messages, room_state()) ->
-    {noreply, room_state()}.
+-spec handle_info(send_messages, state()) ->
+    {noreply, state()}.
 
 handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages := Messages}) when length(Messages) > 0 ->
     lists:foreach(
         fun(Mem) ->
             Pid = maps:get(socket_pid, Mem),
-            lager:info("Sending new messages to ~p", [Pid]),
+            ok = lager:info("Sending new messages to ~p", [Pid]),
             gen_server:cast(Pid, {tcp_send, {receive_messages, RoomId, Messages}})
         end,
         Members
     ),
-    erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
+    ok = set_sendout_timeout(),
     {noreply, State#{messages:= []}};
 
 handle_info(send_messages, State) ->
-    erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
+    ok = set_sendout_timeout(),
     {noreply, State}.
 
 %%
 %% Internal
 %%
+
+-spec set_sendout_timeout() ->
+    ok.
+set_sendout_timeout() ->
+    erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
+    ok.
 
 -spec get_member_by_pid(pid(), [room_user()]) ->
     room_user() | false.
@@ -144,8 +146,8 @@ get_member_by_pid(Pid, Members) ->
         end,
         Members
     ),
-    case length(Results) of
-        1 -> lists:nth(1, Results);
+    case Results of
+        [Result] -> Result;
         _ -> false
     end.
 

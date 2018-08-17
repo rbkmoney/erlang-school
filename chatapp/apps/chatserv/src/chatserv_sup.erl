@@ -31,7 +31,7 @@ start_link() ->
 -spec init([]) ->
     sv_init_result().
 init([]) ->
-    lager:notice("~p top-level supervisor starting", [?SERVER]),
+    ok = lager:notice("~p top-level supervisor starting", [?SERVER]),
     SupFlags = #{},
     Children = [
         #{

@@ -39,7 +39,7 @@ init(LSock) ->
 handle_continue(start_accept, State = #{socket := LSock}) ->
     case gen_tcp:accept(LSock) of
         {ok, ASock} ->
-            lager:info("New client connected ~p", [ASock]),
+            ok = lager:info("New client connected ~p", [ASock]),
             gen_server:cast(socket_manager, {client_connected, self()}),
 
             {noreply, State#{socket := ASock}};
@@ -47,13 +47,13 @@ handle_continue(start_accept, State = #{socket := LSock}) ->
             {stop, shutdown, State}
     end.
 
--spec handle_cast({tcp_send, chatlib_sock:packet_type()}, socket_state()) ->
+-spec handle_cast({tcp_send, chatlib_sock:packet()}, socket_state()) ->
     {noreply, socket_state()}.
 handle_cast({tcp_send, Message}, State = #{socket := ASock}) ->
     Data = chatlib_sock:encode(Message),
-    lager:info("Sending packet ~p -> ~p", [self(), Data]),
+    ok = lager:info("Sending packet ~p -> ~p", [self(), Data]),
 
-    gen_tcp:send(ASock, Data),
+    ok = gen_tcp:send(ASock, Data),
     {noreply, State}.
 
 -spec handle_info(
@@ -64,8 +64,8 @@ handle_info({tcp, ASock, Data}, State = #{socket := ASock}) ->
     Message = chatlib_sock:decode(Data),
     NewState = handle_packet(Message, State),
 
-    lager:info("Received packet ~p", [Message]),
-    inet:setopts(ASock, [{active, once}]),
+    ok = lager:info("Received packet ~p", [Message]),
+    ok = inet:setopts(ASock, [{active, once}]),
     {noreply, NewState};
 handle_info({tcp_closed, ASock}, State = #{socket := ASock, joined_rooms := Rooms}) ->
     lists:foreach(
@@ -74,7 +74,7 @@ handle_info({tcp_closed, ASock}, State = #{socket := ASock, joined_rooms := Room
         end,
         Rooms
     ),
-    lager:info("Tcp connection with ~p closed", [self()]),
+    ok = lager:info("Tcp connection closed"),
     {stop, shutdown, State}.
 
 -spec handle_call(any(), any(), socket_state()) ->
@@ -87,14 +87,14 @@ handle_call(_, _, State) ->
 %%
 
 %@todo change format to include room name and use term to bin
--spec handle_packet(chatlib_sock:packet_types(), socket_state()) ->
+-spec handle_packet(chatlib_sock:packet(), socket_state()) ->
     socket_state().
 
 handle_packet(get_rooms_list, State = #{socket := Socket}) ->
     RoomList = gen_server:call(room_manager, get_rooms_list),
 
     Response = chatlib_sock:encode({server_response, {0, prep_room_list(RoomList)}}),
-    gen_tcp:send(Socket, Response),
+    ok = gen_tcp:send(Socket, Response),
 
     State;
 
@@ -104,7 +104,7 @@ handle_packet({join_room, NewRoomId}, State = #{socket := Socket, joined_rooms :
     gen_server:cast(Pid, {join_room, self()}),
 
     Response = chatlib_sock:encode({server_response, {0, RoomId}}),
-    gen_tcp:send(Socket, Response),
+    ok = gen_tcp:send(Socket, Response),
 
     State#{joined_rooms := [{RoomId, Pid} | Rooms]};
 
@@ -112,7 +112,7 @@ handle_packet({set_name, RoomId, Name}, State = #{socket := Socket, joined_rooms
     gen_server:cast(room_pid_by_id(RoomId, Rooms), {set_name, self(), Name}),
 
     Response = chatlib_sock:encode({server_response, {0, RoomId, Name}}),
-    gen_tcp:send(Socket, Response),
+    ok = gen_tcp:send(Socket, Response),
 
     State;
 
@@ -120,7 +120,7 @@ handle_packet({send_message, RoomId, Message}, State = #{socket := Socket, joine
     gen_server:cast(room_pid_by_id(RoomId, Rooms), {send_message, self(), Message}),
 
     Response = chatlib_sock:encode({server_response, {0, RoomId, Message}}),
-    gen_tcp:send(Socket, Response),
+    ok = gen_tcp:send(Socket, Response),
 
     State.
 

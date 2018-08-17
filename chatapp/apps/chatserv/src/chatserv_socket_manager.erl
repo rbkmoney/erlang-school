@@ -7,6 +7,8 @@
     listener := gen_tcp:socket() | undefined
 }.
 
+-define(ACCEPTOR_AMOUNT, 4).
+
 %% gen_server
 -export([
     start_link/0,
@@ -58,7 +60,7 @@ handle_continue(spawn_acceptors, State) ->
             erlang:monitor(process, Pid),
             Pid
         end,
-        lists:seq(0, 4)
+        lists:seq(1, ?ACCEPTOR_AMOUNT)
     ),
 
     {noreply, State#{clients:=NewSockets, listener:=LSocket}}.
