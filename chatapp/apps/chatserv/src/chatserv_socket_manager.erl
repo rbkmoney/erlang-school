@@ -67,8 +67,8 @@ handle_continue(spawn_acceptors, State) ->
 
 -spec handle_info({'DOWN', reference(), process, pid(), killed | tcp_closed}, socket_manager_state()) ->
     {noreply, socket_manager_state()}.
-handle_info({'DOWN', _Ref, process, _Pid, _Reason}, State) ->
-    {noreply, State}.
+handle_info({'DOWN', _Ref, process, Pid, _Reason}, State = #{clients := Clients})->
+    {noreply, State#{clients := lists:delete(Pid, Clients)}}.
 
 %%
 %% Internal
