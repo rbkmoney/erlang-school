@@ -31,17 +31,11 @@ start_link() ->
 -spec init([]) ->
     sv_init_result().
 init([]) ->
-    ok = lager:notice("~p top-level supervisor starting", [?SERVER]),
     SupFlags = #{},
     Children = [
         #{
             id => room_sup,
-            start => {chatserv_messaging_sup, start_link, []},
-            type => supervisor
-        },
-        #{
-            id => client_sup,
-            start => {chatserv_client_sup, start_link, []},
+            start => {chatserv_room_sup, start_link, []},
             type => supervisor
         }
     ],

@@ -144,8 +144,8 @@ handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages :=
     lists:foreach(
         fun(Mem) ->
             Pid = maps:get(socket_pid, Mem),
-            ok = lager:info("Sending new messages to ~p", [Pid]),
-            ok = chatserv_socket:send_messages_to(Pid, RoomId, Messages)
+            ok = lager:info("Sending new messages to ~p", [Pid])
+            %ok = chatserv_socket:send_messages_to(Pid, RoomId, Messages)
         end,
         Members
     ),

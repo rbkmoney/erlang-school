@@ -2,11 +2,13 @@
     {description, "A chat server app with tcp support"},
     {vsn, "0.0.1"},
     {registered, []},
-    {mod, {chatserv_app, []}},
+    {mod, {chatserv, []}},
     {applications, [
         kernel,
         stdlib,
         lager,
+        cowboy,
+        jiffy,
         chatlib
     ]},
     {env, []},
