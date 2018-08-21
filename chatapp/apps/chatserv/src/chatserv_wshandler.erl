@@ -108,23 +108,29 @@ handle_message(get_rooms, Req, State) ->
 
 handle_message({join_room, RoomId}, Req, State = #{ joined_rooms := Rooms }) ->
     RoomPid = chatserv_room_manager:get_room(RoomId),
-    ok = chatserv_room:join_to(RoomPid, self()),
 
-    NewRooms = maps:put(RoomId, RoomPid, Rooms),
+    case chatserv_room:join_to(RoomPid, self()) of
+        ok ->
+            NewRooms = maps:put(RoomId, RoomPid, Rooms),
+            Code = ok;
+        badarg ->
+            NewRooms = Rooms,
+            Code = user_already_exists
+    end,
 
-    Response = chatlib_proto:encode({server_response, RoomId, 0}),
+    Response = chatlib_proto:encode({server_response, RoomId, Code}),
     {Response, Req, State#{ joined_rooms := NewRooms }};
 
 handle_message({set_name, RoomId, NameString}, Req, State = #{ joined_rooms := Rooms }) ->
     RoomPid = maps:get(RoomId, Rooms),
-    ok = chatserv_room:change_name_in(RoomPid, self(), NameString),
+    Resp = chatserv_room:change_name_in(RoomPid, self(), NameString),
 
-    Response = chatlib_proto:encode({server_response, RoomId, 0}),
+    Response = chatlib_proto:encode({server_response, RoomId, Resp}),
     {Response, Req, State};
 
 handle_message({send_message, RoomId, MessageString}, Req, State = #{ joined_rooms := Rooms }) ->
     RoomPid = maps:get(RoomId, Rooms),
-    ok = chatserv_room:send_message_to(RoomPid, self(), MessageString),
+    Resp = chatserv_room:send_message_to(RoomPid, self(), MessageString),
 
-    Response = chatlib_proto:encode({server_response, RoomId, 0}),
+    Response = chatlib_proto:encode({server_response, RoomId, Resp}),
     {Response, Req, State}.

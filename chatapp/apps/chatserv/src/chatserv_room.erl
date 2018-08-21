@@ -2,7 +2,9 @@
 
 %%
 % @todo things to do here:
-%   1. move stuff from casts to calls
+%   +1. move stuff from casts to calls
+%   1.1. write specs
+%   1.2. move members array to #{pid() => member_data()}
 %   2. rename api methods, make them return stuff
 %%
 
@@ -47,20 +49,17 @@
 -spec join_to(pid(), pid()) ->
     ok.
 join_to(Pid, From) ->
-    _ = gen_server:cast(Pid, {join_room, From}),
-    ok.
+    gen_server:call(Pid, {join_room, From}).
 
 -spec change_name_in(pid(), pid(), nonempty_string()) ->
     ok.
 change_name_in(Pid, From, Name) ->
-    _ = gen_server:cast(Pid, {set_name, From, Name}),
-    ok.
+    gen_server:call(Pid, {set_name, From, Name}).
 
 -spec send_message_to(pid(), pid(), nonempty_string()) ->
     ok.
 send_message_to(Pid, From, MessageText) ->
-    _ = gen_server:cast(Pid, {send_message, From, MessageText}),
-    ok.
+    gen_server:call(Pid, {send_message, From, MessageText}).
 
 -spec get_name_of(pid()) ->
     nonempty_string().
@@ -90,14 +89,7 @@ init([Id, Name]) ->
 handle_call(get_room_name, _, State = #{name := Name}) ->
     {reply, Name, State};
 
-handle_call(_, _, State) ->
-    {noreply, State}.
-
-
--spec handle_cast(tuple(), state()) ->
-    {noreply, state()}.
-
-handle_cast({join_room, Pid}, State = #{members := Members, id := Id, name := Name}) ->
+handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name := Name}) ->
     case get_member_by_pid(Pid, Members) of
         false ->
             NewMember = #{display_name => ?DEFAULT_DISPLAY_NAME, socket_pid => Pid},
@@ -108,10 +100,45 @@ handle_cast({join_room, Pid}, State = #{members := Members, id := Id, name := Na
             ),
 
             erlang:monitor(process, Pid),
-            {noreply, State#{members := NewMemberList}};
+            {reply, ok, State#{members := NewMemberList}};
         _ ->
-            {noreply, State}
+            {reply, badarg, State}
     end;
+
+handle_call({set_name, Pid, NewName}, _, State = #{members := Members}) ->
+    case get_member_by_pid(Pid, Members) of
+        false ->
+            {reply, badarg, State};
+
+        Member ->
+            NewMember = Member#{display_name => NewName},
+            NewMemberList = replace(Member, NewMember, Members),
+            ok = lager:info(
+                "A member has changed their name. Old: ~p; New: ~p; New list: ~p",
+                [Member, NewMember, NewMemberList]
+            ),
+
+            {reply, ok, State#{members := NewMemberList}}
+    end;
+
+handle_call({send_message, Pid, NewMessageText}, _, State) ->
+    #{id := Id, name := Name, members:= Members, messages := Messages} = State,
+    #{display_name := MemberName} = get_member_by_pid(Pid, Members),
+
+    NewMessage = #{
+        timestamp => erlang:universaltime(),
+        member_name => MemberName,
+        message_text => NewMessageText
+    },
+
+    NewMessages = [NewMessage | Messages],
+
+    ok = lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessage]),
+
+    {reply, ok, State#{messages := NewMessages}}.
+
+-spec handle_cast(tuple(), state()) ->
+    {noreply, state()}.
 
 handle_cast({leave_room, Pid}, State = #{members := Members, id := Id, name := Name}) ->
     case get_member_by_pid(Pid, Members) of
@@ -128,37 +155,8 @@ handle_cast({leave_room, Pid}, State = #{members := Members, id := Id, name := N
             {noreply, State#{members := NewMemberList}}
     end;
 
-handle_cast({set_name, Pid, NewName}, State = #{members := Members}) ->
-    case get_member_by_pid(Pid, Members) of
-        false ->
-            {noreply, State};
-
-        Member ->
-            NewMember = Member#{display_name => NewName},
-            NewMemberList = replace(Member, NewMember, Members),
-            ok = lager:info(
-                "A member has changed their name. Old: ~p; New: ~p; New list: ~p",
-                [Member, NewMember, NewMemberList]
-            ),
-
-            {noreply, State#{members := NewMemberList}}
-    end;
-
-handle_cast({send_message, Pid, NewMessageText}, State) ->
-    #{id := Id, name := Name, members:= Members, messages := Messages} = State,
-    #{display_name := MemberName} = get_member_by_pid(Pid, Members),
-
-    NewMessage = #{
-        timestamp => erlang:universaltime(),
-        member_name => MemberName,
-        message_text => NewMessageText
-    },
-
-    NewMessages = [NewMessage | Messages],
-
-    ok = lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessage]),
-
-    {noreply, State#{messages := NewMessages}}.
+handle_cast(_, State) ->
+    {noreply, State}.
 
 %%send_messages
 -spec handle_info(send_messages | {'DOWN', reference(), process, pid(), atom()}, state()) ->

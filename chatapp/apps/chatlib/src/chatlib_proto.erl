@@ -20,7 +20,7 @@
 -type member_name() :: nonempty_string().
 -type message_text() :: nonempty_string().
 
--type error_code() :: non_neg_integer().
+-type error() :: atom().
 
 -type member_message() :: #{
     timestamp => erlang:timestamp(),
@@ -37,7 +37,7 @@
 -type packet_term() ::
     packet_type() |
     {packet_type(), room_id()} |
-    {packet_type(), room_id(), error_code() | member_name() | message_text() | [member_message()]}.
+    {packet_type(), room_id(), error() | member_name() | message_text() | [member_message()]}.
 
 -export_type([
     room_id/0,
