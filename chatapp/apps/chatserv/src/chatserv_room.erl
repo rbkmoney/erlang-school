@@ -1,27 +1,33 @@
 -module(chatserv_room).
 
+%%
+% @todo things to do here:
+%   1. move stuff from casts to calls
+%   2. rename api methods, make them return stuff
+%%
+
+
 %% API
 -define(DEFAULT_DISPLAY_NAME, "New User").
 -define(MESSAGE_SENDOUT_TIMEOUT, 1000).
 
 -type state() :: #{
     members := [room_user()],
-    messages := [room_message()],
-    id := non_neg_integer(), %@todo maybe unneeded
-    name := nonempty_string()
+    messages := [chatlib_proto:member_message()],
+    id := chatlib_proto:room_id(),
+    name := chatlib_proto:room_name()
 }.
 
 -type room_user() :: #{
-    display_name := nonempty_string(),
+    display_name := chatlib_proto:member_name(),
     socket_pid := pid()
 }.
-
--type room_message() :: {DateTime :: erlang:timestamp(), Name :: nonempty_string(), Message :: nonempty_string()}.
 
 -export([
     join_to/2,
     change_name_in/3,
-    send_message_to/3
+    send_message_to/3,
+    get_name_of/1
 ]).
 
 %% gen_server
@@ -56,6 +62,11 @@ send_message_to(Pid, From, MessageText) ->
     _ = gen_server:cast(Pid, {send_message, From, MessageText}),
     ok.
 
+-spec get_name_of(pid()) ->
+    nonempty_string().
+get_name_of(Pid) ->
+    gen_server:call(Pid, get_room_name).
+
 %%
 %% gen_server
 %%
@@ -71,10 +82,17 @@ init([Id, Name]) ->
     _ = erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
     {ok, #{members => [], messages => [], id => Id, name => Name}}.
 
+
+%@todo specs
 -spec handle_call(any(), any(), state()) ->
     {noreply, state()}.
+
+handle_call(get_room_name, _, State = #{name := Name}) ->
+    {reply, Name, State};
+
 handle_call(_, _, State) ->
     {noreply, State}.
+
 
 -spec handle_cast(tuple(), state()) ->
     {noreply, state()}.
@@ -130,8 +148,14 @@ handle_cast({send_message, Pid, NewMessageText}, State) ->
     #{id := Id, name := Name, members:= Members, messages := Messages} = State,
     #{display_name := MemberName} = get_member_by_pid(Pid, Members),
 
-    NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
+    NewMessage = #{
+        timestamp => erlang:universaltime(),
+        member_name => MemberName,
+        message_text => NewMessageText
+    },
+
     NewMessages = [NewMessage | Messages],
+
     ok = lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessage]),
 
     {noreply, State#{messages := NewMessages}}.
@@ -144,8 +168,8 @@ handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages :=
     lists:foreach(
         fun(Mem) ->
             Pid = maps:get(socket_pid, Mem),
-            ok = lager:info("Sending new messages to ~p", [Pid])
-            %ok = chatserv_socket:send_messages_to(Pid, RoomId, Messages)
+            ok = lager:info("Sending new messages to ~p", [Pid]),
+            ok = chatserv_wshandler:send_messages_to(Pid, RoomId, Messages)
         end,
         Members
     ),

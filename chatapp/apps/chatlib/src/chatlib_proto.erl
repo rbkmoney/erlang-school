@@ -1,5 +1,11 @@
 -module(chatlib_proto).
 
+%%
+% @todo things to do here:
+%   1. consider preparing all the list_to_binaries here
+%%
+
+%% API
 -type packet_type() ::
     server_response |
     get_rooms |
@@ -9,32 +15,46 @@
     receive_messages.
 
 -type room_id() :: global | non_neg_integer().
--type display_name() :: nonempty_string().
+-type room_name() :: nonempty_string().
+
+-type member_name() :: nonempty_string().
 -type message_text() :: nonempty_string().
 
--type room_message() :: #{
+-type error_code() :: non_neg_integer().
+
+-type member_message() :: #{
     timestamp => erlang:timestamp(),
-    display_name => display_name(),
+    member_name => member_name(),
     message_text => message_text()
 }.
 
 -type packet_map() :: #{
     type := packet_type(),
     room_id => room_id(),
-    content => display_name() | message_text() | [room_message()]
+    content => member_name() | message_text() | [member_message()]
 }.
 
 -type packet_term() ::
     packet_type() |
     {packet_type(), room_id()} |
-    {packet_type(), room_id(), display_name() | message_text() | [room_message()]}.
+    {packet_type(), room_id(), error_code() | member_name() | message_text() | [member_message()]}.
 
-%% API
+-export_type([
+    room_id/0,
+    room_name/0,
+    member_message/0,
+    member_name/0,
+    packet_term/0
+]).
+
 -export([
     encode/1,
     decode/1
 ]).
 
+%%
+%% API
+%%
 
 -spec encode(packet_term()) ->
     binary().
@@ -42,7 +62,7 @@ encode(Message) ->
     Ejson = packet_term_to_map(Message),
     jiffy:encode(Ejson).
 
--spec encode(binary()) ->
+-spec decode(binary()) ->
     packet_term().
 decode(Message) ->
     Json = jiffy:decode(Message, [return_maps]),
@@ -52,10 +72,11 @@ decode(Message) ->
 -spec packet_term_to_map(packet_term()) ->
     packet_map().
 
-packet_term_to_map({server_response, ErrorCode}) ->
+packet_term_to_map({server_response, RoomId, Message}) ->
     #{
         type => server_response,
-        content => ErrorCode
+        room_id => RoomId,
+        content => Message
     };
 
 packet_term_to_map(get_rooms) ->

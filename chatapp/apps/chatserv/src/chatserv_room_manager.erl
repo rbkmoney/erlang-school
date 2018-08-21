@@ -1,10 +1,15 @@
 -module(chatserv_room_manager).
 -behavior(gen_server).
 
-%%API
+%% API
 -type room_manager_state() :: #{
-    rooms := [{non_neg_integer(), pid()}]
+    rooms := #{ chatlib_proto:room_id() => pid() }
 }.
+
+-export([
+    get_rooms_list/0,
+    get_room/1
+]).
 
 %% gen_server
 -export([
@@ -16,6 +21,31 @@
     handle_info/2
 ]).
 
+-define(SERVER, ?MODULE).
+
+%%
+%% API
+%%
+
+%@todo replace string type with another proto type
+-spec get_rooms_list() ->
+    #{chatlib_proto:room_id() => chatlib_proto:room_name()}.
+get_rooms_list() ->
+    RoomList = gen_server:call(?SERVER, get_rooms_list),
+
+    maps:map(
+        fun(_, V) ->
+            chatserv_room:get_name_of(V)
+        end,
+        RoomList
+    ).
+
+-spec get_room(chatlib_proto:room_id()) ->
+    pid().
+get_room(RoomId) ->
+    RoomList = gen_server:call(?SERVER, get_rooms_list),
+
+    maps:get(RoomId, RoomList).
 
 %%
 %% gen_server
@@ -24,7 +54,7 @@
 -spec start_link() ->
     {ok, pid()} | {error, term()}.
 start_link() ->
-    gen_server:start_link({local, room_manager}, ?MODULE, [], []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 init([]) ->
     {ok, #{
@@ -50,7 +80,7 @@ handle_continue(load_rooms, State) ->
         end,
         lists:seq(0, 1)
     ),
-    {noreply, State#{rooms:=NewRooms}}.
+    {noreply, State#{ rooms := maps:from_list(NewRooms) }}.
 
 %%@todo handle room crashes
 -spec handle_info({'DOWN', reference(), process, pid(), atom()}, room_manager_state()) ->
