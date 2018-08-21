@@ -46,11 +46,46 @@
           };
       };
 
-      function sendTxt() {
+      function getRooms() {
           if(websocket.readyState == websocket.OPEN){
-              txt = $("#send_txt").val();
-              websocket.send(txt);
-              showScreen('sending: ' + txt);
+              req = "{\"type\":\"get_rooms\"}";
+              websocket.send(req);
+              showScreen('sending: ' + req);
+          } else {
+               showScreen('websocket is not connected');
+          };
+      };
+
+      function joinRoom() {
+          if(websocket.readyState == websocket.OPEN){
+              room = $("#req_room").val();
+              req = "{\"type\":\"join_room\", \"room_id\":"+room+"}";
+              websocket.send(req);
+              showScreen('sending: ' + req);
+          } else {
+               showScreen('websocket is not connected');
+          };
+      };
+
+      function setName() {
+          if(websocket.readyState == websocket.OPEN){
+              room = $("#req_room").val();
+              txt = $("#req_content").val();
+              req = "{\"type\":\"set_name\", \"room_id\":"+room+", \"content\":\""+txt+"\"}";
+              websocket.send(req);
+              showScreen('sending: ' + req);
+          } else {
+               showScreen('websocket is not connected');
+          };
+      };
+
+      function sendMessage() {
+          if(websocket.readyState == websocket.OPEN){
+              room = $("#req_room").val();
+              txt = $("#req_content").val();
+              req = "{\"type\":\"send_message\", \"room_id\":"+room+", \"content\":\""+txt+"\"}";
+              websocket.send(req);
+              showScreen('sending: ' + req);
           } else {
                showScreen('websocket is not connected');
           };
@@ -98,10 +133,15 @@
         <input type='text' id="server" value=""/>
         <button type="button" onclick="toggle_connection()">connection</button>
     </p>
+
     <div id="connected">
         <p>
-            <textarea type='text' id="send_txt"></textarea>
-            <button type="button" onclick="sendTxt();">send</button>
+            RoomId:<br><input type="number" id="req_room"/><br>
+            Content:<br><textarea type='text' id="req_content" style="width:50%;height:200px;"></textarea><br>
+            <button type="button" onclick="getRooms();">get_rooms</button>
+            <button type="button" onclick="joinRoom();">join_room</button>
+            <button type="button" onclick="setName();">set_name</button>
+            <button type="button" onclick="sendMessage();">send_message</button>
         </p>
     </div>
 
