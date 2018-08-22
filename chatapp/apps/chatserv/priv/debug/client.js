@@ -18,9 +18,9 @@ function init() {
 
 function connect()
 {
-    wsHost = $("#server").val()
+    wsHost = $("#server").val();
     websocket = new WebSocket(wsHost);
-    showScreen('<div class="alert alert-info" role="alert">Connecting to: ' +  wsHost + '</div>');
+    showScreen('info', 'Connecting to: ' +  wsHost);
     websocket.onopen = function(evt) { onOpen(evt) };
     websocket.onclose = function(evt) { onClose(evt) };
     websocket.onmessage = function(evt) { onMessage(evt) };
@@ -39,77 +39,71 @@ function toggle_connection(){
     };
 };
 
-function getRooms() {
+function sendRequest(requestString) {
     if(websocket.readyState == websocket.OPEN){
-        req = "{\"type\":\"get_rooms\"}";
-        websocket.send(req);
-      showScreen('<div class="alert alert-dark" role="alert">SENDING: <pre><code>' + prettyjson(req) + '</pre></code></div>');
-  } else {
-       showScreen('<div class="alert alert-danger" role="alert">websocket is not connected</div>');
-  };
+        websocket.send(requestString);
+        showScreen('dark', 'SENDING: <pre><code>' + prettyjson(requestString) + '</pre></code>');
+    } else {
+        showScreen('danger', 'websocket is not connected');
+    };
+}
+
+function getRooms() {
+    req = "{\"type\":\"get_rooms\"}";
+
+    sendRequest(req);
 };
 
 function joinRoom() {
-    if(websocket.readyState == websocket.OPEN){
-        room = $("#req_room").val();
-        req = "{\"type\":\"join_room\", \"room_id\":"+room+"}";
-        websocket.send(req);
-      showScreen('<div class="alert alert-dark" role="alert">SENDING: <pre><code>' + prettyjson(req) + '</pre></code></div>');
-  } else {
-       showScreen('<div class="alert alert-danger" role="alert">websocket is not connected</div>');
-  };
+    room = $("#req_room").val();
+    req = "{\"type\":\"join_room\", \"room_id\":"+room+"}";
+
+    sendRequest(req);
 };
 
 function setName() {
-  if(websocket.readyState == websocket.OPEN){
-      room = $("#req_room").val();
-      txt = $("#req_content").val();
-      req = "{\"type\":\"set_name\", \"room_id\":"+room+", \"content\":\""+txt+"\"}";
-      websocket.send(req);
-      showScreen('<div class="alert alert-dark" role="alert">SENDING: <pre><code>' + prettyjson(req) + '</pre></code></div>');
-  } else {
-       showScreen('<div class="alert alert-danger" role="alert">websocket is not connected</div>');
-  };
+    room = $("#req_room").val();
+    txt = $("#req_content").val();
+    req = "{\"type\":\"set_name\", \"room_id\":"+room+", \"content\":\""+txt+"\"}";
+
+    sendRequest(req);
 };
 
 function sendMessage() {
-  if(websocket.readyState == websocket.OPEN){
-      room = $("#req_room").val();
-      txt = $("#req_content").val();
-      req = "{\"type\":\"send_message\", \"room_id\":"+room+", \"content\":\""+txt+"\"}";
-      websocket.send(req);
-      showScreen('<div class="alert alert-dark" role="alert">SENDING: <pre><code>' + prettyjson(req) + '</pre></code></div>');
-  } else {
-       showScreen('<div class="alert alert-danger" role="alert">websocket is not connected</div>');
-  };
+    room = $("#req_room").val();
+    txt = $("#req_content").val();
+    req = "{\"type\":\"send_message\", \"room_id\":"+room+", \"content\":\""+txt+"\"}";
+
+    sendRequest(req);
 };
 
 function onOpen(evt) {
-  showScreen('<div class="alert alert-success" role="alert">CONNECTED</div>');
+    showScreen('success', 'CONNECTED');
 
-  $("#connected").fadeIn('slow');
-  $("#content").fadeIn('slow');
+    $("#connected").fadeIn('slow');
+    $("#content").fadeIn('slow');
 };
 
 function onClose(evt) {
-  showScreen('<div class="alert alert-warning" role="alert">DISCONNECTED</div>');
+    showScreen('warning', 'DISCONNECTED');
 };
 
 function onMessage(evt) {
-  showScreen('<div class="alert alert-info" role="alert">RESPONSE: <pre><code>' + prettyjson(evt.data) + '</pre></code></div>');
+    showScreen('info', 'RESPONSE: <pre><code>' + prettyjson(evt.data) + '</pre></code>');
 };
 
 function onError(evt) {
-  showScreen('<div class="alert alert-warning" role="danger">ERROR: <pre><code>' + prettyjson(evt.data) + '</pre></code></div>');
+    showScreen('danger', 'ERROR: <pre><code>' + prettyjson(evt.data) + '</pre></code>');
 };
 
-function showScreen(txt) {
-  $('#output').prepend(txt);
+function showScreen(type, message) {
+    html = '<div class="alert alert-'+ type +'" role="'+ type +'">'+ message +'</div>';
+    $('#output').prepend(html);
 };
 
 function clearScreen()
 {
-  $('#output').html("");
+    $('#output').html("");
 };
 
 function prettyjson(json) {
