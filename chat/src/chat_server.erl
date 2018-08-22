@@ -35,12 +35,12 @@ init(undefined) ->
     {ok, #{}}.
 
 handle_cast({send, {Username, Message}}, State) ->
-    lager:info("Got a message in room"),
-    send_to_all(Username ++ ": " ++ Message),
+    lager:info("Chat server got a message ~p from ~p", [Message, Username]),
+    send_to_all(<<Username/binary, ": ", Message/binary>>),
     {noreply, State};
 
 handle_cast({send_to_all, Message}, State) ->
-    lager:info("Trying to send message"),
+    lager:info("Sending message to all users"),
     ConnectionsList = maps:keys(State),
     F = fun(PID, Msg) ->
         lager:info("Sending erlang message to process ~p",[PID]),
@@ -63,7 +63,6 @@ handle_call(_, _, State) ->
     {reply, ok, State}.
 
 handle_info({'DOWN', _, process, PID, _}, State) ->
-    %Username = get_user_by_pid(PID), Кажется так делать нельзя
     lager:info("User with PID ~p disconnected", [PID]),
     NewState = maps:remove(PID, State),
     {noreply, NewState}.

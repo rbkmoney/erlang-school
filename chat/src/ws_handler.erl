@@ -26,16 +26,15 @@ websocket_handle({text, Msg}, Req, State) ->
 	end,
 	{ok, Req, State};
 
-websocket_handle(Data, Req, State) ->
-	lager:notice("Caught data: ~p", [Data]),
+websocket_handle(_Data, Req, State) ->
 	{ok, Req, State}.
 
 websocket_info({send, Msg},Req, State) ->
-	{reply, {text, Msg}, Req, State};
+	{reply, {text, Msg}, Req, State}; %Возможно слежует убрать
 
 websocket_info({send_back, Message}, Req, State) ->
 	{reply, {text, <<Message/binary>>}, Req, State}.
 
 websocket_terminate(_Reason, _Req, _State) ->
-	lager:info("Websocket on process ~p is terminated", [self()]),
+	lager:info("Websocket process ~p is terminated", [self()]),
 	ok.
