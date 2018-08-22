@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+          integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+          crossorigin="anonymous">
+
+    <title>Websocket client</title>
+</head>
+<body>
+    <div class="container">
+        <div id="header">
+            <h1>Websocket client</h1>
+            <div id="status"></div>
+        </div>
+
+
+        <div id="navigation">
+
+            <p id="connecting">
+                <input type='text' id="server" value=""/>
+                <button type="button" class="btn btn-light" onclick="toggle_connection()">connection</button>
+            </p>
+
+            <div id="connected">
+                <p>
+                    <label for="req_room">RoomId:</label><br/><input type="number" id="req_room"/><br>
+                    <label for="req_content">Content:</label><br/><textarea type='text' id="req_content" style="width:50%;height:200px;"></textarea><br>
+                    <button type="button" class="btn btn-light" onclick="getRooms();">get_rooms</button>
+                    <button type="button" class="btn btn-light" onclick="joinRoom();">join_room</button>
+                    <button type="button" class="btn btn-light" onclick="setName();">set_name</button>
+                    <button type="button" class="btn btn-light" onclick="sendMessage();">send_message</button>
+                </p>
+            </div>
+
+            <div id="content">
+                <button id="clear" class="btn btn-light" onclick="clearScreen()" >Clear text</button>
+                <h3> Log: </h3>
+                <div id="output"></div>
+            </div>
+
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    <script src="client.js"></script>
+</body>
+</html>

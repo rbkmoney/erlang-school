@@ -74,7 +74,7 @@ handle_cast(_, State) ->
 handle_continue(load_rooms, State) ->
     NewRooms = lists:map(
         fun(I) ->
-            {ok, Pid} = supervisor:start_child(chsv_room_sup, [I, "Test Room"]),
+            {ok, Pid} = supervisor:start_child(chsv_room_sup, [I, "Test Room " ++ integer_to_list(I)]),
             erlang:monitor(process, Pid),
             {I, Pid}
         end,

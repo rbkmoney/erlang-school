@@ -93,14 +93,14 @@ websocket_terminate(_Reason, _Req, _State) ->
     {binary(), cowboy_req:req(), state()}.
 handle_message(get_rooms, Req, State) ->
     RoomsList = chatserv_room_manager:get_rooms_list(),
-    PreparedList = lists:map(
-        fun({Id, Name}) ->
-            #{
+    PreparedList = maps:fold(
+        fun(Id, Name, Acc) ->
+            Acc ++ [#{
                 room_id => Id,
                 room_name => list_to_binary(Name)
-            }
+            }]
         end,
-        maps:to_list(RoomsList)
+        [], RoomsList
     ),
 
     Response = chatlib_proto:encode({server_response, global, PreparedList}),

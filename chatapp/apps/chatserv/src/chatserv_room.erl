@@ -4,7 +4,7 @@
 % @todo things to do here:
 %   +1. move stuff from casts to calls
 %   1.1. write specs
-%   1.2. move members array to #{pid() => member_data()}
+%   +1.2. move members array to #{pid() => member_data()}
 %   2. rename api methods, make them return stuff
 %%
 
@@ -14,15 +14,16 @@
 -define(MESSAGE_SENDOUT_TIMEOUT, 1000).
 
 -type state() :: #{
-    members := [room_user()],
+    members := member_map(),
     messages := [chatlib_proto:member_message()],
     id := chatlib_proto:room_id(),
     name := chatlib_proto:room_name()
 }.
 
--type room_user() :: #{
-    display_name := chatlib_proto:member_name(),
-    socket_pid := pid()
+-type member_map() :: #{ pid() => room_member() }.
+
+-type room_member() :: #{
+    display_name := chatlib_proto:member_name()
 }.
 
 -export([
@@ -47,12 +48,12 @@
 %%
 
 -spec join_to(pid(), pid()) ->
-    ok.
+    ok | badarg.
 join_to(Pid, From) ->
     gen_server:call(Pid, {join_room, From}).
 
 -spec change_name_in(pid(), pid(), nonempty_string()) ->
-    ok.
+    ok | badarg.
 change_name_in(Pid, From, Name) ->
     gen_server:call(Pid, {set_name, From, Name}).
 
@@ -79,51 +80,52 @@ start_link(Id, Name) ->
     {ok, state()}.
 init([Id, Name]) ->
     _ = erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
-    {ok, #{members => [], messages => [], id => Id, name => Name}}.
+    {ok, #{members => #{}, messages => [], id => Id, name => Name}}.
 
 
 %@todo specs
 -spec handle_call(any(), any(), state()) ->
-    {noreply, state()}.
+    {reply, any(), state()}.
 
 handle_call(get_room_name, _, State = #{name := Name}) ->
     {reply, Name, State};
 
 handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name := Name}) ->
-    case get_member_by_pid(Pid, Members) of
+    case maps:is_key(Pid, Members) of
         false ->
-            NewMember = #{display_name => ?DEFAULT_DISPLAY_NAME, socket_pid => Pid},
-            NewMemberList = [NewMember | Members],
+            NewMember = #{display_name => ?DEFAULT_DISPLAY_NAME},
+            NewMemberList = maps:put(Pid, NewMember, Members),
+
             ok = lager:info(
                 "New user joined room (~p, ~p): ~p. Current member list: ~p",
                 [Id, Name, NewMember, NewMemberList]
             ),
 
             erlang:monitor(process, Pid),
+
             {reply, ok, State#{members := NewMemberList}};
+
         _ ->
             {reply, badarg, State}
     end;
 
+%@todo handle errors
 handle_call({set_name, Pid, NewName}, _, State = #{members := Members}) ->
-    case get_member_by_pid(Pid, Members) of
-        false ->
-            {reply, badarg, State};
+    Member = maps:get(Pid, Members),
+    NewMember = Member#{display_name => NewName},
+    NewMemberList = maps:put(Pid, NewMember, Members),
 
-        Member ->
-            NewMember = Member#{display_name => NewName},
-            NewMemberList = replace(Member, NewMember, Members),
-            ok = lager:info(
-                "A member has changed their name. Old: ~p; New: ~p; New list: ~p",
-                [Member, NewMember, NewMemberList]
-            ),
+    ok = lager:info(
+        "A member has changed their name. Old: ~p; New: ~p; New list: ~p",
+        [Member, NewMember, NewMemberList]
+    ),
 
-            {reply, ok, State#{members := NewMemberList}}
-    end;
+    {reply, ok, State#{members := NewMemberList}};
 
+%@todo handle errors
 handle_call({send_message, Pid, NewMessageText}, _, State) ->
     #{id := Id, name := Name, members:= Members, messages := Messages} = State,
-    #{display_name := MemberName} = get_member_by_pid(Pid, Members),
+    #{display_name := MemberName} = maps:get(Pid, Members),
 
     NewMessage = #{
         timestamp => erlang:universaltime(),
@@ -140,20 +142,16 @@ handle_call({send_message, Pid, NewMessageText}, _, State) ->
 -spec handle_cast(tuple(), state()) ->
     {noreply, state()}.
 
+%@todo why cant I make this a call?
 handle_cast({leave_room, Pid}, State = #{members := Members, id := Id, name := Name}) ->
-    case get_member_by_pid(Pid, Members) of
-        false ->
-            {noreply, State};
+    NewMemberList = maps:remove(Pid, Members),
 
-        Member ->
-            NewMemberList = lists:delete(Member, Members),
-            ok = lager:info(
-                "User left room (~p, ~p): ~p. Current member list: ~p",
-                [Id, Name, Member, NewMemberList]
-            ),
+    ok = lager:info(
+        "User left room (~p, ~p); Current member list: ~p",
+        [Id, Name, NewMemberList]
+    ),
 
-            {noreply, State#{members := NewMemberList}}
-    end;
+    {noreply, State#{members := NewMemberList}};
 
 handle_cast(_, State) ->
     {noreply, State}.
@@ -163,13 +161,12 @@ handle_cast(_, State) ->
     {noreply, state()}.
 
 handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages := Messages}) when length(Messages) > 0 ->
-    lists:foreach(
-        fun(Mem) ->
-            Pid = maps:get(socket_pid, Mem),
-            ok = lager:info("Sending new messages to ~p", [Pid]),
+    _ = maps:fold(
+        fun(Pid, _, ok) ->
+            ok = lager:info("Senqding new messages to ~p", [Pid]),
             ok = chatserv_wshandler:send_messages_to(Pid, RoomId, Messages)
         end,
-        Members
+        ok, Members
     ),
     ok = set_sendout_timeout(),
     {noreply, State#{messages:= []}};
@@ -192,26 +189,3 @@ handle_info({'DOWN', _Ref, process, Pid, Reason}, State) ->
 set_sendout_timeout() ->
     _ = erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
     ok.
-
--spec get_member_by_pid(pid(), [room_user()]) ->
-    room_user() | false.
-get_member_by_pid(Pid, Members) ->
-    Results = lists:filter(
-        fun(M) ->
-            maps:get(socket_pid, M) == Pid
-        end,
-        Members
-    ),
-    case Results of
-        [Result] -> Result;
-        _ -> false
-    end.
-
-
--spec replace(term(), term(), list()) ->
-    list().
-replace(Old, New, List) -> replace(Old, New, List, []).
-
-replace(_, _, [], Acc) -> lists:reverse(Acc);
-replace(Old, New, [Old | List], Acc) -> replace(Old, New, List, [New | Acc]);
-replace(Old, New, [Other | List], Acc) -> replace(Old, New, List, [Other | Acc]).
