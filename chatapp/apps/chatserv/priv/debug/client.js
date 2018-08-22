@@ -5,10 +5,10 @@ $(document).ready(init);
 function init() {
     $('#server').val("ws://" + window.location.host + "/ws");
     if(!("WebSocket" in window)) {
-        $('#status').append('<p><span style="color: red;">websockets are not supported </span></p>');
+        $('#status').append('<span class="nav-link text-danger">websockets are not supported</span>');
         $("#navigation").hide();
     } else {
-        $('#status').append('<p><span style="color: green;">websockets are supported </span></p>');
+        $('#status').append('<span class="nav-link text-success">websockets are supported</span>');
         connect();
     }
 
