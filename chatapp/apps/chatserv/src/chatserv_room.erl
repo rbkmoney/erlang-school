@@ -1,11 +1,5 @@
 -module(chatserv_room).
 
-%%
-% @todo things to do here:
-%   1. rename api methods, make them return stuff
-%%
-
-
 %% API
 -define(DEFAULT_DISPLAY_NAME, "New User").
 -define(MESSAGE_SENDOUT_TIMEOUT, 1000).
@@ -109,7 +103,6 @@ handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name :=
             {reply, badarg, State}
     end;
 
-%@todo handle errors
 handle_call({set_name, Pid, NewName}, _, State = #{members := Members}) ->
     Member = maps:get(Pid, Members),
     NewMember = Member#{display_name => NewName},
@@ -122,7 +115,6 @@ handle_call({set_name, Pid, NewName}, _, State = #{members := Members}) ->
 
     {reply, ok, State#{members := NewMemberList}};
 
-%@todo handle errors
 handle_call({send_message, Pid, NewMessageText}, _, State) ->
     #{id := Id, name := Name, members:= Members, messages := Messages} = State,
     #{display_name := MemberName} = maps:get(Pid, Members),
@@ -160,7 +152,7 @@ handle_cast({leave_room, Pid}, State = #{members := Members, id := Id, name := N
 handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages := Messages}) when length(Messages) > 0 ->
     _ = maps:fold(
         fun(Pid, _, ok) ->
-            ok = lager:info("Senqding new messages to ~p", [Pid]),
+            ok = lager:info("Sending new messages to ~p", [Pid]),
             ok = chatserv_wshandler:send_messages_to(Pid, RoomId, Messages)
         end,
         ok, Members
