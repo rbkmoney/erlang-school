@@ -2,9 +2,9 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, init/1, handle_cast/2, handle_call/3, handle_info/2]).
+-export([start_link/0, init/1, handle_cast/2, handle_call/3, handle_info/2, terminate/2]).
 
--export([send/2, register_connection/2]).
+-export([send/2, register_connection/2, stop/0]).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -17,6 +17,8 @@ register_connection(Username, PID) ->
     gen_server:call(?MODULE, {register, {Username, PID}}),
     send_to_all(<<Username/binary, " joined this chat">>).
 
+stop() ->
+    gen_server:cast(?MODULE,stop).
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 get_user_by_pid(PID) ->
@@ -47,7 +49,10 @@ handle_cast({send_to_all, Message}, State) ->
         PID ! {send_back,Msg}
     end,
     [F(Item, Message) || Item <- ConnectionsList],
-    {noreply, State}.
+    {noreply, State};
+
+handle_cast(stop, State) ->
+    {stop, normal, State}.
 
 handle_call({register, {Username, PID}}, _From, State) ->
     lager:info("Registration of new user ~p", [Username]),
@@ -66,3 +71,6 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
     lager:info("User with PID ~p disconnected", [PID]),
     NewState = maps:remove(PID, State),
     {noreply, NewState}.
+
+terminate(normal, _State) ->
+    ok.

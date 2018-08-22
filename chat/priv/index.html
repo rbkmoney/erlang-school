@@ -35,6 +35,7 @@
       function disconnect() {
           websocket.close();
       };
+
       function toggle_connection(){
           if(websocket.readyState == websocket.OPEN){
               disconnect();
@@ -42,6 +43,7 @@
               connect();
           };
       };
+
       function sendTxt() {
           if(websocket.readyState == websocket.OPEN){
               txt = $("#send_txt").val();
@@ -69,18 +71,23 @@
           showScreen('<span style="color: green;">CONNECTED </span>');
           $("#registration").fadeIn('slow');
       };
+
       function onClose(evt) {
           showScreen('<span style="color: red;">DISCONNECTED </span>');
       };
+
       function onMessage(evt) {
           showScreen('<span style="color: blue;">' + evt.data+ '</span>');
       };
+
       function onError(evt) {
           showScreen('<span style="color: red;">ERROR: ' + evt.data+ '</span>');
       };
+
       function showScreen(txt) {
           $('#output').prepend('<p>' + txt + '</p>');
       };
+
       function clearScreen()
       {
           $('#output').html("");

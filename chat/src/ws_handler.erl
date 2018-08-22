@@ -12,12 +12,11 @@ init({tcp, http}, _Req, _Opts) ->
 	{upgrade, protocol, cowboy_websocket}.
 
 websocket_init(_TransportName, Req, _Opts) ->
-	lager:notice("Initializing websocket"),
-	lager:info("Process PID is ~p",[self()]),
+	lager:notice("Initializing websocket, PID: ~p", [self()]),
 	{ok, Req, undefined_state}.
 
 websocket_handle({text, Msg}, Req, State) ->
-	lager:notice("Caught message: ~p", [Msg]),
+	lager:info("Caught message: ~p", [Msg]),
 	case string:split(Msg, ",") of
 		[<<"reg_user:">>, Username] -> %Довольно неприятный костыль, но я не нашел другого способа
 			chat_server:register_connection(Username,self());
@@ -33,7 +32,7 @@ websocket_info({send, Msg},Req, State) ->
 	{reply, {text, Msg}, Req, State}; %Возможно слежует убрать
 
 websocket_info({send_back, Message}, Req, State) ->
-	{reply, {text, <<Message/binary>>}, Req, State}.
+	{reply, {text, Message}, Req, State}.
 
 websocket_terminate(_Reason, _Req, _State) ->
 	lager:info("Websocket process ~p is terminated", [self()]),
