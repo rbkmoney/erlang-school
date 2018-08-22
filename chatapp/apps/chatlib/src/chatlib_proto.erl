@@ -15,7 +15,10 @@
 -type member_name() :: nonempty_string().
 -type message_text() :: nonempty_string().
 
--type error() :: atom().
+-type req_status() ::
+    ok |
+    user_already_exists |
+    room_not_joined.
 
 -type member_message() :: #{
     timestamp => erlang:timestamp(),
@@ -23,16 +26,10 @@
     message_text => message_text()
 }.
 
--type packet_map() :: #{
-    type := packet_type(),
-    room_id => room_id(),
-    content => member_name() | message_text() | [member_message()]
-}.
-
--type packet_term() ::
+-type packet() ::
     packet_type() |
     {packet_type(), room_id()} |
-    {packet_type(), room_id(), error() | member_name() | message_text() | [member_message()]}.
+    {packet_type(), room_id(), req_status() | member_name() | message_text() | [member_message()]}.
 
 -export_type([
     room_id/0,
@@ -40,7 +37,8 @@
     message_text/0,
     member_message/0,
     member_name/0,
-    packet_term/0
+    packet/0,
+    req_status/0
 ]).
 
 -export([
@@ -52,21 +50,29 @@
 %% API
 %%
 
--spec encode(packet_term()) ->
+-spec encode(packet()) ->
     binary().
 encode(Message) ->
     Ejson = packet_term_to_map(Message),
     jiffy:encode(Ejson).
 
 -spec decode(binary()) ->
-    packet_term().
+    packet().
 decode(Message) ->
     Json = jiffy:decode(Message, [return_maps]),
-    packet_map_to_term(Json).
+    packet_from_json(Json).
 
 
--spec packet_term_to_map(packet_term()) ->
-    packet_map().
+%% local
+
+-type json() :: #{
+    type := packet_type(),
+    room_id => room_id(),
+    content => req_status() | member_name() | message_text() | [member_message()]
+}.
+
+-spec packet_term_to_map(packet()) ->
+    json().
 
 packet_term_to_map({server_response, RoomId, Message}) ->
     #{
@@ -107,33 +113,33 @@ packet_term_to_map({receive_messages, RoomId, MessageList}) ->
         content => MessageList
     }.
 
--spec packet_map_to_term(packet_map()) ->
-    packet_term().
+-spec packet_from_json(json()) ->
+    packet().
 
-packet_map_to_term(Msg = #{<<"type">> := <<"server_response">>}) ->
+packet_from_json(Msg = #{<<"type">> := <<"server_response">>}) ->
     #{<<"content">> := ErrorCode} = Msg,
 
     {server_response, ErrorCode};
 
-packet_map_to_term(#{<<"type">> := <<"get_rooms">>}) ->
+packet_from_json(#{<<"type">> := <<"get_rooms">>}) ->
     get_rooms;
 
-packet_map_to_term(Msg = #{<<"type">> := <<"join_room">>}) ->
+packet_from_json(Msg = #{<<"type">> := <<"join_room">>}) ->
     #{<<"room_id">> := RoomId} = Msg,
 
     {join_room, decode_room_id(RoomId)};
 
-packet_map_to_term(Msg = #{<<"type">> := <<"set_name">>}) ->
+packet_from_json(Msg = #{<<"type">> := <<"set_name">>}) ->
     #{<<"room_id">> := RoomId, <<"content">> := NameString} = Msg,
 
     {set_name, decode_room_id(RoomId), binary_to_list(NameString)};
 
-packet_map_to_term(Msg = #{<<"type">> := <<"send_message">>}) ->
+packet_from_json(Msg = #{<<"type">> := <<"send_message">>}) ->
     #{<<"room_id">> := RoomId, <<"content">> := MessageString} = Msg,
 
     {send_message, decode_room_id(RoomId), binary_to_list(MessageString)};
 
-packet_map_to_term(Msg = #{<<"type">> := <<"receive_messages">>}) ->
+packet_from_json(Msg = #{<<"type">> := <<"receive_messages">>}) ->
     #{<<"room_id">> := RoomId, <<"content">> := MessageList} = Msg,
     %since server will never receive messages Message list keys will remain binary
     {receive_messages, decode_room_id(RoomId), MessageList}.

@@ -60,6 +60,7 @@ websocket_handle(_Data, Req, State) ->
     {ok, cowboy_req:req(), state()} | {reply, {text, binary()}, cowboy_req:req(), state()}.
 
 websocket_info({receive_messages, RoomId, MessageList}, Req, State) ->
+    %@todo move
     PreparedMessages = lists:map(
         fun(M = #{timestamp := Timestamp, member_name := Name, message_text := Text}) ->
             M#{
@@ -90,10 +91,11 @@ websocket_terminate(_Reason, _Req, _State) ->
 %%
 %% internal
 %%
--spec handle_message(chatlib_proto:packet_term(), cowboy_req:req(), state()) ->
+-spec handle_message(chatlib_proto:packet(), cowboy_req:req(), state()) ->
     {binary(), cowboy_req:req(), state()}.
 handle_message(get_rooms, Req, State) ->
-    RoomsList = chatserv_room_manager:get_rooms_list(),
+    RoomsList = chatserv_room_manager:get_rooms_names(),
+    %@todo move
     PreparedList = maps:fold(
         fun(Id, Name, Acc) ->
             Acc ++ [#{
@@ -114,7 +116,7 @@ handle_message({join_room, RoomId}, Req, State = #{ joined_rooms := Rooms }) ->
         ok ->
             NewRooms = maps:put(RoomId, RoomPid, Rooms),
             ok;
-        badarg ->
+        user_already_exists ->
             NewRooms = Rooms,
             user_already_exists
     end,

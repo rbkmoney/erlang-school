@@ -4,12 +4,9 @@
 %% API
 -type rooms_list() :: #{ chatlib_proto:room_id() => pid() }.
 
--type state() :: #{
-    rooms := rooms_list()
-}.
 
 -export([
-    get_rooms_list/0,
+    get_rooms_names/0,
     get_room/1
 ]).
 
@@ -29,9 +26,9 @@
 %% API
 %%
 
--spec get_rooms_list() ->
+-spec get_rooms_names() ->
     #{chatlib_proto:room_id() => chatlib_proto:room_name()}.
-get_rooms_list() ->
+get_rooms_names() ->
     RoomList = gen_server:call(?SERVER, get_rooms_list),
 
     maps:map(
@@ -51,6 +48,9 @@ get_room(RoomId) ->
 %%
 %% gen_server
 %%
+-type state() :: #{
+    rooms := rooms_list()
+}.
 
 -spec start_link() ->
     {ok, pid()} | {error, term()}.

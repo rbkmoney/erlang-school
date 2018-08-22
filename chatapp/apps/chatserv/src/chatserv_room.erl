@@ -39,17 +39,17 @@
 %%
 
 -spec join_to(pid(), pid()) ->
-    ok | badarg.
+    chatlib_proto:req_status().
 join_to(Pid, From) ->
     gen_server:call(Pid, {join_room, From}).
 
 -spec change_name_in(pid(), pid(), chatlib_proto:member_name()) ->
-    ok | badarg.
+    chatlib_proto:req_status().
 change_name_in(Pid, From, Name) ->
     gen_server:call(Pid, {set_name, From, Name}).
 
 -spec send_message_to(pid(), pid(), chatlib_proto:message_text()) ->
-    ok.
+    chatlib_proto:req_status().
 send_message_to(Pid, From, MessageText) ->
     gen_server:call(Pid, {send_message, From, MessageText}).
 
@@ -100,7 +100,7 @@ handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name :=
             {reply, ok, State#{members := NewMemberList}};
 
         _ ->
-            {reply, badarg, State}
+            {reply, user_already_exists, State}
     end;
 
 handle_call({set_name, Pid, NewName}, _, State = #{members := Members}) ->

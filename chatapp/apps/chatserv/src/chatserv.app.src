@@ -8,7 +8,6 @@
         stdlib,
         lager,
         cowboy,
-        jiffy,
         chatlib
     ]},
     {env, []},
