@@ -144,4 +144,3 @@ decode_room_id(<<"global">>) ->
     global;
 decode_room_id(RoomId) when is_integer(RoomId) ->
     RoomId.
-
