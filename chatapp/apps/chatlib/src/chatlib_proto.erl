@@ -1,10 +1,5 @@
 -module(chatlib_proto).
 
-%%
-% @todo things to do here:
-%   1. consider preparing all the list_to_binaries here
-%%
-
 %% API
 -type packet_type() ::
     server_response |
@@ -42,6 +37,7 @@
 -export_type([
     room_id/0,
     room_name/0,
+    message_text/0,
     member_message/0,
     member_name/0,
     packet_term/0
@@ -139,7 +135,7 @@ packet_map_to_term(Msg = #{<<"type">> := <<"send_message">>}) ->
 
 packet_map_to_term(Msg = #{<<"type">> := <<"receive_messages">>}) ->
     #{<<"room_id">> := RoomId, <<"content">> := MessageList} = Msg,
-    %@todo since server will never receive messages Message list keys will remain binary
+    %since server will never receive messages Message list keys will remain binary
     {receive_messages, decode_room_id(RoomId), MessageList}.
 
 -spec decode_room_id(binary() | room_id()) ->

@@ -24,6 +24,8 @@
 %% API
 %%
 
+-spec send_messages_to(pid(), chatlib_proto:room_id(), [chatlib_proto:member_message()]) ->
+    ok.
 send_messages_to(MemberPid, RoomId, MessageList) ->
     MemberPid ! {receive_messages, RoomId, MessageList},
     ok.
@@ -31,20 +33,16 @@ send_messages_to(MemberPid, RoomId, MessageList) ->
 %%
 %% cowboy_websocket_handler
 %%
-
-%@todo actual types
 -spec init({tcp, http}, cowboy_req:req(), any()) ->
     {upgrade, protocol, cowboy_websocket}.
 init({tcp, http}, _Req, _Opts) ->
     {upgrade, protocol, cowboy_websocket}.
 
-%@todo actual types
--spec websocket_init(any(), cowboy_req:req(), any()) ->
+-spec websocket_init(tcp | ssl, cowboy_req:req(), any()) ->
     {ok, cowboy_req:req(), state()}.
 websocket_init(_TransportName, Req, _Opts) ->
     {ok, Req, #{ joined_rooms => #{} }}.
 
-%@todo actual types
 -spec websocket_handle({text, binary()}, cowboy_req:req(), state()) ->
     {reply, {text, binary()}, cowboy_req:req(), state()} | {ok, cowboy_req:req(), state()}.
 websocket_handle({text, Msg}, Req, State) ->
@@ -55,8 +53,10 @@ websocket_handle({text, Msg}, Req, State) ->
 websocket_handle(_Data, Req, State) ->
     {ok, Req, State}.
 
-%@todo actual types
--spec websocket_info(any(), cowboy_req:req(), state()) ->
+-spec websocket_info(
+            {receive_messages, chatlib_proto:room_id(), [chatlib_proto:member_message()]},
+        cowboy_req:req(), state()
+    ) ->
     {ok, cowboy_req:req(), state()} | {reply, {text, binary()}, cowboy_req:req(), state()}.
 
 websocket_info({receive_messages, RoomId, MessageList}, Req, State) ->
@@ -77,8 +77,12 @@ websocket_info({receive_messages, RoomId, MessageList}, Req, State) ->
 websocket_info(_Info, Req, State) ->
     {ok, Req, State}.
 
-%@todo actual types
--spec websocket_terminate(any(), cowboy_req:req(), any()) ->
+-spec websocket_terminate({normal, shutdown | timeout} |
+                        {remote, closed} |
+                        {remote, cowboy_websocket:close_code(), binary()} |
+                        {error, badencoding | badframe | closed | atom()},
+        cowboy_req:req(), state()
+    ) ->
     ok.
 websocket_terminate(_Reason, _Req, _State) ->
     ok.
@@ -86,9 +90,6 @@ websocket_terminate(_Reason, _Req, _State) ->
 %%
 %% internal
 %%
-
-
-%@todo actual types
 -spec handle_message(chatlib_proto:packet_term(), cowboy_req:req(), state()) ->
     {binary(), cowboy_req:req(), state()}.
 handle_message(get_rooms, Req, State) ->

@@ -2,8 +2,10 @@
 -behavior(gen_server).
 
 %% API
--type room_manager_state() :: #{
-    rooms := #{ chatlib_proto:room_id() => pid() }
+-type rooms_list() :: #{ chatlib_proto:room_id() => pid() }.
+
+-type state() :: #{
+    rooms := rooms_list()
 }.
 
 -export([
@@ -27,7 +29,6 @@
 %% API
 %%
 
-%@todo replace string type with another proto type
 -spec get_rooms_list() ->
     #{chatlib_proto:room_id() => chatlib_proto:room_name()}.
 get_rooms_list() ->
@@ -56,21 +57,28 @@ get_room(RoomId) ->
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+
+-spec init([]) ->
+    {ok, state(), {continue, load_rooms}}.
 init([]) ->
     {ok, #{
-        rooms => []
+        rooms => #{}
     }, {
         continue, load_rooms
     }}.
 
+-spec handle_call(get_rooms_list, {pid(), _}, state()) ->
+    {reply, rooms_list(), state()}.
 handle_call(get_rooms_list, _, State = #{rooms := Rooms}) ->
     {reply, Rooms, State}.
 
+-spec handle_cast(any(), state()) ->
+    {noreply, state()}.
 handle_cast(_, State) ->
     {noreply, State}.
 
--spec handle_continue(load_rooms, room_manager_state()) ->
-    {noreply, room_manager_state()}.
+-spec handle_continue(load_rooms, state()) ->
+    {noreply, state()}.
 handle_continue(load_rooms, State) ->
     NewRooms = lists:map(
         fun(I) ->
@@ -83,8 +91,8 @@ handle_continue(load_rooms, State) ->
     {noreply, State#{ rooms := maps:from_list(NewRooms) }}.
 
 %%@todo handle room crashes
--spec handle_info({'DOWN', reference(), process, pid(), atom()}, room_manager_state()) ->
-    {noreply, room_manager_state()}.
+-spec handle_info({'DOWN', reference(), process, pid(), atom()}, state()) ->
+    {noreply, state()}.
 handle_info({'DOWN', _Ref, process, _Pid, _Reason}, State) ->
     {noreply, State}.
 

@@ -2,10 +2,7 @@
 
 %%
 % @todo things to do here:
-%   +1. move stuff from casts to calls
-%   1.1. write specs
-%   +1.2. move members array to #{pid() => member_data()}
-%   2. rename api methods, make them return stuff
+%   1. rename api methods, make them return stuff
 %%
 
 
@@ -52,18 +49,18 @@
 join_to(Pid, From) ->
     gen_server:call(Pid, {join_room, From}).
 
--spec change_name_in(pid(), pid(), nonempty_string()) ->
+-spec change_name_in(pid(), pid(), chatlib_proto:member_name()) ->
     ok | badarg.
 change_name_in(Pid, From, Name) ->
     gen_server:call(Pid, {set_name, From, Name}).
 
--spec send_message_to(pid(), pid(), nonempty_string()) ->
+-spec send_message_to(pid(), pid(), chatlib_proto:message_text()) ->
     ok.
 send_message_to(Pid, From, MessageText) ->
     gen_server:call(Pid, {send_message, From, MessageText}).
 
 -spec get_name_of(pid()) ->
-    nonempty_string().
+    chatlib_proto:room_name().
 get_name_of(Pid) ->
     gen_server:call(Pid, get_room_name).
 
@@ -82,10 +79,13 @@ init([Id, Name]) ->
     _ = erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
     {ok, #{members => #{}, messages => [], id => Id, name => Name}}.
 
-
-%@todo specs
--spec handle_call(any(), any(), state()) ->
-    {reply, any(), state()}.
+-spec handle_call(get_room_name |
+                {join_room, pid()} |
+                {set_name, pid(), chatlib_proto:member_name()} |
+                {send_message, pid(), chatlib_proto:message_text()},
+        {pid(), _}, state()
+    ) ->
+    {reply, ok | badarg | chatlib_proto:room_name(), state()}.
 
 handle_call(get_room_name, _, State = #{name := Name}) ->
     {reply, Name, State};
@@ -139,7 +139,7 @@ handle_call({send_message, Pid, NewMessageText}, _, State) ->
 
     {reply, ok, State#{messages := NewMessages}}.
 
--spec handle_cast(tuple(), state()) ->
+-spec handle_cast({leave_room, pid()}, state()) ->
     {noreply, state()}.
 
 %@todo why cant I make this a call?
@@ -151,10 +151,7 @@ handle_cast({leave_room, Pid}, State = #{members := Members, id := Id, name := N
         [Id, Name, NewMemberList]
     ),
 
-    {noreply, State#{members := NewMemberList}};
-
-handle_cast(_, State) ->
-    {noreply, State}.
+    {noreply, State#{members := NewMemberList}}.
 
 %%send_messages
 -spec handle_info(send_messages | {'DOWN', reference(), process, pid(), atom()}, state()) ->
