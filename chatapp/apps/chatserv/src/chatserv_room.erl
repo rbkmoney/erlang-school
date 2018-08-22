@@ -136,7 +136,7 @@ handle_call({send_message, Pid, NewMessageText}, _, State) ->
 
 %@todo why cant I make this a call?
 handle_cast({leave_room, Pid}, State = #{members := Members, id := Id, name := Name}) ->
-    NewMemberList = maps:remove(Pid, Members),
+    NewMemberList = remove_user(Pid, Members),
 
     ok = lager:info(
         "User left room (~p, ~p); Current member list: ~p",
@@ -164,14 +164,23 @@ handle_info(send_messages, State) ->
     ok = set_sendout_timeout(),
     {noreply, State};
 
-handle_info({'DOWN', _Ref, process, Pid, Reason}, State) ->
-    ok = lager:info("Reason ~p", [Reason]),
-    _ = gen_server:cast(self(), {leave_room, Pid}),
-    {noreply, State}.
+handle_info({'DOWN', _Ref, process, Pid, Reason}, State = #{members := Members, id := Id, name := Name}) ->
+    NewMemberList = remove_user(Pid, Members),
+
+    ok = lager:info(
+        "User disconnected from room (~p, ~p) with reason ~p; Current member list: ~p",
+        [Id, Name, Reason, NewMemberList]
+    ),
+
+    {noreply, State#{members := NewMemberList}}.
 
 %%
 %% Internal
 %%
+-spec remove_user(pid(), member_map()) ->
+    member_map().
+remove_user(Pid, Members) ->
+    maps:remove(Pid, Members).
 
 -spec set_sendout_timeout() ->
     ok.
