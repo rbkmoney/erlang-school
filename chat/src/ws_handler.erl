@@ -13,25 +13,24 @@ init({tcp, http}, _Req, _Opts) ->
 
 websocket_init(_TransportName, Req, _Opts) ->
 	lager:notice("Initializing websocket, PID: ~p", [self()]),
-	{ok, Req, undefined_state}.
+	{ok, Req, registration}.
 
-websocket_handle({text, Msg}, Req, State) ->
-	lager:info("Caught message: ~p", [Msg]),
-	case string:split(Msg, ",") of
-		[<<"reg_user:">>, Username] -> %Довольно неприятный костыль, но я не нашел другого способа
-			chat_server:register_connection(Username,self());
-		_ ->
-			chat_server:send(Msg, self())
-	end,
+websocket_handle({text, Username}, Req, registration) ->
+	lager:info("Registrating user ~p", [Username]),
+	chat_server:register_connection(Username, self()),
+	{ok, Req, registrated};
+
+websocket_handle({text, Msg}, Req, State = registrated) ->
+	lager:info("Cathed message: ~p", [Msg]),
+	chat_server:send(Msg, self()),
 	{ok, Req, State};
+
+% {register_user, Username} = proto:decode(Msg)
 
 websocket_handle(_Data, Req, State) ->
 	{ok, Req, State}.
 
-websocket_info({send, Msg},Req, State) ->
-	{reply, {text, Msg}, Req, State}; %Возможно слежует убрать
-
-websocket_info({send_back, Message}, Req, State) ->
+websocket_info({send, Message}, Req, State) ->
 	{reply, {text, Message}, Req, State}.
 
 websocket_terminate(_Reason, _Req, _State) ->

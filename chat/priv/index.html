@@ -57,7 +57,7 @@
       function register() {
           if(websocket.readyState == websocket.OPEN){
               user = $("#username").val();
-              websocket.send(["reg_user:",user]);
+              websocket.send(user);
               showScreen('<span style="color: green;">Registred</span>');
               $("#registration").hide();
               $("#connected").fadeIn('slow');
