@@ -17,19 +17,19 @@
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->
-	supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% supervisor.
 
 init([]) ->
-	lager:notice("Application supervisor Initialized"),
-	SupArgs = #{
+    lager:notice("Application supervisor Initialized"),
+    SupArgs = #{
         strategy => one_for_one,
         intensity => 10,
         period => 10
     },
-	Server = #{
+    Server = #{
         id => room,
-        start => {chat_server,start_link,[]}
+        start => {chat_server, start_link, []}
     },
-	{ok, {SupArgs, [Server]}}.
+    {ok, {SupArgs, [Server]}}.

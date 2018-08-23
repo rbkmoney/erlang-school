@@ -2,9 +2,16 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, init/1, handle_cast/2, handle_call/3, handle_info/2, terminate/2]).
+-export([init/1]).
+-export([start_link/0]).
+-export([handle_cast/2]).
+-export([handle_call/3]).
+-export([handle_info/2]).
+-export([terminate/2]).
 
--export([send/2, register_connection/2, stop/0]).
+-export([send/2]).
+-export([register_connection/2]).
+-export([stop/0]).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -16,7 +23,7 @@ register_connection(Username, PID) ->
     gen_server:call(?MODULE, {register, {Username, PID}}).
 
 stop() ->
-    gen_server:cast(?MODULE,stop).
+    gen_server:cast(?MODULE, stop).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -44,7 +51,7 @@ register_user(Username, PID, State) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_link() ->
-    gen_server:start_link({local, chat_server}, ?MODULE, undefined,[]).
+    gen_server:start_link({local, chat_server}, ?MODULE, undefined, []).
 
 init(undefined) ->
     lager:notice("Initialized chat room"),
