@@ -33,7 +33,7 @@ get_rooms_with_names() ->
 
     maps:map(
         fun(_, V) ->
-            chatserv_room:get_name(V)
+            chatserv_room:get_room_name(V)
         end,
         RoomList
     ).

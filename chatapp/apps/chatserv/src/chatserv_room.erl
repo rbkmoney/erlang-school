@@ -11,17 +11,19 @@
     name := chatlib_proto:room_name()
 }.
 
--type member_map() :: #{ pid() => room_member() }.
+-type member_pid() :: pid().
+-type member_map() :: #{ member_pid() => room_member() }.
 
+-type room_pid() :: pid().
 -type room_member() :: #{
     display_name := chatlib_proto:member_name()
 }.
 
 -export([
-    join_to/2,
-    change_name_in/3,
-    send_message_to/3,
-    get_name/1
+    join/1,
+    change_name/2,
+    send_message/2,
+    get_room_name/1
 ]).
 
 %% gen_server
@@ -38,24 +40,24 @@
 %% API
 %%
 
--spec join_to(pid(), pid()) ->
+-spec join(room_pid()) ->
     chatlib_proto:response_code().
-join_to(Pid, From) ->
-    gen_server:call(Pid, {join_room, From}).
+join(Pid) ->
+    gen_server:call(Pid, {join_room, self()}).
 
--spec change_name_in(pid(), pid(), chatlib_proto:member_name()) ->
+-spec change_name(room_pid(), chatlib_proto:member_name()) ->
     chatlib_proto:response_code().
-change_name_in(Pid, From, Name) ->
-    gen_server:call(Pid, {set_name, From, Name}).
+change_name(Pid, Name) ->
+    gen_server:call(Pid, {set_name, self(), Name}).
 
--spec send_message_to(pid(), pid(), chatlib_proto:message_text()) ->
+-spec send_message(room_pid(), chatlib_proto:message_text()) ->
     chatlib_proto:response_code().
-send_message_to(Pid, From, MessageText) ->
-    gen_server:call(Pid, {send_message, From, MessageText}).
+send_message(Pid, MessageText) ->
+    gen_server:call(Pid, {send_message, self(), MessageText}).
 
--spec get_name(pid()) ->
+-spec get_room_name(room_pid()) ->
     chatlib_proto:room_name().
-get_name(Pid) ->
+get_room_name(Pid) ->
     gen_server:call(Pid, get_room_name).
 
 %%
@@ -74,9 +76,9 @@ init([Id, Name]) ->
     {ok, #{members => #{}, messages => [], id => Id, name => Name}}.
 
 -spec handle_call(get_room_name |
-                {join_room, pid()} |
-                {set_name, pid(), chatlib_proto:member_name()} |
-                {send_message, pid(), chatlib_proto:message_text()},
+                {join_room, member_pid()} |
+                {set_name, member_pid(), chatlib_proto:member_name()} |
+                {send_message, member_pid(), chatlib_proto:message_text()},
         {pid(), _}, state()
     ) ->
     {reply, ok | badarg | chatlib_proto:room_name(), state()}.
@@ -85,53 +87,43 @@ handle_call(get_room_name, _, State = #{name := Name}) ->
     {reply, Name, State};
 
 handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name := Name}) ->
-    case maps:is_key(Pid, Members) of
-        false ->
-            NewMember = #{display_name => ?DEFAULT_DISPLAY_NAME},
-            NewMemberList = maps:put(Pid, NewMember, Members),
+    case new_member(Pid, ?DEFAULT_DISPLAY_NAME, Members) of
+        already_exists ->
+            {reply, user_already_exists, State};
 
+        NewMemberList ->
             ok = lager:info(
-                "New user joined room (~p, ~p): ~p. Current member list: ~p",
-                [Id, Name, NewMember, NewMemberList]
+                "New user joined room (~p, ~p). Current member list: ~p",
+                [Id, Name, NewMemberList]
             ),
 
             erlang:monitor(process, Pid),
 
-            {reply, ok, State#{members := NewMemberList}};
-
-        _ ->
-            {reply, user_already_exists, State}
+            {reply, ok, State#{members := NewMemberList}}
     end;
 
 handle_call({set_name, Pid, NewName}, _, State = #{members := Members}) ->
-    Member = maps:get(Pid, Members),
-    NewMember = Member#{display_name => NewName},
-    NewMemberList = maps:put(Pid, NewMember, Members),
+    NewMemberList = change_member_name(Pid, NewName, Members),
 
     ok = lager:info(
-        "A member has changed their name. Old: ~p; New: ~p; New list: ~p",
-        [Member, NewMember, NewMemberList]
+        "A member has changed their name. New: ~p; New list: ~p",
+        [NewName, NewMemberList]
     ),
 
     {reply, ok, State#{members := NewMemberList}};
 
 handle_call({send_message, Pid, NewMessageText}, _, State) ->
     #{id := Id, name := Name, members:= Members, messages := Messages} = State,
-    #{display_name := MemberName} = maps:get(Pid, Members),
 
-    NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
-    NewMessages = [NewMessage | Messages],
+    #{display_name := MemberName} = get_member(Pid, Members),
+    NewMessages = new_message(MemberName, NewMessageText, Messages),
 
-    ok = lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessage]),
+    ok = lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessages]),
 
-    {reply, ok, State#{messages := NewMessages}}.
+    {reply, ok, State#{messages := NewMessages}};
 
--spec handle_cast({leave_room, pid()}, state()) ->
-    {noreply, state()}.
-
-%@todo why cant I make this a call?
-handle_cast({leave_room, Pid}, State = #{members := Members, id := Id, name := Name}) ->
-    NewMemberList = remove_user(Pid, Members),
+handle_call({leave_room, Pid}, _, State = #{members := Members, id := Id, name := Name}) ->
+    NewMemberList = remove_member(Pid, Members),
 
     ok = lager:info(
         "User left room (~p, ~p); Current member list: ~p",
@@ -139,6 +131,11 @@ handle_cast({leave_room, Pid}, State = #{members := Members, id := Id, name := N
     ),
 
     {noreply, State#{members := NewMemberList}}.
+
+-spec handle_cast(any(), state()) ->
+    {noreply, state()}.
+handle_cast(_, State) ->
+    {noreply, State}.
 
 %%send_messages
 -spec handle_info(send_messages | {'DOWN', reference(), process, pid(), atom()}, state()) ->
@@ -148,7 +145,7 @@ handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages :=
     _ = maps:fold(
         fun(Pid, _, ok) ->
             ok = lager:info("Sending new messages to ~p", [Pid]),
-            ok = chatserv_wshandler:send_messages_to(Pid, RoomId, Messages)
+            ok = chatserv_wshandler:send_messages(Pid, RoomId, Messages)
         end,
         ok, Members
     ),
@@ -160,7 +157,7 @@ handle_info(send_messages, State) ->
     {noreply, State};
 
 handle_info({'DOWN', _Ref, process, Pid, Reason}, State = #{members := Members, id := Id, name := Name}) ->
-    NewMemberList = remove_user(Pid, Members),
+    NewMemberList = remove_member(Pid, Members),
 
     ok = lager:info(
         "User disconnected from room (~p, ~p) with reason ~p; Current member list: ~p",
@@ -172,10 +169,45 @@ handle_info({'DOWN', _Ref, process, Pid, Reason}, State = #{members := Members, 
 %%
 %% Internal
 %%
--spec remove_user(pid(), member_map()) ->
-    member_map().
-remove_user(Pid, Members) ->
+-spec member_exists(member_pid(), Current::member_map()) ->
+    Result::boolean().
+member_exists(Pid, Members) ->
+    maps:is_key(Pid, Members).
+
+-spec new_member(member_pid(), chatlib_proto:member_name(), Old::member_map()) ->
+    New::member_map() | already_exists.
+new_member(Pid, MemberName, Members) ->
+    case member_exists(Pid, Members) of
+        false ->
+            NewMember = #{display_name => MemberName},
+            maps:put(Pid, NewMember, Members);
+        _ ->
+            already_exists
+    end.
+
+-spec change_member_name(member_pid(), chatlib_proto:member_name(), Old::member_map()) ->
+    New::member_map().
+change_member_name(Pid, NewName, Members) ->
+    Member = get_member(Pid, Members),
+    NewMember = Member#{display_name => NewName},
+
+    maps:put(Pid, NewMember, Members).
+
+-spec get_member(member_pid(), member_map()) ->
+    room_member().
+get_member(Pid, Members) ->
+    maps:get(Pid, Members).
+
+-spec remove_member(member_pid(), Old::member_map()) ->
+    New::member_map().
+remove_member(Pid, Members) ->
     maps:remove(Pid, Members).
+
+-spec new_message(chatlib_proto:member_name(), chatlib_proto:message_text(), Old::chatlib_proto:message_list()) ->
+    New::chatlib_proto:message_list().
+new_message(MemberName, NewMessageText, Messages) ->
+     NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
+    [NewMessage | Messages].
 
 -spec set_sendout_timeout() ->
     ok.
