@@ -24,7 +24,7 @@
 %% API
 %%
 
--spec send_messages_to(pid(), chatlib_proto:room_id(), [chatlib_proto:member_message()]) ->
+-spec send_messages_to(pid(), chatlib_proto:room_id(), chatlib_proto:message_list()) ->
     ok.
 send_messages_to(MemberPid, RoomId, MessageList) ->
     MemberPid ! {receive_messages, RoomId, MessageList},
@@ -54,24 +54,13 @@ websocket_handle(_Data, Req, State) ->
     {ok, Req, State}.
 
 -spec websocket_info(
-            {receive_messages, chatlib_proto:room_id(), [chatlib_proto:member_message()]},
+            {receive_messages, chatlib_proto:room_id(), chatlib_proto:message_list()},
         cowboy_req:req(), state()
     ) ->
     {ok, cowboy_req:req(), state()} | {reply, {text, binary()}, cowboy_req:req(), state()}.
 
 websocket_info({receive_messages, RoomId, MessageList}, Req, State) ->
-    %@todo move
-    PreparedMessages = lists:map(
-        fun(M = #{timestamp := Timestamp, member_name := Name, message_text := Text}) ->
-            M#{
-                timestamp => calendar:datetime_to_gregorian_seconds(Timestamp),
-                member_name => list_to_binary(Name),
-                message_text => list_to_binary(Text)
-            }
-        end,
-        MessageList
-    ),
-    Response = chatlib_proto:encode({receive_messages, RoomId, PreparedMessages}),
+    Response = chatlib_proto:encode({receive_messages, RoomId, MessageList}),
 
     {reply, {text, Response}, Req, State};
 
@@ -94,23 +83,12 @@ websocket_terminate(_Reason, _Req, _State) ->
 -spec handle_message(chatlib_proto:packet(), cowboy_req:req(), state()) ->
     {binary(), cowboy_req:req(), state()}.
 handle_message(get_rooms, Req, State) ->
-    RoomsList = chatserv_room_manager:get_rooms_names(),
-    %@todo move
-    PreparedList = maps:fold(
-        fun(Id, Name, Acc) ->
-            Acc ++ [#{
-                room_id => Id,
-                room_name => list_to_binary(Name)
-            }]
-        end,
-        [], RoomsList
-    ),
-
-    Response = chatlib_proto:encode({server_response, global, PreparedList}),
+    RoomsList = chatserv_room_manager:get_rooms_with_names(),
+    Response = chatlib_proto:encode({receive_rooms, global, RoomsList}),
     {Response, Req, State};
 
 handle_message({join_room, RoomId}, Req, State = #{ joined_rooms := Rooms }) ->
-    RoomPid = chatserv_room_manager:get_room(RoomId),
+    RoomPid = chatserv_room_manager:get_room_pid(RoomId),
 
     Code = case chatserv_room:join_to(RoomPid, self()) of
         ok ->

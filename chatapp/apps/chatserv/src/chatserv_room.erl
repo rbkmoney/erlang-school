@@ -6,7 +6,7 @@
 
 -type state() :: #{
     members := member_map(),
-    messages := [chatlib_proto:member_message()],
+    messages := chatlib_proto:message_list(),
     id := chatlib_proto:room_id(),
     name := chatlib_proto:room_name()
 }.
@@ -21,7 +21,7 @@
     join_to/2,
     change_name_in/3,
     send_message_to/3,
-    get_name_of/1
+    get_name/1
 ]).
 
 %% gen_server
@@ -39,23 +39,23 @@
 %%
 
 -spec join_to(pid(), pid()) ->
-    chatlib_proto:req_status().
+    chatlib_proto:response_code().
 join_to(Pid, From) ->
     gen_server:call(Pid, {join_room, From}).
 
 -spec change_name_in(pid(), pid(), chatlib_proto:member_name()) ->
-    chatlib_proto:req_status().
+    chatlib_proto:response_code().
 change_name_in(Pid, From, Name) ->
     gen_server:call(Pid, {set_name, From, Name}).
 
 -spec send_message_to(pid(), pid(), chatlib_proto:message_text()) ->
-    chatlib_proto:req_status().
+    chatlib_proto:response_code().
 send_message_to(Pid, From, MessageText) ->
     gen_server:call(Pid, {send_message, From, MessageText}).
 
--spec get_name_of(pid()) ->
+-spec get_name(pid()) ->
     chatlib_proto:room_name().
-get_name_of(Pid) ->
+get_name(Pid) ->
     gen_server:call(Pid, get_room_name).
 
 %%
@@ -119,12 +119,7 @@ handle_call({send_message, Pid, NewMessageText}, _, State) ->
     #{id := Id, name := Name, members:= Members, messages := Messages} = State,
     #{display_name := MemberName} = maps:get(Pid, Members),
 
-    NewMessage = #{
-        timestamp => erlang:universaltime(),
-        member_name => MemberName,
-        message_text => NewMessageText
-    },
-
+    NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
     NewMessages = [NewMessage | Messages],
 
     ok = lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessage]),

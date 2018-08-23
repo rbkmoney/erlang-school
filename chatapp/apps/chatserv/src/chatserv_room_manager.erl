@@ -2,12 +2,12 @@
 -behavior(gen_server).
 
 %% API
--type rooms_list() :: #{ chatlib_proto:room_id() => pid() }.
+-type room_list() :: #{ chatlib_proto:room_id() => pid() }.
 
 
 -export([
-    get_rooms_names/0,
-    get_room/1
+    get_rooms_with_names/0,
+    get_room_pid/1
 ]).
 
 %% gen_server
@@ -26,30 +26,34 @@
 %% API
 %%
 
--spec get_rooms_names() ->
-    #{chatlib_proto:room_id() => chatlib_proto:room_name()}.
-get_rooms_names() ->
-    RoomList = gen_server:call(?SERVER, get_rooms_list),
+-spec get_rooms_with_names() ->
+    chatlib_proto:room_list().
+get_rooms_with_names() ->
+    RoomList = get_room_list(),
 
     maps:map(
         fun(_, V) ->
-            chatserv_room:get_name_of(V)
+            chatserv_room:get_name(V)
         end,
         RoomList
     ).
 
--spec get_room(chatlib_proto:room_id()) ->
+-spec get_room_pid(chatlib_proto:room_id()) ->
     pid().
-get_room(RoomId) ->
-    RoomList = gen_server:call(?SERVER, get_rooms_list),
+get_room_pid(RoomId) ->
+    RoomList = get_room_list(),
 
-    maps:get(RoomId, RoomList).
+    get_room_pid_by_id(RoomId, RoomList).
+
+-spec get_room_list() -> any().
+get_room_list() ->
+    gen_server:call(?SERVER, get_rooms_list).
 
 %%
 %% gen_server
 %%
 -type state() :: #{
-    rooms := rooms_list()
+    rooms := room_list()
 }.
 
 -spec start_link() ->
@@ -68,7 +72,7 @@ init([]) ->
     }}.
 
 -spec handle_call(get_rooms_list, {pid(), _}, state()) ->
-    {reply, rooms_list(), state()}.
+    {reply, room_list(), state()}.
 handle_call(get_rooms_list, _, State = #{rooms := Rooms}) ->
     {reply, Rooms, State}.
 
@@ -99,3 +103,9 @@ handle_info({'DOWN', _Ref, process, _Pid, _Reason}, State) ->
 %%
 %% Internal
 %%
+
+-spec get_room_pid_by_id(chatlib_proto:room_id(), room_list()) ->
+    pid().
+get_room_pid_by_id(RoomId, RoomList) ->
+    maps:get(RoomId, RoomList).
+

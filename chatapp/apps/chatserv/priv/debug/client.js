@@ -97,7 +97,10 @@ function onError(evt) {
 };
 
 function showScreen(type, message) {
-    html = '<div class="alert alert-'+ type +'" role="'+ type +'">'+ message +'</div>';
+    html = '<div class="alert alert-'+ type +'" role="'+ type +'">' +
+        '<span class="text-muted"><small><em>' + new Date().toLocaleString() + '</em></small></span> ' +
+        message + '</div>';
+
     $('#output').prepend(html);
 };
 
