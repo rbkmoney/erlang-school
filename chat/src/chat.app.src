@@ -7,7 +7,7 @@
    [kernel,
     stdlib,
     lager,
-    jiffy,
+    jiffy, %Don't touch. Needed for module not yet added to git
     cowboy
    ]},
   {env,[]},
