@@ -10,8 +10,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 send(Message, Source) ->
-    Username = get_user_by_pid(Source),
-    gen_server:cast(?MODULE, {send, {Username, Message}}).
+    gen_server:cast(?MODULE, {send, {Source, Message}}).
 
 register_connection(Username, PID) ->
     gen_server:call(?MODULE, {register, {Username, PID}}).
@@ -20,9 +19,6 @@ stop() ->
     gen_server:cast(?MODULE,stop).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
-
-get_user_by_pid(PID) ->
-    gen_server:call(?MODULE, {find, PID}).
 
 broadcast(Message, State) ->
     lager:info("Sending message to all users"),
@@ -42,6 +38,9 @@ register_user(Username, PID, State) ->
     broadcast(<<Username/binary, " joined this chat">>, NewState),
     NewState.
 
+ get_user(PID, State) ->
+     maps:get(PID, State, "Incognito").
+
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_link() ->
@@ -51,7 +50,8 @@ init(undefined) ->
     lager:notice("Initialized chat room"),
     {ok, #{}}.
 
-handle_cast({send, {Username, Message}}, State) ->
+handle_cast({send, {Source, Message}}, State) ->
+    Username = get_user(Source, State),
     lager:info("Chat server got a message ~p from ~p", [Message, Username]),
     broadcast(<<Username/binary, ": ", Message/binary>>, State),
     {noreply, State};
@@ -71,8 +71,11 @@ handle_call(_, _, State) ->
     {reply, ok, State}.
 
 handle_info({'DOWN', _, process, PID, _}, State) ->
-    lager:info("User with PID ~p disconnected", [PID]),
+    User = get_user(PID, State),
+    lager:info("User ~p disconnected", [User]),
     NewState = maps:remove(PID, State),
+    Message = <<User/binary, " left this chat">>,
+    broadcast(Message, NewState),
     {noreply, NewState}.
 
 terminate(normal, _State) ->
