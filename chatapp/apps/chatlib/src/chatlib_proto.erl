@@ -16,9 +16,6 @@
 -type room_id() :: global | non_neg_integer().
 -type room_name() :: nonempty_string().
 
-%-type room_id_name() :: #{ room_id() => room_name() }.
-%-type room_list() :: list(room_id_name()).
-
 -type room_list() :: #{ room_id() => room_name() }.
 
 -type room_message() :: { erlang:timestamp(), member_name(), message_text() }.
@@ -26,7 +23,8 @@
 
 -type response_code() ::
     ok |
-    user_already_exists |
+    room_already_joined |
+    room_does_not_exist |
     room_not_joined.
 
 -type packet_content() ::
@@ -78,7 +76,8 @@ decode(Message) ->
 test() ->
     Packets = [
         {server_response, global, ok},
-        {server_response, 0, user_already_exists},
+        {server_response, 0, room_already_joined},
+        {server_response, 0, room_does_not_exist},
         {server_response, 0, room_not_joined},
         get_rooms,
         {join_room, 0},
@@ -269,8 +268,10 @@ decode_room_id(_) ->
     response_code().
 decode_response_code(<<"ok">>) ->
     ok;
-decode_response_code(<<"user_already_exists">>) ->
-    user_already_exists;
+decode_response_code(<<"room_does_not_exist">>) ->
+    room_does_not_exist;
+decode_response_code(<<"room_already_joined">>) ->
+    room_already_joined;
 decode_response_code(<<"room_not_joined">>) ->
     room_not_joined;
 decode_response_code(_) ->

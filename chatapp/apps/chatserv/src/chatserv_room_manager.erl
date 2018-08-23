@@ -39,11 +39,17 @@ get_rooms_with_names() ->
     ).
 
 -spec get_room_pid(chatlib_proto:room_id()) ->
-    pid().
+    {error, room_does_not_exist} | {ok, pid()}.
 get_room_pid(RoomId) ->
     RoomList = get_room_list(),
 
-    get_room_pid_by_id(RoomId, RoomList).
+    case room_exists(RoomId, RoomList) of
+        true ->
+            {ok, get_room_pid_by_id(RoomId, RoomList)};
+
+        false ->
+            {error, room_does_not_exist}
+    end.
 
 -spec get_room_list() -> any().
 get_room_list() ->
@@ -84,28 +90,65 @@ handle_cast(_, State) ->
 -spec handle_continue(load_rooms, state()) ->
     {noreply, state()}.
 handle_continue(load_rooms, State) ->
-    NewRooms = lists:map(
-        fun(I) ->
-            {ok, Pid} = supervisor:start_child(chsv_room_sup, [I, "Test Room " ++ integer_to_list(I)]),
-            erlang:monitor(process, Pid),
-            {I, Pid}
+    NewRooms = maps:fold(
+        fun(Id, Name, Rooms) ->
+            add_room(Id, Name, Rooms)
         end,
-        lists:seq(0, 1)
+        #{}, #{1=>"Room", 2=>"Better room"}
     ),
-    {noreply, State#{ rooms := maps:from_list(NewRooms) }}.
+
+    {noreply, State#{ rooms := NewRooms }}.
 
 %%@todo handle room crashes
 -spec handle_info({'DOWN', reference(), process, pid(), atom()}, state()) ->
     {noreply, state()}.
-handle_info({'DOWN', _Ref, process, _Pid, _Reason}, State) ->
-    {noreply, State}.
+handle_info({'DOWN', _Ref, process, Pid, _Reason}, State = #{rooms := Rooms}) ->
+    RoomId = get_room_id_by_pid(Pid, Rooms),
+    NewList = remove_room(RoomId, Rooms),
+
+    {noreply, State#{rooms := NewList}}.
 
 %%
 %% Internal
 %%
 
+-spec room_exists(chatlib_proto:room_id(), room_list()) ->
+    boolean().
+room_exists(RoomId, Rooms) ->
+    maps:is_key(RoomId, Rooms).
+
+-spec add_room(chatlib_proto:room_id(), chatlib_proto:room_name(), Old::room_list()) ->
+    New::room_list().
+add_room(RoomId, RoomName, Rooms) ->
+    case room_exists(RoomId, Rooms) of
+        true ->
+            room_already_exists;
+        false ->
+            {ok, Pid} = supervisor:start_child(chsv_room_sup, [RoomId, RoomName]),
+            _ = erlang:monitor(process, Pid),
+
+            maps:put(RoomId, Pid, Rooms)
+    end.
+
+-spec remove_room(chatlib_proto:room_id(), Old::room_list()) ->
+    New::room_list().
+remove_room(RoomId, Rooms) ->
+    maps:remove(RoomId, Rooms).
+
 -spec get_room_pid_by_id(chatlib_proto:room_id(), room_list()) ->
     pid().
 get_room_pid_by_id(RoomId, RoomList) ->
     maps:get(RoomId, RoomList).
+
+%@todo kinda bad
+get_room_id_by_pid(RoomPid, RoomList) ->
+    ResMap = maps:filter(
+        fun(_, V) ->
+            V == RoomPid
+        end,
+        RoomList
+    ),
+    [Res] = maps:values(ResMap),
+
+    Res.
 

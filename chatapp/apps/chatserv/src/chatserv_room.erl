@@ -87,17 +87,18 @@ handle_call(get_room_name, _, State = #{name := Name}) ->
     {reply, Name, State};
 
 handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name := Name}) ->
+    %@todo redundant check here, possibly get rid of
     case new_member(Pid, ?DEFAULT_DISPLAY_NAME, Members) of
-        already_exists ->
+        {error, already_exists} ->
             {reply, user_already_exists, State};
 
-        NewMemberList ->
+        {ok, NewMemberList} ->
             ok = lager:info(
                 "New user joined room (~p, ~p). Current member list: ~p",
                 [Id, Name, NewMemberList]
             ),
 
-            erlang:monitor(process, Pid),
+            _ = erlang:monitor(process, Pid),
 
             {reply, ok, State#{members := NewMemberList}}
     end;
@@ -150,10 +151,12 @@ handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages :=
         ok, Members
     ),
     ok = set_sendout_timeout(),
+
     {noreply, State#{messages:= []}};
 
 handle_info(send_messages, State) ->
     ok = set_sendout_timeout(),
+
     {noreply, State};
 
 handle_info({'DOWN', _Ref, process, Pid, Reason}, State = #{members := Members, id := Id, name := Name}) ->
@@ -175,14 +178,14 @@ member_exists(Pid, Members) ->
     maps:is_key(Pid, Members).
 
 -spec new_member(member_pid(), chatlib_proto:member_name(), Old::member_map()) ->
-    New::member_map() | already_exists.
+    {ok, New::member_map()} | {error, already_exists}.
 new_member(Pid, MemberName, Members) ->
     case member_exists(Pid, Members) of
         false ->
             NewMember = #{display_name => MemberName},
-            maps:put(Pid, NewMember, Members);
+            {ok, maps:put(Pid, NewMember, Members)};
         _ ->
-            already_exists
+            {error, already_exists}
     end.
 
 -spec change_member_name(member_pid(), chatlib_proto:member_name(), Old::member_map()) ->
@@ -207,6 +210,7 @@ remove_member(Pid, Members) ->
     New::chatlib_proto:message_list().
 new_message(MemberName, NewMessageText, Messages) ->
      NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
+
     [NewMessage | Messages].
 
 -spec set_sendout_timeout() ->
