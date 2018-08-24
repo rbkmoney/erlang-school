@@ -29,7 +29,7 @@
 -spec get_rooms_with_names() ->
     chatlib_proto:room_list().
 get_rooms_with_names() ->
-    RoomList = get_room_list(),
+    RoomList = gen_server:call(?SERVER, get_rooms_list),
 
     maps:map(
         fun(_, V) ->
@@ -41,26 +41,13 @@ get_rooms_with_names() ->
 -spec get_room_pid(chatlib_proto:room_id()) ->
     {error, chatlib_proto:response_code()} | {ok, pid()}.
 get_room_pid(RoomId) ->
-    RoomList = get_room_list(),
-
-    case room_exists(RoomId, RoomList) of
-        true ->
-            {ok, get_room_pid_by_id(RoomId, RoomList)};
-
-        false ->
-            {error, room_does_not_exist}
-    end.
-
--spec get_room_list() ->
-    room_list().
-get_room_list() ->
-    gen_server:call(?SERVER, get_rooms_list).
+    gen_server:call(?SERVER, {get_room_pid, RoomId}).
 
 %%
 %% gen_server
 %%
 -type state() :: #{
-rooms := room_list()
+    rooms := room_list()
 }.
 
 -spec start_link() ->
@@ -81,7 +68,16 @@ init([]) ->
 -spec handle_call(get_rooms_list, {pid(), _}, state()) ->
     {reply, room_list(), state()}.
 handle_call(get_rooms_list, _, State = #{rooms := Rooms}) ->
-    {reply, Rooms, State}.
+    {reply, Rooms, State};
+
+handle_call({get_room_pid, RoomId}, _, State = #{rooms := Rooms}) ->
+    case room_exists(RoomId, Rooms) of
+        true ->
+            {reply, {ok, get_room_pid_by_id(RoomId, Rooms)}, State};
+
+        false ->
+            {reply, {error, room_does_not_exist}, State}
+    end.
 
 -spec handle_cast(any(), state()) ->
     {noreply, state()}.
@@ -126,7 +122,7 @@ add_room(RoomId, RoomName, Rooms) ->
         true ->
             {error, room_already_exists};
         false ->
-            {ok, Pid} = supervisor:start_child(chsv_room_sup, [RoomId, RoomName]),
+            {ok, Pid} = chatserv_room_sup:start_room(RoomId, RoomName),
             _ = erlang:monitor(process, Pid),
 
             {ok, maps:put(RoomId, Pid, Rooms)}
