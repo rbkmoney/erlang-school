@@ -34,27 +34,26 @@ send(Message) ->
 
 -spec init({tcp, http}, term(), list()) ->
     {upgrade, protocol, cowboy_websocket}.
+
 init({tcp, http}, _Req, _Opts) ->
     {upgrade, protocol, cowboy_websocket}.
 
 websocket_init(_TransportName, Req, _Opts) ->
     lager:notice("Initializing websocket, PID: ~p", [self()]),
-    {ok, Req, registration}.
+    {ok, Req, connected}.
 
-websocket_handle({text, Username}, Req, registration) ->
-    register(Username),
-    {ok, Req, registered};
-
-websocket_handle({text, Message}, Req, State = registered) ->
-    send(Message),
+websocket_handle({text, Message}, Req, State) ->
+    Test = protocol:json_to_server_message(Message, self()),
+    lager:info("Decoded JSON: ~p", [Test]),
+    chat_server:send(Test),
     {ok, Req, State};
 
 websocket_handle(_Data, Req, State) ->
     {ok, Req, State}.
 
 websocket_info({send, Message}, Req, State) ->
-    BinaryMessage = protocol:decode(Message),
-    {reply, {text, BinaryMessage}, Req, State}.
+    Json = protocol:message_to_json(Message), % А не ебанет?
+    {reply, {text, Json}, Req, State}.
 
 -spec websocket_terminate(term(), term(), state()) ->
     ok.

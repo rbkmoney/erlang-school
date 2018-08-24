@@ -1,37 +1,49 @@
 -module(protocol).
 
+% Protocol encodes values as tuples
+% and decodes this tuples to binary strings, to be sent throught websokets.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export([encode/2]).
 -export([encode/3]).
--export([decode/1]).
+-export([message_to_json/1]).
+-export([json_to_server_message/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec encode
-    (joined, chat_server:message()) ->
-        {joined, chat_server:message()};
-    (left, chat_server:username()) ->
-        {left, chat_server:username()}.
+-spec encode(atom(), chat_server:message()) ->
+        {atom(), chat_server:message()}.
 
-encode(joined, Username) ->
-    {joined, Username};
-encode(left, Username) ->
-    {left, Username}.
+encode(Atom, Username) ->
+    {Atom, Username}.
 
--spec encode(message, chat_server:username(), chat_server:message()) ->
+-spec encode(message, Username :: chat_server:username(), Message :: chat_server:message()) ->
     {message, chat_server:username(), chat_server:message()}.
+
 encode(message, Username, Message) ->
     {message, Username, Message}.
 
--spec decode(
-    {message, chat_server:username(), chat_server:message()}) ->
-        binary();
-    {left, chat_server:username()} ->
-        binary().
-decode({message, Username, Message}) ->
-    <<Username/binary, ": ", Message/binary>>;
-decode({left, Username}) ->
-    <<Username/binary, " left this chat">>;
-decode({joined, Username}) ->
-    <<Username/binary, " joined this chat">>.
+message_to_json(Data) ->
+    DataMap = create_json_map(Data),
+    jiffy:encode(DataMap).
+
+json_to_server_message(Json, PID) ->
+    DataMap = jiffy:decode(Json, [return_maps]),
+    {Event, Message} = decode_client_map(DataMap),
+    {Event, Message, PID}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+create_json_map({message, Username, Message}) ->
+    #{event => send_message, user => Username, message => Message};
+create_json_map({Event, Username}) ->
+    #{event => Event, user => Username}.
+
+decode_client_map(DataMap) ->
+    Event = maps:get(<<"event">>, DataMap), % Это будет бинарная строка
+    Message = maps:get(<<"body">>, DataMap),
+    {binary_to_atom(Event), Message}.
+
+binary_to_atom(Binary) ->
+    list_to_atom(binary_to_list(Binary)).

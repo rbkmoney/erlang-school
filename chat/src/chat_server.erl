@@ -13,12 +13,10 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([send/2]).
--export([register_connection/2]).
+-export([send/1]).
 -export([stop/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 
 -export_type([username/0]).
 -export_type([message/0]).
@@ -32,16 +30,8 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec send(message(), pid()) ->
-    ok.
-send(Message, Source) ->
-    gen_server:cast(?MODULE, {send, {Source, Message}}),
-    ok.
-
--spec register_connection(username(), pid()) ->
-    ok.
-register_connection(Username, PID) ->
-    gen_server:call(?MODULE, {register, {Username, PID}}),
+send(ClientMessage) ->
+    gen_server:cast(?MODULE, {client_message, ClientMessage}),
     ok.
 
 -spec stop() ->
@@ -62,16 +52,30 @@ broadcast(Message, State) ->
 
 -spec inform(message(), pid()) ->
     ok.
+
 inform(Message, Recipient) ->
     lager:info("Sending erlang message to process ~p",[Recipient]),
     Recipient ! {send, Message},
     ok.
 
+-spec add_user(PID :: pid(), Username :: username(), State :: state()) ->
+    state().
+
+add_user(PID, Username, State) ->
+    maps:put(PID, Username, State).
+
+-spec remove_user(PID :: pid(), State :: state()) ->
+    state().
+
+remove_user(PID, State) ->
+    maps:remove(PID, State).
+
 -spec register_user(Username :: username(), PID :: pid(), State :: state()) ->
     state().
+
 register_user(Username, PID, State) ->
     lager:info("Registration of new user ~p", [Username]),
-    NewState = maps:put(PID, Username, State),
+    NewState = add_user(PID, Username, State),
     erlang:monitor(process, PID),
     Reply = protocol:encode(joined, Username),
     broadcast(Reply, NewState),
@@ -89,40 +93,38 @@ start_link() ->
 
 -spec init(undefined) ->
     {ok, state()}.
+
 init(undefined) ->
     lager:notice("Initialized chat room"),
     {ok, #{}}.
 
--spec handle_cast
-    ({send, {pid(), message()}}, state()) ->
-        {noreply, state()};
-    (stop, state()) ->
-        {stop, normal, state()}.
-handle_cast({send, {Source, Message}}, State) ->
+handle_cast(stop, State) ->
+    {stop, normal, State};
+
+handle_cast({client_message, {send_message, Message, Source}}, State) ->
     Username = get_user(Source, State),
     lager:info("Chat server got a message ~p from ~p", [Message, Username]),
     Reply = protocol:encode(message, Username, Message),
     broadcast(Reply, State),
     {noreply, State};
 
-handle_cast(stop, State) ->
-    {stop, normal, State}.
+handle_cast({client_message, {register, Username, Source}}, State) ->
+    NewState = register_user(Username, Source, State), % It actuay works, even if client sends message immediatly after calling for registration, wow!
+    {noreply, NewState}.
 
 -spec handle_call(term(), term(), state()) ->
     {reply, ok, state()}.
-handle_call({register, {Username, PID}}, _From, State) ->
-    NewState = register_user(Username, PID, State),
-    {reply, ok, NewState};
 
 handle_call(_, _, State) ->
     {reply, ok, State}.
 
 -spec handle_info(websocket_down_message(), state()) ->
     {noreply, state()}.
+
 handle_info({'DOWN', _, process, PID, _}, State) ->
     Username = get_user(PID, State),
     lager:info("User ~p disconnected", [Username]),
-    NewState = maps:remove(PID, State),
+    NewState = remove_user(PID, State),
     Reply = protocol:encode(left, Username),
     broadcast(Reply, NewState),
     {noreply, NewState}.

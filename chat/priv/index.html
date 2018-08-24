@@ -35,7 +35,6 @@
       function disconnect() {
           websocket.close();
       };
-
       function toggle_connection(){
           if(websocket.readyState == websocket.OPEN){
               disconnect();
@@ -43,11 +42,10 @@
               connect();
           };
       };
-
       function sendTxt() {
           if(websocket.readyState == websocket.OPEN){
-              txt = $("#send_txt").val();
-              websocket.send(txt);
+              txt = {"event" : "send_message","body": $("#send_txt").val()};
+              websocket.send(JSON.stringify(txt));
               $("#send_txt").val('');
           } else {
                showScreen('websocket is not connected');
@@ -56,8 +54,8 @@
 
       function register() {
           if(websocket.readyState == websocket.OPEN){
-              user = $("#username").val();
-              websocket.send(user);
+              txt = {"event" : "register", "body": $("#username").val()};
+              websocket.send(JSON.stringify(txt));
               showScreen('<span style="color: green;">Registred</span>');
               $("#registration").hide();
               $("#connected").fadeIn('slow');
@@ -71,23 +69,28 @@
           showScreen('<span style="color: green;">CONNECTED </span>');
           $("#registration").fadeIn('slow');
       };
-
       function onClose(evt) {
+          $("#connected").hide();
+          $("#registration").fadeIn('slow');
           showScreen('<span style="color: red;">DISCONNECTED </span>');
       };
-
       function onMessage(evt) {
-          showScreen('<span style="color: blue;">' + evt.data+ '</span>');
+           Result = JSON.parse(evt.data);
+           event_ = Result.event;
+           text = Result.user;
+           if (event_ == 'send_message'){
+               text += ": " + Result.message;
+           } else {
+               text += " " + event_ + " this room";
+           };
+          showScreen('<span style="color: blue;">' + text + '</span>');
       };
-
       function onError(evt) {
           showScreen('<span style="color: red;">ERROR: ' + evt.data+ '</span>');
       };
-
       function showScreen(txt) {
           $('#output').prepend('<p>' + txt + '</p>');
       };
-
       function clearScreen()
       {
           $('#output').html("");
