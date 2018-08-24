@@ -26,6 +26,6 @@ init([]) ->
     },
     Server = #{  %Single room so far
         id => room,
-        start => {chat_server, start_link, []}
+        start => {chat_server, start_link, [room1]}
     },
     {ok, {SupArgs, [Server]}}.

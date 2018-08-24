@@ -5,7 +5,7 @@
 -behaviour(gen_server).
 
 -export([init/1]).
--export([start_link/0]).
+-export([start_link/1]).
 -export([handle_cast/2]).
 -export([handle_call/3]).
 -export([handle_info/2]).
@@ -88,14 +88,15 @@ register_user(Username, PID, State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start_link() ->
-    gen_server:start_link({local, chat_server}, ?MODULE, undefined, []).
+start_link(Id) ->
+    gen_server:start_link({local, chat_server}, ?MODULE, Id, []).
 
--spec init(undefined) ->
+-spec init(atom()) ->
     {ok, state()}.
 
-init(undefined) ->
+init(Id) ->
     lager:notice("Initialized chat room"),
+    room_manager:add_room(Id, self()),
     {ok, #{}}.
 
 handle_cast(stop, State) ->

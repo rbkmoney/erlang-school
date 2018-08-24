@@ -43,25 +43,29 @@
           };
       };
       function sendTxt() {
-          if(websocket.readyState == websocket.OPEN){
-              txt = {"event" : "send_message","body": $("#send_txt").val()};
-              websocket.send(JSON.stringify(txt));
-              $("#send_txt").val('');
-          } else {
-               showScreen('websocket is not connected');
-          };
+          if ($("#send_txt").val() != ""){
+              if(websocket.readyState == websocket.OPEN){
+                  txt = {"event" : "send_message","body": $("#send_txt").val()};
+                  websocket.send(JSON.stringify(txt));
+                  $("#send_txt").val('');
+              } else {
+                   showScreen('websocket is not connected');
+              };
+        };
       };
 
       function register() {
-          if(websocket.readyState == websocket.OPEN){
-              txt = {"event" : "register", "body": $("#username").val()};
-              websocket.send(JSON.stringify(txt));
-              showScreen('<span style="color: green;">Registred</span>');
-              $("#registration").hide();
-              $("#connected").fadeIn('slow');
-              $("#content").fadeIn('slow');
-          } else {
-              showScreen('websocket is not connected');
+          if ($("#username").val() != ""){
+              if(websocket.readyState == websocket.OPEN){
+                  txt = {"event" : "register", "body": $("#username").val()};
+                  websocket.send(JSON.stringify(txt));
+                  showScreen('<span style="color: green;">Registred</span>');
+                  $("#registration").hide();
+                  $("#connected").fadeIn('slow');
+                  $("#content").fadeIn('slow');
+              } else {
+                  showScreen('websocket is not connected');
+              };
           };
       };
 

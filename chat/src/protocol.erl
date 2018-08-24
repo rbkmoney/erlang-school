@@ -1,7 +1,7 @@
 -module(protocol).
 
 % Protocol encodes values as tuples
-% and decodes this tuples to binary strings, to be sent throught websokets.
+% encodes tuples as JSONs and DECODS JSONs to messages for server
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -41,7 +41,7 @@ create_json_map({Event, Username}) ->
     #{event => Event, user => Username}.
 
 decode_client_map(DataMap) ->
-    Event = maps:get(<<"event">>, DataMap), % Это будет бинарная строка
+    Event = maps:get(<<"event">>, DataMap),
     Message = maps:get(<<"body">>, DataMap),
     {binary_to_atom(Event), Message}.
 

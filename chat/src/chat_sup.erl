@@ -29,8 +29,13 @@ init([]) ->
         intensity => 10,
         period => 10
     },
+    RoomManager = #{
+        id => manager,
+        type => worker,
+        start => {room_manager, start_link, []}
+    },
     RoomSupervisor = #{
         id => room_supervisor,
         start => {room_sup, start_link, []}
     },
-    {ok, {SupArgs, [RoomSupervisor]}}.
+    {ok, {SupArgs, [RoomManager, RoomSupervisor]}}.
