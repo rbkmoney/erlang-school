@@ -30,7 +30,7 @@
 -spec send_messages(pid(), chatlib_proto:room_id(), chatlib_proto:message_list()) ->
     ok.
 send_messages(MemberPid, RoomId, MessageList) ->
-    MemberPid ! {get_messages, RoomId, MessageList},
+    MemberPid ! {receive_messages, RoomId, MessageList},
     ok.
 
 %%
@@ -57,12 +57,12 @@ websocket_handle(_Data, Req, State) ->
     {ok, Req, State}.
 
 -spec websocket_info(
-    {get_messages, chatlib_proto:room_id(), chatlib_proto:message_list()},
+    {receive_messages, chatlib_proto:room_id(), chatlib_proto:message_list()},
     cowboy_req:req(), state()
 ) ->
     {ok, cowboy_req:req(), state()} | {reply, {text, binary()}, cowboy_req:req(), state()}.
 
-websocket_info(Msg = {get_messages, _, _}, Req, State) ->
+websocket_info(Msg = {receive_messages, _, _}, Req, State) ->
     Response = chatlib_proto:encode(Msg),
 
     {reply, {text, Response}, Req, State};
@@ -88,7 +88,7 @@ websocket_terminate(_Reason, _Req, _State) ->
     {binary(), cowboy_req:req(), state()}.
 handle_message(get_rooms, Req, State) ->
     RoomsList = chatserv_room_manager:get_rooms_with_names(),
-    Response = chatlib_proto:encode({get_rooms, global, RoomsList}),
+    Response = chatlib_proto:encode({receive_rooms, global, RoomsList}),
 
     {Response, Req, State};
 

@@ -7,7 +7,7 @@
 -type state() :: #{
     members := member_map(),
     messages := chatlib_proto:message_list(),
-    id := chatlib_proto:room_id(),
+    id := chatlib_proto:room_id_direct(),
     name := chatlib_proto:room_name()
 }.
 
