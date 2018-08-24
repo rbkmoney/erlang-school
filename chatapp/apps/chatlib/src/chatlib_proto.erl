@@ -159,7 +159,7 @@ packet_to_json(get_rooms) ->
 
 packet_to_json({get_rooms, global, RoomList}) ->
     #{
-        type => receive_rooms,
+        type => get_rooms,
         room_id => global,
         content => room_list_to_json(RoomList)
     };
