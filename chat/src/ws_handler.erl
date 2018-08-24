@@ -53,7 +53,8 @@ websocket_handle(_Data, Req, State) ->
     {ok, Req, State}.
 
 websocket_info({send, Message}, Req, State) ->
-    {reply, {text, Message}, Req, State}.
+    BinaryMessage = protocol:decode(Message),
+    {reply, {text, BinaryMessage}, Req, State}.
 
 -spec websocket_terminate(term(), term(), state()) ->
     ok.

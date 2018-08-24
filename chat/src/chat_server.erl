@@ -11,22 +11,19 @@
 -export([handle_info/2]).
 -export([terminate/2]).
 
-%%
-%% API exports
-%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export([send/2]).
 -export([register_connection/2]).
 -export([stop/0]).
 
-%%
-%% Type exports
-%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 -export_type([username/0]).
 -export_type([message/0]).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type message() :: binary() | string().
 -type username() :: message().
@@ -54,6 +51,7 @@ stop() ->
     stopped.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
 -spec broadcast(Message :: message(), State :: map()) ->
     ok.
 broadcast(Message, State) ->
@@ -75,7 +73,8 @@ register_user(Username, PID, State) ->
     lager:info("Registration of new user ~p", [Username]),
     NewState = maps:put(PID, Username, State),
     erlang:monitor(process, PID),
-    broadcast(<<Username/binary, " joined this chat">>, NewState),
+    Reply = protocol:encode(joined, Username),
+    broadcast(Reply, NewState),
     NewState.
 
 -spec get_user(pid(), state()) ->
@@ -102,7 +101,8 @@ init(undefined) ->
 handle_cast({send, {Source, Message}}, State) ->
     Username = get_user(Source, State),
     lager:info("Chat server got a message ~p from ~p", [Message, Username]),
-    broadcast(<<Username/binary, ": ", Message/binary>>, State),
+    Reply = protocol:encode(message, Username, Message),
+    broadcast(Reply, State),
     {noreply, State};
 
 handle_cast(stop, State) ->
@@ -120,11 +120,11 @@ handle_call(_, _, State) ->
 -spec handle_info(websocket_down_message(), state()) ->
     {noreply, state()}.
 handle_info({'DOWN', _, process, PID, _}, State) ->
-    User = get_user(PID, State),
-    lager:info("User ~p disconnected", [User]),
+    Username = get_user(PID, State),
+    lager:info("User ~p disconnected", [Username]),
     NewState = maps:remove(PID, State),
-    Message = <<User/binary, " left this chat">>,
-    broadcast(Message, NewState),
+    Reply = protocol:encode(left, Username),
+    broadcast(Reply, NewState),
     {noreply, NewState}.
 
 -spec terminate(normal, state()) ->
