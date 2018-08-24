@@ -2,11 +2,11 @@
 
 %% API
 -define(DEFAULT_DISPLAY_NAME, "New User").
--define(MESSAGE_SENDOUT_TIMEOUT, 1000).
+-define(MESSAGE_SNDOUT_FREQUENCY, 1000).
 
 -type state() :: #{
     members := member_map(),
-    messages := chatlib_proto:message_list(),
+    pending_messages := chatlib_proto:message_list(),
     id := chatlib_proto:room_id_direct(),
     name := chatlib_proto:room_name()
 }.
@@ -72,16 +72,16 @@ start_link(Id, Name) ->
 -spec init(list()) ->
     {ok, state()}.
 init([Id, Name]) ->
-    _ = erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
+    _ = set_sendout_timeout(),
 
-    {ok, #{members => #{}, messages => [], id => Id, name => Name}}.
+    {ok, #{members => #{}, pending_messages => [], id => Id, name => Name}}.
 
 -spec handle_call(
     get_room_name |
     {join_room, member_pid()} |
     {set_name, member_pid(), chatlib_proto:member_name()} |
     {send_message, member_pid(), chatlib_proto:message_text()},
-    {pid(), _}, state()
+    any(), state()
 ) ->
     {reply, ok | badarg | chatlib_proto:room_name(), state()}.
 
@@ -90,7 +90,7 @@ handle_call(get_room_name, _, State = #{name := Name}) ->
 
 handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name := Name}) ->
     %@todo redundant check here, possibly get rid of
-    case new_member(Pid, ?DEFAULT_DISPLAY_NAME, Members) of
+    case add_new_member(Pid, ?DEFAULT_DISPLAY_NAME, Members) of
         {error, already_exists} ->
             {reply, user_already_exists, State};
 
@@ -116,14 +116,14 @@ handle_call({set_name, Pid, NewName}, _, State = #{members := Members}) ->
     {reply, ok, State#{members := NewMemberList}};
 
 handle_call({send_message, Pid, NewMessageText}, _, State) ->
-    #{id := Id, name := Name, members:= Members, messages := Messages} = State,
+    #{id := Id, name := Name, members:= Members, pending_messages := Messages} = State,
 
     #{display_name := MemberName} = get_member(Pid, Members),
-    NewMessages = new_message(MemberName, NewMessageText, Messages),
+    NewMessages = add_new_message(MemberName, NewMessageText, Messages),
 
     ok = lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessages]),
 
-    {reply, ok, State#{messages := NewMessages}};
+    {reply, ok, State#{pending_messages := NewMessages}};
 
 handle_call({leave_room, Pid}, _, State = #{members := Members, id := Id, name := Name}) ->
     NewMemberList = remove_member(Pid, Members),
@@ -144,7 +144,7 @@ handle_cast(_, State) ->
 -spec handle_info(send_messages | {'DOWN', reference(), process, pid(), atom()}, state()) ->
     {noreply, state()}.
 
-handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages := Messages}) when length(Messages) > 0 ->
+handle_info(send_messages, State = #{id:= RoomId, members:= Members, pending_messages := Messages}) when length(Messages) > 0 ->
     _ = maps:fold(
         fun(Pid, _, ok) ->
             ok = lager:info("Sending new messages to ~p", [Pid]),
@@ -154,7 +154,7 @@ handle_info(send_messages, State = #{id:= RoomId, members:= Members, messages :=
     ),
     ok = set_sendout_timeout(),
 
-    {noreply, State#{messages:= []}};
+    {noreply, State#{pending_messages:= []}};
 
 handle_info(send_messages, State) ->
     ok = set_sendout_timeout(),
@@ -179,9 +179,9 @@ handle_info({'DOWN', _Ref, process, Pid, Reason}, State = #{members := Members, 
 member_exists(Pid, Members) ->
     maps:is_key(Pid, Members).
 
--spec new_member(member_pid(), chatlib_proto:member_name(), Old :: member_map()) ->
+-spec add_new_member(member_pid(), chatlib_proto:member_name(), Old :: member_map()) ->
     {ok, New :: member_map()} | {error, already_exists}.
-new_member(Pid, MemberName, Members) ->
+add_new_member(Pid, MemberName, Members) ->
     case member_exists(Pid, Members) of
         false ->
             NewMember = #{display_name => MemberName},
@@ -208,9 +208,9 @@ get_member(Pid, Members) ->
 remove_member(Pid, Members) ->
     maps:remove(Pid, Members).
 
--spec new_message(chatlib_proto:member_name(), chatlib_proto:message_text(), Old :: chatlib_proto:message_list()) ->
+-spec add_new_message(chatlib_proto:member_name(), chatlib_proto:message_text(), Old :: chatlib_proto:message_list()) ->
     New :: chatlib_proto:message_list().
-new_message(MemberName, NewMessageText, Messages) ->
+add_new_message(MemberName, NewMessageText, Messages) ->
     NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
 
     [NewMessage | Messages].
@@ -218,5 +218,5 @@ new_message(MemberName, NewMessageText, Messages) ->
 -spec set_sendout_timeout() ->
     ok.
 set_sendout_timeout() ->
-    _ = erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
+    _ = erlang:send_after(?MESSAGE_SNDOUT_FREQUENCY, self(), send_messages),
     ok.

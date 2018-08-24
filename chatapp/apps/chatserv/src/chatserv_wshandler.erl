@@ -50,9 +50,11 @@ websocket_init(_TransportName, Req, _Opts) ->
     {reply, {text, binary()}, cowboy_req:req(), state()} | {ok, cowboy_req:req(), state()}.
 websocket_handle({text, Msg}, Req, State) ->
     Message = chatlib_proto:decode(Msg),
+
     {Response, NewReq, NewState} = handle_message(Message, Req, State),
 
-    {reply, {text, Response}, NewReq, NewState};
+    Data = chatlib_proto:encode(Response),
+    {reply, {text, Data}, NewReq, NewState};
 websocket_handle(_Data, Req, State) ->
     {ok, Req, State}.
 
@@ -85,65 +87,65 @@ websocket_terminate(_Reason, _Req, _State) ->
 %% internal
 %%
 -spec handle_message(chatlib_proto:packet(), cowboy_req:req(), state()) ->
-    {binary(), cowboy_req:req(), state()}.
+    {chatlib_proto:packet(), cowboy_req:req(), state()}.
 handle_message(get_rooms, Req, State) ->
     RoomsList = chatserv_room_manager:get_rooms_with_names(),
-    Response = chatlib_proto:encode({receive_rooms, global, RoomsList}),
+    Response = {receive_rooms, global, RoomsList},
 
     {Response, Req, State};
 
 handle_message({join_room, RoomId}, Req, State = #{joined_rooms := Rooms}) ->
     case chatserv_room_manager:get_room_pid(RoomId) of
+        {ok, Pid} ->
+            {UpdatedRooms, Response} = do_join_room(Pid, RoomId, Rooms);
+
         {error, room_does_not_exist} ->
             UpdatedRooms = Rooms,
-            Response = chatlib_proto:encode({server_response, RoomId, room_does_not_exist});
-
-        {ok, Pid} ->
-            {UpdatedRooms, Response} = do_join_room(Pid, RoomId, Rooms)
+            Response = {server_response, RoomId, room_does_not_exist}
     end,
 
     {Response, Req, State#{joined_rooms := UpdatedRooms}};
 
 handle_message({set_name, RoomId, NameString}, Req, State = #{joined_rooms := Rooms}) ->
     case get_room_pid(RoomId, Rooms) of
-        {error, room_not_joined} ->
-            Response = chatlib_proto:encode({server_response, RoomId, room_not_joined});
-
         {ok, RoomPid} ->
             Result = chatserv_room:change_name(RoomPid, NameString),
 
-            Response = chatlib_proto:encode({server_response, RoomId, Result})
+            Response = {server_response, RoomId, Result};
+
+        {error, room_not_joined} ->
+            Response = {server_response, RoomId, room_not_joined}
     end,
 
     {Response, Req, State};
 
 handle_message({send_message, RoomId, MessageString}, Req, State = #{joined_rooms := Rooms}) ->
     case get_room_pid(RoomId, Rooms) of
-        {error, room_not_joined} ->
-            Response = chatlib_proto:encode({server_response, RoomId, room_not_joined});
-
         {ok, RoomPid} ->
             Result = chatserv_room:send_message(RoomPid, MessageString),
 
-            Response = chatlib_proto:encode({server_response, RoomId, Result})
+            Response = {server_response, RoomId, Result};
+
+        {error, room_not_joined} ->
+            Response = {server_response, RoomId, room_not_joined}
     end,
 
     {Response, Req, State}.
 
 
 -spec do_join_room(room_pid(), chatlib_proto:room_id(), rooms_map()) ->
-    {rooms_map(), binary()}.
+    {rooms_map(), chatlib_proto:packet()}.
 do_join_room(Pid, RoomId, Rooms) ->
     case join_room(Pid, RoomId, Rooms) of
-        {error, room_already_joined} ->
-            UpdatedRooms = Rooms,
-
-            Response = chatlib_proto:encode({server_response, RoomId, room_already_joined});
-
         {ok, NewRooms} ->
             UpdatedRooms = NewRooms,
 
-            Response = chatlib_proto:encode({server_response, RoomId, ok})
+            Response = {server_response, RoomId, ok};
+
+        {error, room_already_joined} ->
+            UpdatedRooms = Rooms,
+
+            Response = {server_response, RoomId, room_already_joined}
     end,
 
     {UpdatedRooms, Response}.

@@ -51,7 +51,8 @@ get_room_pid(RoomId) ->
             {error, room_does_not_exist}
     end.
 
--spec get_room_list() -> any().
+-spec get_room_list() ->
+    room_list().
 get_room_list() ->
     gen_server:call(?SERVER, get_rooms_list).
 
