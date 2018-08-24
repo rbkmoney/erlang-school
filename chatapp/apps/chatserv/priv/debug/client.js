@@ -41,8 +41,8 @@ function toggle_connection(){
 
 function sendRequest(requestString) {
     if(websocket.readyState == websocket.OPEN){
-        websocket.send(requestString);
         showScreen('dark', 'SENDING: <pre><code>' + prettyjson(requestString) + '</pre></code>');
+        websocket.send(requestString);
     } else {
         showScreen('danger', 'websocket is not connected');
     };

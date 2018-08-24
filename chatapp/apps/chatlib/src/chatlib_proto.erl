@@ -4,11 +4,10 @@
 -type packet_type() ::
     server_response |
     get_rooms |
+    get_messages |
     join_room |
     set_name |
-    send_message |
-    receive_rooms |
-    receive_messages.
+    send_message.
 
 -type member_name() :: nonempty_string().
 -type message_text() :: nonempty_string().
@@ -16,9 +15,9 @@
 -type room_id() :: global | non_neg_integer().
 -type room_name() :: nonempty_string().
 
--type room_list() :: #{ room_id() => room_name() }.
+-type room_list() :: #{room_id() => room_name()}.
 
--type room_message() :: { erlang:timestamp(), member_name(), message_text() }.
+-type room_message() :: {erlang:timestamp(), member_name(), message_text()}.
 -type message_list() :: list(room_message()).
 
 -type response_code() ::
@@ -80,11 +79,11 @@ test() ->
         {server_response, 0, room_does_not_exist},
         {server_response, 0, room_not_joined},
         get_rooms,
+        {get_rooms, global, #{0=>"Test room", 1=>"Best room"}},
         {join_room, 0},
         {set_name, 0, "Test Name"},
         {send_message, 0, "Test Message"},
-        {receive_rooms, global, #{0=>"Test room", 1=>"Best room"}},
-        {receive_messages, 1, [
+        {get_messages, 1, [
             {{{2018, 8, 23}, {10, 26, 22}}, "My Name", "My Message"},
             {{{2018, 8, 23}, {14, 26, 22}}, "Another Name", "My other message"}
         ]}
@@ -158,6 +157,13 @@ packet_to_json(get_rooms) ->
         type => get_rooms
     };
 
+packet_to_json({get_rooms, global, RoomList}) ->
+    #{
+        type => receive_rooms,
+        room_id => global,
+        content => room_list_to_json(RoomList)
+    };
+
 packet_to_json({join_room, RoomId}) ->
     #{
         type => join_room,
@@ -178,16 +184,9 @@ packet_to_json({send_message, RoomId, MessageString}) ->
         content => list_to_binary(MessageString)
     };
 
-packet_to_json({receive_rooms, global, MessageList}) ->
+packet_to_json({get_messages, RoomId, MessageList}) ->
     #{
-        type => receive_rooms,
-        room_id => global,
-        content => room_list_to_json(MessageList)
-    };
-
-packet_to_json({receive_messages, RoomId, MessageList}) ->
-    #{
-        type => receive_messages,
+        type => get_messages,
         room_id => RoomId,
         content => message_list_to_json(MessageList)
     }.
@@ -253,7 +252,7 @@ packet_from_json(Msg = #{<<"type">> := <<"receive_rooms">>}) ->
 packet_from_json(Msg = #{<<"type">> := <<"receive_messages">>}) ->
     #{<<"room_id">> := RoomId, <<"content">> := MessageListJson} = Msg,
 
-    {receive_messages, decode_room_id(RoomId), decode_message_list(MessageListJson)}.
+    {get_messages, decode_room_id(RoomId), decode_message_list(MessageListJson)}.
 
 -spec decode_room_id(binary() | room_id()) ->
     room_id().

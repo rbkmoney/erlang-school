@@ -12,7 +12,7 @@
 }.
 
 -type member_pid() :: pid().
--type member_map() :: #{ member_pid() => room_member() }.
+-type member_map() :: #{member_pid() => room_member()}.
 
 -type room_pid() :: pid().
 -type room_member() :: #{
@@ -73,14 +73,16 @@ start_link(Id, Name) ->
     {ok, state()}.
 init([Id, Name]) ->
     _ = erlang:send_after(?MESSAGE_SENDOUT_TIMEOUT, self(), send_messages),
+
     {ok, #{members => #{}, messages => [], id => Id, name => Name}}.
 
--spec handle_call(get_room_name |
-                {join_room, member_pid()} |
-                {set_name, member_pid(), chatlib_proto:member_name()} |
-                {send_message, member_pid(), chatlib_proto:message_text()},
-        {pid(), _}, state()
-    ) ->
+-spec handle_call(
+    get_room_name |
+    {join_room, member_pid()} |
+    {set_name, member_pid(), chatlib_proto:member_name()} |
+    {send_message, member_pid(), chatlib_proto:message_text()},
+    {pid(), _}, state()
+) ->
     {reply, ok | badarg | chatlib_proto:room_name(), state()}.
 
 handle_call(get_room_name, _, State = #{name := Name}) ->
@@ -172,13 +174,13 @@ handle_info({'DOWN', _Ref, process, Pid, Reason}, State = #{members := Members, 
 %%
 %% Internal
 %%
--spec member_exists(member_pid(), Current::member_map()) ->
-    Result::boolean().
+-spec member_exists(member_pid(), Current :: member_map()) ->
+    Result :: boolean().
 member_exists(Pid, Members) ->
     maps:is_key(Pid, Members).
 
--spec new_member(member_pid(), chatlib_proto:member_name(), Old::member_map()) ->
-    {ok, New::member_map()} | {error, already_exists}.
+-spec new_member(member_pid(), chatlib_proto:member_name(), Old :: member_map()) ->
+    {ok, New :: member_map()} | {error, already_exists}.
 new_member(Pid, MemberName, Members) ->
     case member_exists(Pid, Members) of
         false ->
@@ -188,8 +190,8 @@ new_member(Pid, MemberName, Members) ->
             {error, already_exists}
     end.
 
--spec change_member_name(member_pid(), chatlib_proto:member_name(), Old::member_map()) ->
-    New::member_map().
+-spec change_member_name(member_pid(), chatlib_proto:member_name(), Old :: member_map()) ->
+    New :: member_map().
 change_member_name(Pid, NewName, Members) ->
     Member = get_member(Pid, Members),
     NewMember = Member#{display_name => NewName},
@@ -201,15 +203,15 @@ change_member_name(Pid, NewName, Members) ->
 get_member(Pid, Members) ->
     maps:get(Pid, Members).
 
--spec remove_member(member_pid(), Old::member_map()) ->
-    New::member_map().
+-spec remove_member(member_pid(), Old :: member_map()) ->
+    New :: member_map().
 remove_member(Pid, Members) ->
     maps:remove(Pid, Members).
 
--spec new_message(chatlib_proto:member_name(), chatlib_proto:message_text(), Old::chatlib_proto:message_list()) ->
-    New::chatlib_proto:message_list().
+-spec new_message(chatlib_proto:member_name(), chatlib_proto:message_text(), Old :: chatlib_proto:message_list()) ->
+    New :: chatlib_proto:message_list().
 new_message(MemberName, NewMessageText, Messages) ->
-     NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
+    NewMessage = {erlang:universaltime(), MemberName, NewMessageText},
 
     [NewMessage | Messages].
 

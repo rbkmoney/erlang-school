@@ -3,7 +3,7 @@
 
 %% API
 -type room_pid() :: pid().
--type rooms_map() :: #{ chatlib_proto:room_id() => room_pid() }.
+-type rooms_map() :: #{chatlib_proto:room_id() => room_pid()}.
 
 -type state() :: #{
     joined_rooms := rooms_map()
@@ -30,7 +30,7 @@
 -spec send_messages(pid(), chatlib_proto:room_id(), chatlib_proto:message_list()) ->
     ok.
 send_messages(MemberPid, RoomId, MessageList) ->
-    MemberPid ! {receive_messages, RoomId, MessageList},
+    MemberPid ! {get_messages, RoomId, MessageList},
     ok.
 
 %%
@@ -44,7 +44,7 @@ init({tcp, http}, _Req, _Opts) ->
 -spec websocket_init(tcp | ssl, cowboy_req:req(), any()) ->
     {ok, cowboy_req:req(), state()}.
 websocket_init(_TransportName, Req, _Opts) ->
-    {ok, Req, #{ joined_rooms => #{} }}.
+    {ok, Req, #{joined_rooms => #{}}}.
 
 -spec websocket_handle({text, binary()}, cowboy_req:req(), state()) ->
     {reply, {text, binary()}, cowboy_req:req(), state()} | {ok, cowboy_req:req(), state()}.
@@ -57,25 +57,26 @@ websocket_handle(_Data, Req, State) ->
     {ok, Req, State}.
 
 -spec websocket_info(
-            {receive_messages, chatlib_proto:room_id(), chatlib_proto:message_list()},
-        cowboy_req:req(), state()
-    ) ->
+    {get_messages, chatlib_proto:room_id(), chatlib_proto:message_list()},
+    cowboy_req:req(), state()
+) ->
     {ok, cowboy_req:req(), state()} | {reply, {text, binary()}, cowboy_req:req(), state()}.
 
-websocket_info({receive_messages, RoomId, MessageList}, Req, State) ->
-    Response = chatlib_proto:encode({receive_messages, RoomId, MessageList}),
+websocket_info(Msg = {get_messages, _, _}, Req, State) ->
+    Response = chatlib_proto:encode(Msg),
 
     {reply, {text, Response}, Req, State};
 
 websocket_info(_Info, Req, State) ->
     {ok, Req, State}.
 
--spec websocket_terminate({normal, shutdown | timeout} |
-                        {remote, closed} |
-                        {remote, cowboy_websocket:close_code(), binary()} |
-                        {error, badencoding | badframe | closed | atom()},
-        cowboy_req:req(), state()
-    ) ->
+-spec websocket_terminate(
+    {normal, shutdown | timeout} |
+    {remote, closed} |
+    {remote, cowboy_websocket:close_code(), binary()} |
+    {error, badencoding | badframe | closed | atom()},
+    cowboy_req:req(), state()
+) ->
     ok.
 websocket_terminate(_Reason, _Req, _State) ->
     ok.
@@ -87,11 +88,11 @@ websocket_terminate(_Reason, _Req, _State) ->
     {binary(), cowboy_req:req(), state()}.
 handle_message(get_rooms, Req, State) ->
     RoomsList = chatserv_room_manager:get_rooms_with_names(),
-    Response = chatlib_proto:encode({receive_rooms, global, RoomsList}),
+    Response = chatlib_proto:encode({get_rooms, global, RoomsList}),
 
     {Response, Req, State};
 
-handle_message({join_room, RoomId}, Req, State = #{ joined_rooms := Rooms }) ->
+handle_message({join_room, RoomId}, Req, State = #{joined_rooms := Rooms}) ->
     case chatserv_room_manager:get_room_pid(RoomId) of
         {error, room_does_not_exist} ->
             UpdatedRooms = Rooms,
@@ -101,9 +102,9 @@ handle_message({join_room, RoomId}, Req, State = #{ joined_rooms := Rooms }) ->
             {UpdatedRooms, Response} = do_join_room(Pid, RoomId, Rooms)
     end,
 
-    {Response, Req, State#{ joined_rooms := UpdatedRooms }};
+    {Response, Req, State#{joined_rooms := UpdatedRooms}};
 
-handle_message({set_name, RoomId, NameString}, Req, State = #{ joined_rooms := Rooms }) ->
+handle_message({set_name, RoomId, NameString}, Req, State = #{joined_rooms := Rooms}) ->
     case get_room_pid(RoomId, Rooms) of
         {error, room_not_joined} ->
             Response = chatlib_proto:encode({server_response, RoomId, room_not_joined});
@@ -116,7 +117,7 @@ handle_message({set_name, RoomId, NameString}, Req, State = #{ joined_rooms := R
 
     {Response, Req, State};
 
-handle_message({send_message, RoomId, MessageString}, Req, State = #{ joined_rooms := Rooms }) ->
+handle_message({send_message, RoomId, MessageString}, Req, State = #{joined_rooms := Rooms}) ->
     case get_room_pid(RoomId, Rooms) of
         {error, room_not_joined} ->
             Response = chatlib_proto:encode({server_response, RoomId, room_not_joined});
@@ -153,7 +154,7 @@ room_joined(RoomId, Rooms) ->
     maps:is_key(RoomId, Rooms).
 
 -spec join_room(room_pid(), chatlib_proto:room_id(), rooms_map()) ->
-    {error, room_already_joined} | {ok, rooms_map()}.
+    {error, chatlib_proto:response_code()} | {ok, rooms_map()}.
 join_room(RoomPid, RoomId, Rooms) ->
     case room_joined(RoomId, Rooms) of
         true ->
@@ -166,7 +167,7 @@ join_room(RoomPid, RoomId, Rooms) ->
     end.
 
 -spec get_room_pid(chatlib_proto:room_id(), rooms_map()) ->
-    {error, room_not_joined} | {ok, room_pid()}.
+    {error, chatlib_proto:response_code()} | {ok, room_pid()}.
 get_room_pid(RoomId, Rooms) ->
     case room_joined(RoomId, Rooms) of
         true ->

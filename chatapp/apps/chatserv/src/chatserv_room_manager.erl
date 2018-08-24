@@ -2,7 +2,7 @@
 -behavior(gen_server).
 
 %% API
--type room_list() :: #{ chatlib_proto:room_id() => pid() }.
+-type room_list() :: #{chatlib_proto:room_id() => pid()}.
 
 
 -export([
@@ -39,7 +39,7 @@ get_rooms_with_names() ->
     ).
 
 -spec get_room_pid(chatlib_proto:room_id()) ->
-    {error, room_does_not_exist} | {ok, pid()}.
+    {error, chatlib_proto:response_code()} | {ok, pid()}.
 get_room_pid(RoomId) ->
     RoomList = get_room_list(),
 
@@ -59,7 +59,7 @@ get_room_list() ->
 %% gen_server
 %%
 -type state() :: #{
-    rooms := room_list()
+rooms := room_list()
 }.
 
 -spec start_link() ->
@@ -92,14 +92,15 @@ handle_cast(_, State) ->
 handle_continue(load_rooms, State) ->
     NewRooms = maps:fold(
         fun(Id, Name, Rooms) ->
-            add_room(Id, Name, Rooms)
+            {ok, RoomList} = add_room(Id, Name, Rooms),
+
+            RoomList
         end,
         #{}, #{1=>"Room", 2=>"Better room"}
     ),
 
-    {noreply, State#{ rooms := NewRooms }}.
+    {noreply, State#{rooms := NewRooms}}.
 
-%%@todo handle room crashes
 -spec handle_info({'DOWN', reference(), process, pid(), atom()}, state()) ->
     {noreply, state()}.
 handle_info({'DOWN', _Ref, process, Pid, _Reason}, State = #{rooms := Rooms}) ->
@@ -117,21 +118,21 @@ handle_info({'DOWN', _Ref, process, Pid, _Reason}, State = #{rooms := Rooms}) ->
 room_exists(RoomId, Rooms) ->
     maps:is_key(RoomId, Rooms).
 
--spec add_room(chatlib_proto:room_id(), chatlib_proto:room_name(), Old::room_list()) ->
-    New::room_list().
+-spec add_room(chatlib_proto:room_id(), chatlib_proto:room_name(), Old :: room_list()) ->
+    {ok, New :: room_list()} | {error, room_already_exists}.
 add_room(RoomId, RoomName, Rooms) ->
     case room_exists(RoomId, Rooms) of
         true ->
-            room_already_exists;
+            {error, room_already_exists};
         false ->
             {ok, Pid} = supervisor:start_child(chsv_room_sup, [RoomId, RoomName]),
             _ = erlang:monitor(process, Pid),
 
-            maps:put(RoomId, Pid, Rooms)
+            {ok, maps:put(RoomId, Pid, Rooms)}
     end.
 
--spec remove_room(chatlib_proto:room_id(), Old::room_list()) ->
-    New::room_list().
+-spec remove_room(chatlib_proto:room_id(), Old :: room_list()) ->
+    New :: room_list().
 remove_room(RoomId, Rooms) ->
     maps:remove(RoomId, Rooms).
 
