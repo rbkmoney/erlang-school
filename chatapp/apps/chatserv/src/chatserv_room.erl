@@ -144,22 +144,23 @@ handle_cast(_, State) ->
 -spec handle_info(send_messages | {'DOWN', reference(), process, pid(), atom()}, state()) ->
     {noreply, state()}.
 
-handle_info(send_messages, State = #{id:= RoomId, members:= Members, pending_messages := Messages}) when length(Messages) > 0 ->
-    _ = maps:fold(
-        fun(Pid, _, ok) ->
-            ok = lager:info("Sending new messages to ~p", [Pid]),
-            ok = chatserv_wshandler:send_messages(Pid, RoomId, Messages)
-        end,
-        ok, Members
-    ),
-    ok = set_sendout_timeout(),
+handle_info(send_messages, State = #{id:= RoomId, members:= Members, pending_messages := Messages}) ->
+    case length(Messages) > 0 of
+        true ->
+            _ = maps:fold(
+                fun(Pid, _, ok) ->
+                    ok = lager:info("Sending new messages to ~p", [Pid]),
+                    ok = chatserv_wshandler:send_messages(Pid, RoomId, Messages)
+                end,
+                ok, Members
+            );
 
+        false ->
+            false %@todo this is even worse
+    end,
+
+    ok = set_sendout_timeout(),
     {noreply, State#{pending_messages:= []}};
-
-handle_info(send_messages, State) ->
-    ok = set_sendout_timeout(),
-
-    {noreply, State};
 
 handle_info({'DOWN', _Ref, process, Pid, Reason}, State = #{members := Members, id := Id, name := Name}) ->
     NewMemberList = remove_member(Pid, Members),
