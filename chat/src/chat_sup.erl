@@ -31,6 +31,6 @@ init([]) ->
     },
     RoomSupervisor = #{
         id => room_supervisor,
-        start => {room_sup,start_link,[]}
+        start => {room_sup, start_link, []}
     },
     {ok, {SupArgs, [RoomSupervisor]}}.
