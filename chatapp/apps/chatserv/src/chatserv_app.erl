@@ -10,6 +10,8 @@
 -spec start(any(), any()) ->
     chatserv_sup:sv_sl_result().
 start(_StartType, _StartArgs) ->
+    AppConfig = application:get_all_env(chatserv),
+
     Dispatch = cowboy_router:compile([
         {'_', [
             {"/debug", cowboy_static, {priv_file, chatserv, "debug/index.html"}},
@@ -23,10 +25,17 @@ start(_StartType, _StartArgs) ->
         ]}
     ]),
 
-    {ok, _} = cowboy:start_http(http, 100, [
-        {port, 8888}
+    ListenIp = proplists:get_value(listen_ip, AppConfig, {0, 0, 0, 0}),
+    ListenPort = proplists:get_value(listen_port, AppConfig, 8888),
+    ListenerCount = proplists:get_value(listener_count, AppConfig, 100),
+
+    {ok, _} = cowboy:start_http(http, ListenerCount, [
+        {ip, ListenIp},
+        {port, ListenPort}
     ], [
-        {env, [{dispatch, Dispatch}]}
+        {env, [
+            {dispatch, Dispatch}
+        ]}
     ]),
 
     chatserv_sup:start_link().

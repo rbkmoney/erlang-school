@@ -30,12 +30,12 @@
 
 -type packet() ::
     get_rooms |
-    { join_room, room_id_direct() } |
-    { set_name, room_id_direct() , member_name() } |
-    { send_message, room_id_direct(), message_text() } |
-    { receive_rooms, global, room_list() } |
-    { receive_messages, room_id_direct(), message_list() } |
-    { server_response, room_id(), response_code() }.
+    {join_room, room_id_direct()} |
+    {set_name, room_id_direct(), member_name()} |
+    {send_message, room_id_direct(), message_text()} |
+    {receive_rooms, global, room_list()} |
+    {receive_messages, room_id_direct(), message_list()} |
+    {server_response, room_id(), response_code()}.
 
 -export_type([
     response_code/0,
