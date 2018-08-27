@@ -20,15 +20,21 @@
 
 -export_type([username/0]).
 -export_type([message/0]).
+-export_type([broadcast_message/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type message() :: binary() | string().
--type username() :: message().
 -type state() :: map().
+-type username() :: message().
+-type message() :: binary() | string().
+-type client_message() :: {atom(), message() | username(), atom(), pid()}.
 -type websocket_down_message() :: {'DOWN', reference(), process, pid(), term()}.
+-type broadcast_message() :: {atom(), username(), message()} | {atom(), username()}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+start_link(Id) ->
+    gen_server:start_link({local, Id}, ?MODULE, Id, []).
 
 send(ClientMessage) ->
     RoomId = protocol:get_room_id(ClientMessage),
@@ -46,33 +52,25 @@ send(ClientMessage) ->
     stopped | {error, no_room}.
 
 stop(RoomId) ->
-    % Check if room exists in first place
-    Return = room_manager:get_room(RoomId),
-    case Return of
-        not_found ->
-            {error, no_room};
-        _ ->
-            gen_server:cast(RoomId, stop),
-            stopped
-    end,
-    lager:info("Chat_server:stop returns ~p", [Return]),
-    Return.
+    gen_server:call(RoomId, stop),
+    stopped.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec broadcast(Message :: message(), State :: map()) ->
+-spec broadcast(Message :: broadcast_message(), State :: map()) ->
     ok.
+
 broadcast(Message, State) ->
     lager:info("Sending message to all users"),
     RecipientList = maps:keys(State),
     [inform(Message, Recipient) || Recipient <- RecipientList],
     ok.
 
--spec inform(message(), pid()) ->
+-spec inform(broadcast_message(), pid()) ->
     ok.
 
 inform(Message, Recipient) ->
-    lager:info("Sending erlang message to process ~p",[Recipient]),
+    lager:info("Sending erlang message to process ~p", [Recipient]),
     Recipient ! {send, Message},
     ok.
 
@@ -106,19 +104,18 @@ register_user(Username, PID, State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start_link(Id) ->
-    gen_server:start_link({local, Id}, ?MODULE, Id, []).
-
 -spec init(atom()) ->
     {ok, state()}.
 
 init(Id) ->
+    process_flag(trap_exit, true),
     lager:notice("Initialized chat room"),
-    room_manager:add_room(Id, self()),
+    room_manager:register_room(Id, self()),
     {ok, #{}}.
 
-handle_cast(stop, State) ->
-    {stop, normal, State};
+-spec handle_cast
+    ({client_message, client_message()}, State :: state()) ->
+        {noreply, state()}.
 
 handle_cast({client_message, {send_message, Message, _, Source}}, State) ->
     Username = get_user(Source, State),
@@ -128,12 +125,16 @@ handle_cast({client_message, {send_message, Message, _, Source}}, State) ->
     {noreply, State};
 
 handle_cast({client_message, {register, Username, _, Source}}, State) ->
-    NewState = register_user(Username, Source, State), % It actuay works, even if client sends message immediatly after calling for registration, wow!
+    NewState = register_user(Username, Source, State),
+    % It actuay works, even if client sends message immediatly after calling for registration, wow!
     {noreply, NewState}.
 
--spec handle_call(term(), term(), state()) ->
-    {reply, ok, state()}.
+% -spec handle_call(term(), term(), state()) ->
+%     {reply, ok, state()}.
 
+handle_call(stop, _From, State) ->
+    lager:info("Calling to terminate this room"),
+    {stop, normal, State};
 handle_call(_, _, State) ->
     {reply, ok, State}.
 
@@ -150,5 +151,8 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
 
 -spec terminate(normal, state()) ->
     ok.
-terminate(normal, _State) ->
+
+terminate(_, State) ->
+    Reply = protocol:encode(error, <<"Room is terminated">>),
+    broadcast(Reply, State),
     ok.

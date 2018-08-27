@@ -1,5 +1,6 @@
 {"1.1.0",
-[{<<"cowboy">>,
+[{<<"aleppo">>,{pkg,<<"inaka_aleppo">>,<<"1.1.1">>},2},
+ {<<"cowboy">>,
   {git,"https://github.com/ninenines/cowboy",
        {ref,"0c15b9216b7467390623db84e169b32c68e85bcb"}},
   0},
@@ -7,16 +8,23 @@
   {git,"https://github.com/ninenines/cowlib",
        {ref,"45f750db410a4b08c68d142ad0af839f544c5d3d"}},
   1},
+ {<<"elvis">>,{pkg,<<"elvis_core">>,<<"0.4.1">>},0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.8">>},1},
  {<<"jiffy">>,{pkg,<<"jiffy">>,<<"0.15.2">>},0},
+ {<<"katana_code">>,{pkg,<<"katana_code">>,<<"0.1.2">>},1},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.2.1">>},0},
  {<<"ranch">>,
   {git,"https://github.com/ninenines/ranch",
        {ref,"a004ad710eddd0c21aaccc30d5633a76b06164b5"}},
-  1}]}.
+  1},
+ {<<"zipper">>,{pkg,<<"zipper">>,<<"1.0.1">>},1}]}.
 [
 {pkg_hash,[
+ {<<"aleppo">>, <<"B0F7D05A118C5EBC3A735D68E92A7BD5837FE53455495EDE37CF0AA8BA4912E3">>},
+ {<<"elvis">>, <<"3F344A1F1B387FF0A46ED7EA6332575CED62C547A6D1A72A3C9151D2600C3F3F">>},
  {<<"goldrush">>, <<"2024BA375CEEA47E27EA70E14D2C483B2D8610101B4E852EF7F89163CDB6E649">>},
  {<<"jiffy">>, <<"DE266C390111FD4EA28B9302F0BC3D7472468F3B8E0ACEABFBEFA26D08CD73B7">>},
- {<<"lager">>, <<"EEF4E18B39E4195D37606D9088EA05BF1B745986CF8EC84F01D332456FE88D17">>}]}
+ {<<"katana_code">>, <<"347D42D5E89AC6C4BF8D02B64633AC1BFE14B7724B5910260D39EFEAFE737F01">>},
+ {<<"lager">>, <<"EEF4E18B39E4195D37606D9088EA05BF1B745986CF8EC84F01D332456FE88D17">>},
+ {<<"zipper">>, <<"3CCB4F14B97C06B2749B93D8B6C204A1ECB6FAFC6050CACC3B93B9870C05952A">>}]}
 ].

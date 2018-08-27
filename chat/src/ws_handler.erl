@@ -12,7 +12,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type state() :: atom().
+-type state() :: term(). % Doesn't matter
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -32,7 +32,7 @@ websocket_handle({text, Message}, Req, State) ->
     case chat_server:send(Test) of
         {error, no_room} ->
             lager:info("Chat room not found"),
-            self() ! {send, {error, user}};
+            self() ! {send, {error, <<"NO ROOM">>}};
         ok ->
             self() ! {send, {success, user}}
     end,
@@ -43,7 +43,7 @@ websocket_handle(_Data, Req, State) ->
 
 websocket_info({send, Message}, Req, State) ->
     lager:info("Websocket info: ~p", [Message]),
-    Json = protocol:message_to_json(Message), % А не ебанет?
+    Json = protocol:message_to_json(Message),
     {reply, {text, Json}, Req, State}.
 
 -spec websocket_terminate(term(), term(), state()) ->

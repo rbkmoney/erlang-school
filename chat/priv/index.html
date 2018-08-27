@@ -80,7 +80,7 @@
            text = Result.user;
            switch (event_) {
                 case 'error':
-                   showScreen('<span style="color: red;">ERROR: NO ROOM</span>');
+                   showScreen('<span style="color: red;">ERROR: ' + text +'</span>');
                    break;
                 case 'success':
                     showScreen('<span style="color: green;">Registred</span>');
