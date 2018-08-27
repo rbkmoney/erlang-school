@@ -7,6 +7,7 @@
 
 -export([encode/2]).
 -export([encode/3]).
+-export([get_room_id/1]).
 -export([message_to_json/1]).
 -export([json_to_server_message/2]).
 
@@ -30,8 +31,11 @@ message_to_json(Data) ->
 
 json_to_server_message(Json, PID) ->
     DataMap = jiffy:decode(Json, [return_maps]),
-    {Event, Message} = decode_client_map(DataMap),
-    {Event, Message, PID}.
+    {Event, Message, RoomId} = decode_client_map(DataMap),
+    {Event, Message, RoomId, PID}.
+
+get_room_id({_, _, Id, _}) ->
+    Id.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -43,7 +47,8 @@ create_json_map({Event, Username}) ->
 decode_client_map(DataMap) ->
     Event = maps:get(<<"event">>, DataMap),
     Message = maps:get(<<"body">>, DataMap),
-    {binary_to_atom(Event), Message}.
+    RoomId = maps:get(<<"room">>, DataMap),
+    {binary_to_atom(Event), Message, binary_to_atom(RoomId)}.
 
 binary_to_atom(Binary) ->
     list_to_atom(binary_to_list(Binary)).

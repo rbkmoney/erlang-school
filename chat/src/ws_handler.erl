@@ -14,22 +14,6 @@
 
 -type state() :: atom().
 
-%%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
-
--spec register(chat_server:username()) ->
-    ok.
-register(Username) ->
-    lager:info("Registrating user ~p", [Username]),
-    chat_server:register_connection(Username, self()),
-    ok.
-
--spec send(chat_server:message()) ->
-    ok.
-send(Message) ->
-    lager:info("Websocket handler caught message: ~p", [Message]),
-    chat_server:send(Message, self()),
-    ok.
-
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec init({tcp, http}, term(), list()) ->
@@ -45,13 +29,20 @@ websocket_init(_TransportName, Req, _Opts) ->
 websocket_handle({text, Message}, Req, State) ->
     Test = protocol:json_to_server_message(Message, self()),
     lager:info("Decoded JSON: ~p", [Test]),
-    chat_server:send(Test),
+    case chat_server:send(Test) of
+        {error, no_room} ->
+            lager:info("Chat room not found"),
+            self() ! {send, {error, user}};
+        ok ->
+            self() ! {send, {success, user}}
+    end,
     {ok, Req, State};
 
 websocket_handle(_Data, Req, State) ->
     {ok, Req, State}.
 
 websocket_info({send, Message}, Req, State) ->
+    lager:info("Websocket info: ~p", [Message]),
     Json = protocol:message_to_json(Message), % А не ебанет?
     {reply, {text, Json}, Req, State}.
 

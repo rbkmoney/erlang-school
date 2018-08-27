@@ -19,7 +19,7 @@
           };
               $("#registration").hide();
               $("#connected").hide();
-              $("#content").hide();
+              //$("#content").hide();
       };
 
       function connect(){
@@ -45,7 +45,7 @@
       function sendTxt() {
           if ($("#send_txt").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "send_message","body": $("#send_txt").val()};
+                  txt = {"event" : "send_message","body": $("#send_txt").val(), "room": $("#roomId").val()};
                   websocket.send(JSON.stringify(txt));
                   $("#send_txt").val('');
               } else {
@@ -57,12 +57,8 @@
       function register() {
           if ($("#username").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "register", "body": $("#username").val()};
+                  txt = {"event" : "register", "body": $("#username").val(), "room": $("#roomId").val()};
                   websocket.send(JSON.stringify(txt));
-                  showScreen('<span style="color: green;">Registred</span>');
-                  $("#registration").hide();
-                  $("#connected").fadeIn('slow');
-                  $("#content").fadeIn('slow');
               } else {
                   showScreen('websocket is not connected');
               };
@@ -82,12 +78,24 @@
            Result = JSON.parse(evt.data);
            event_ = Result.event;
            text = Result.user;
-           if (event_ == 'send_message'){
-               text += ": " + Result.message;
-           } else {
-               text += " " + event_ + " this room";
-           };
-          showScreen('<span style="color: blue;">' + text + '</span>');
+           switch (event_) {
+                case 'error':
+                   showScreen('<span style="color: red;">ERROR: NO ROOM</span>');
+                   break;
+                case 'success':
+                    showScreen('<span style="color: green;">Registred</span>');
+                    $("#registration").hide();
+                    $("#connected").fadeIn('slow');
+                    //$("#content").fadeIn('slow');
+                    break;
+                case 'send_message':
+                    text += ": " + Result.message;
+                    showScreen('<span style="color: blue;">' + text + '</span>');
+                    break;
+                default:
+                     text += " " + event_ + " this room";
+                     showScreen('<span style="color: blue;">' + text + '</span>');
+           }
       };
       function onError(evt) {
           showScreen('<span style="color: red;">ERROR: ' + evt.data+ '</span>');
@@ -118,6 +126,8 @@
 
     <div id="registration">
       <p id="login">
+          <b> RoomId </b>
+          <input type='text' id="roomId" value=""></input>
           <input type='text' id="username" value=""></input>
           <button type="button" onclick="register()">login</button>
       </p>

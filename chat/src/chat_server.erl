@@ -14,7 +14,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export([send/1]).
--export([stop/0]).
+-export([stop/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -31,14 +31,32 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 send(ClientMessage) ->
-    gen_server:cast(?MODULE, {client_message, ClientMessage}),
-    ok.
+    RoomId = protocol:get_room_id(ClientMessage),
+    Return = case room_manager:get_room(RoomId) of
+        not_found ->
+            {error, no_room};
+        _ ->
+            gen_server:cast(RoomId, {client_message, ClientMessage}),
+            ok
+    end,
+    lager:info("Chat_server:send returns ~p", [Return]),
+    Return.
 
--spec stop() ->
-    stopped.
-stop() ->
-    gen_server:cast(?MODULE, stop),
-    stopped.
+-spec stop(atom()) ->
+    stopped | {error, no_room}.
+
+stop(RoomId) ->
+    % Check if room exists in first place
+    Return = room_manager:get_room(RoomId),
+    case Return of
+        not_found ->
+            {error, no_room};
+        _ ->
+            gen_server:cast(RoomId, stop),
+            stopped
+    end,
+    lager:info("Chat_server:stop returns ~p", [Return]),
+    Return.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -89,7 +107,7 @@ register_user(Username, PID, State) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_link(Id) ->
-    gen_server:start_link({local, chat_server}, ?MODULE, Id, []).
+    gen_server:start_link({local, Id}, ?MODULE, Id, []).
 
 -spec init(atom()) ->
     {ok, state()}.
@@ -102,14 +120,14 @@ init(Id) ->
 handle_cast(stop, State) ->
     {stop, normal, State};
 
-handle_cast({client_message, {send_message, Message, Source}}, State) ->
+handle_cast({client_message, {send_message, Message, _, Source}}, State) ->
     Username = get_user(Source, State),
     lager:info("Chat server got a message ~p from ~p", [Message, Username]),
     Reply = protocol:encode(message, Username, Message),
     broadcast(Reply, State),
     {noreply, State};
 
-handle_cast({client_message, {register, Username, Source}}, State) ->
+handle_cast({client_message, {register, Username, _, Source}}, State) ->
     NewState = register_user(Username, Source, State), % It actuay works, even if client sends message immediatly after calling for registration, wow!
     {noreply, NewState}.
 
