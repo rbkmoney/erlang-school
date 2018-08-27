@@ -17,10 +17,6 @@ start(_StartType, _StartArgs) ->
             {"/debug", cowboy_static, {priv_file, chatserv, "debug/index.html"}},
             {"/debug/[...]", cowboy_static, {priv_dir, chatserv, "debug"}},
 
-            %@todo an actual good webclient here
-            {"/chat", cowboy_static, {priv_file, chatserv, "webclient/index.html"}},
-            {"/chat/[...]", cowboy_static, {priv_file, chatserv, "webclient"}},
-
             {"/ws", chatserv_wshandler, []}
         ]}
     ]),

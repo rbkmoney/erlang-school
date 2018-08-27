@@ -48,13 +48,13 @@ websocket_init(_TransportName, Req, _Opts) ->
 
 -spec websocket_handle({text, binary()}, cowboy_req:req(), state()) ->
     {reply, {text, binary()}, cowboy_req:req(), state()} | {ok, cowboy_req:req(), state()}.
-websocket_handle({text, Msg}, Req, State) ->
-    Message = chatlib_proto:decode(Msg),
+websocket_handle({text, RequestData}, Req, State) ->
+    RequestMsg = chatlib_proto:decode(RequestData),
 
-    {Response, NewReq, NewState} = handle_message(Message, Req, State),
+    {ResponseMsg, NewReq, NewState} = handle_message(RequestMsg, Req, State),
 
-    Data = chatlib_proto:encode(Response),
-    {reply, {text, Data}, NewReq, NewState};
+    ResponseData = chatlib_proto:encode(ResponseMsg),
+    {reply, {text, ResponseData}, NewReq, NewState};
 websocket_handle(_Data, Req, State) ->
     {ok, Req, State}.
 
