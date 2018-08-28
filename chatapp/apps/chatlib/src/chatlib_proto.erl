@@ -52,8 +52,7 @@
 
 -export([
     encode/1,
-    decode/1,
-    test/0
+    decode/1
 ]).
 
 %%
@@ -71,37 +70,6 @@ encode(Message) ->
 decode(Message) ->
     Json = jiffy:decode(Message, [return_maps]),
     packet_from_json(Json).
-
-test() ->
-    Packets = [
-        {server_response, global, ok},
-        {server_response, 0, room_already_joined},
-        {server_response, 0, room_does_not_exist},
-        {server_response, 0, room_not_joined},
-        get_rooms,
-        {join_room, 0},
-        {set_name, 0, "Test Name"},
-        {send_message, 0, "Test Message"},
-        {receive_rooms, global, #{0=>"Test room", 1=>"Best room"}},
-        {receive_messages, 1, [
-            {{{2018, 8, 23}, {10, 26, 22}}, "My Name", "My Message"},
-            {{{2018, 8, 23}, {14, 26, 22}}, "Another Name", "My other message"}
-        ]}
-    ],
-
-    Encoded = lists:map(fun encode/1, Packets),
-    Decoded = lists:map(fun decode/1, Encoded),
-
-    Test = lists:zip(Packets, Decoded),
-
-    lists:foreach(
-        fun({P, D}) ->
-            P = D
-        end,
-        Test
-    ),
-
-    ok.
 %%
 %% Internal
 %%

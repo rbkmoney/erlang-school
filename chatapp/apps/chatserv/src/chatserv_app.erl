@@ -23,16 +23,14 @@ start(_StartType, _StartArgs) ->
 
     ListenIp = proplists:get_value(listen_ip, AppConfig, {0, 0, 0, 0}),
     ListenPort = proplists:get_value(listen_port, AppConfig, 8888),
-    ListenerCount = proplists:get_value(listener_count, AppConfig, 100),
+    %ListenerCount = proplists:get_value(listener_count, AppConfig, 100),
 
-    {ok, _} = cowboy:start_http(http, ListenerCount, [
+    {ok, _} = cowboy:start_clear(my_http_listener, [
         {ip, ListenIp},
         {port, ListenPort}
-    ], [
-        {env, [
-            {dispatch, Dispatch}
-        ]}
-    ]),
+    ],
+        #{env => #{dispatch => Dispatch}}
+    ),
 
     chatserv_sup:start_link().
 

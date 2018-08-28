@@ -1,5 +1,5 @@
 -module(chatserv_wshandler).
--behaviour(cowboy_websocket_handler).
+-behaviour(cowboy_websocket).
 
 %% API
 -type room_pid() :: pid().
@@ -16,11 +16,11 @@
 %% cowboy_websocket_handler
 
 -export([
-    init/3,
-    websocket_init/3,
-    websocket_handle/3,
-    websocket_info/3,
-    websocket_terminate/3
+    init/2,
+    websocket_init/1,
+    websocket_handle/2,
+    websocket_info/2,
+    websocket_terminate/2
 ]).
 
 %%
@@ -36,65 +36,56 @@ send_messages(MemberPid, RoomId, MessageList) ->
 %%
 %% cowboy_websocket_handler
 %%
--spec init({tcp, http}, cowboy_req:req(), any()) ->
-    {upgrade, protocol, cowboy_websocket}.
-init({tcp, http}, _Req, _Opts) ->
-    {upgrade, protocol, cowboy_websocket}.
+-spec init(cowboy_req:req(), any()) ->
+    {cowboy_websocket, cowboy_req:req(), any()}.
+init(Req, _State) ->
+    {cowboy_websocket, Req, #{joined_rooms => #{}}}.
 
--spec websocket_init(tcp | ssl, cowboy_req:req(), any()) ->
-    {ok, cowboy_req:req(), state()}.
-websocket_init(_TransportName, Req, _Opts) ->
-    {ok, Req, #{joined_rooms => #{}}}.
+-spec websocket_init(any()) ->
+    {ok, state()}.
+websocket_init(State) ->
+    {ok, State}.
 
--spec websocket_handle({text, binary()}, cowboy_req:req(), state()) ->
-    {reply, {text, binary()}, cowboy_req:req(), state()} | {ok, cowboy_req:req(), state()}.
-websocket_handle({text, RequestData}, Req, State) ->
+-spec websocket_handle({text, binary()}, state()) ->
+    {reply, {text, binary()}, state()} | {ok, state()}.
+websocket_handle({text, RequestData}, State) ->
     RequestMsg = chatlib_proto:decode(RequestData),
 
-    {ResponseMsg, NewReq, NewState} = handle_message(RequestMsg, Req, State),
+    {ResponseMsg, NewState} = handle_message(RequestMsg, State),
 
     ResponseData = chatlib_proto:encode(ResponseMsg),
-    {reply, {text, ResponseData}, NewReq, NewState};
-websocket_handle(_Data, Req, State) ->
-    {ok, Req, State}.
+    {reply, {text, ResponseData}, NewState};
+websocket_handle(_Data, State) ->
+    {ok, State}.
 
--spec websocket_info(
-    {receive_messages, chatlib_proto:room_id(), chatlib_proto:message_list()},
-    cowboy_req:req(), state()
-) ->
-    {ok, cowboy_req:req(), state()} | {reply, {text, binary()}, cowboy_req:req(), state()}.
+-spec websocket_info({receive_messages, chatlib_proto:room_id(), chatlib_proto:message_list()}, state()) ->
+    {ok, state()} | {reply, {text, binary()}, state()}.
 
-websocket_info(Msg = {receive_messages, _, _}, Req, State) ->
+websocket_info(Msg = {receive_messages, _, _}, State) ->
     Response = chatlib_proto:encode(Msg),
 
-    {reply, {text, Response}, Req, State};
+    {reply, {text, Response}, State};
 
-websocket_info(_Info, Req, State) ->
-    {ok, Req, State}.
+websocket_info(_Info, State) ->
+    {ok, State}.
 
--spec websocket_terminate(
-    {normal, shutdown | timeout} |
-    {remote, closed} |
-    {remote, cowboy_websocket:close_code(), binary()} |
-    {error, badencoding | badframe | closed | atom()},
-    cowboy_req:req(), state()
-) ->
+-spec websocket_terminate(_, state()) ->
     ok.
-websocket_terminate(_Reason, _Req, _State) ->
+websocket_terminate(_Reason, _State) ->
     ok.
 
 %%
 %% internal
 %%
--spec handle_message(chatlib_proto:packet(), cowboy_req:req(), state()) ->
-    {chatlib_proto:packet(), cowboy_req:req(), state()}.
-handle_message(get_rooms, Req, State) ->
+-spec handle_message(chatlib_proto:packet(), state()) ->
+    {chatlib_proto:packet(), state()}.
+handle_message(get_rooms, State) ->
     RoomsList = chatserv_room_manager:get_rooms_with_names(),
     Response = {receive_rooms, global, RoomsList},
 
-    {Response, Req, State};
+    {Response, State};
 
-handle_message({join_room, RoomId}, Req, State = #{joined_rooms := Rooms}) ->
+handle_message({join_room, RoomId}, State = #{joined_rooms := Rooms}) ->
     case chatserv_room_manager:get_room_pid(RoomId) of
         {ok, Pid} ->
             {UpdatedRooms, Response} = do_join_room(Pid, RoomId, Rooms);
@@ -104,9 +95,9 @@ handle_message({join_room, RoomId}, Req, State = #{joined_rooms := Rooms}) ->
             Response = {server_response, RoomId, room_does_not_exist}
     end,
 
-    {Response, Req, State#{joined_rooms := UpdatedRooms}};
+    {Response, State#{joined_rooms := UpdatedRooms}};
 
-handle_message({set_name, RoomId, NameString}, Req, State = #{joined_rooms := Rooms}) ->
+handle_message({set_name, RoomId, NameString}, State = #{joined_rooms := Rooms}) ->
     case get_room_pid(RoomId, Rooms) of
         {ok, RoomPid} ->
             Result = chatserv_room:change_name(RoomPid, NameString),
@@ -117,9 +108,9 @@ handle_message({set_name, RoomId, NameString}, Req, State = #{joined_rooms := Ro
             Response = {server_response, RoomId, room_not_joined}
     end,
 
-    {Response, Req, State};
+    {Response, State};
 
-handle_message({send_message, RoomId, MessageString}, Req, State = #{joined_rooms := Rooms}) ->
+handle_message({send_message, RoomId, MessageString}, State = #{joined_rooms := Rooms}) ->
     case get_room_pid(RoomId, Rooms) of
         {ok, RoomPid} ->
             Result = chatserv_room:send_message(RoomPid, MessageString),
@@ -130,7 +121,7 @@ handle_message({send_message, RoomId, MessageString}, Req, State = #{joined_room
             Response = {server_response, RoomId, room_not_joined}
     end,
 
-    {Response, Req, State}.
+    {Response, State}.
 
 
 -spec do_join_room(room_pid(), chatlib_proto:room_id(), rooms_map()) ->

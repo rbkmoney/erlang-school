@@ -1,0 +1,17 @@
+{application, chatcli, [
+    {description, "A chat client"},
+    {vsn, "0.0.1"},
+    {registered, []},
+    {mod, {chatcli, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        gun
+    ]},
+    {env, []},
+    {modules, []},
+
+    {maintainers, []},
+    {licenses, []},
+    {links, []}
+]}.
