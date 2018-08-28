@@ -11,6 +11,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-export([get_room/1]).
 -export([get_rooms/0]).
 -export([create_room/1]).
 -export([delete_room/1]).

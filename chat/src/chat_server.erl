@@ -5,7 +5,6 @@
 -behaviour(gen_server).
 
 -export([init/1]).
--export([start_link/1]).
 -export([handle_cast/2]).
 -export([handle_call/3]).
 -export([handle_info/2]).
@@ -13,6 +12,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-export([start_link/1]).
 -export([send/1]).
 -export([stop/1]).
 
