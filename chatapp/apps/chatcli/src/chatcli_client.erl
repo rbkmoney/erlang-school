@@ -5,11 +5,12 @@
 -export([start_link/2]).
 
 -export([
-    join_room/1,
-    set_name/2,
-    send_message/2,
-    await_response/2,
-    has_message/3
+    join_room/2,
+    set_name/3,
+    send_message/3,
+    await_response/3,
+    get_messages/2,
+    has_message/4
 ]).
 
 %% gen_server
@@ -36,38 +37,43 @@
 %%%
 %%% API
 %%%
-start_link(Ip, Port) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, {Ip, Port}, []).
+-spec start_link(inet:hostname(), inet:port_number()) ->
+    {ok, pid()} | {error, _}.
+start_link(Host, Port) ->
+    gen_server:start_link(?MODULE, {Host, Port}, []).
 
--spec join_room(chatlib_proto:room_id_direct()) ->
+-spec join_room(pid(), chatlib_proto:room_id_direct()) ->
     ok.
-join_room(RoomId) ->
-    gen_server:call(?SERVER, {join_room, RoomId}).
+join_room(Client, RoomId) ->
+    gen_server:call(Client, {join_room, RoomId}).
 
--spec set_name(chatlib_proto:room_id_direct(), chatlib_proto:member_name()) ->
+-spec set_name(pid(), chatlib_proto:room_id_direct(), chatlib_proto:member_name()) ->
     ok.
-set_name(RoomId, Name) ->
-    gen_server:call(?SERVER, {set_name, RoomId, Name}).
+set_name(Client, RoomId, Name) ->
+    gen_server:call(Client, {set_name, RoomId, Name}).
 
--spec send_message(chatlib_proto:room_id_direct(), chatlib_proto:message_text()) ->
+-spec send_message(pid(), chatlib_proto:room_id_direct(), chatlib_proto:message_text()) ->
     ok.
-send_message(RoomId, Message) ->
-    gen_server:call(?SERVER, {send_message, RoomId, Message}).
+send_message(Client, RoomId, Message) ->
+    gen_server:call(Client, {send_message, RoomId, Message}).
 
--spec await_response(timeout(), pos_integer()) ->
+-spec await_response(pid(), timeout(), pos_integer()) ->
     chatlib_proto:response_code() | timeout.
-await_response(_, 0) ->
+await_response(_, _, 0) ->
     timeout;
-await_response(WaitMs, Retries) ->
-    case gen_server:call(?SERVER, get_response) of
-        waiting -> timer:sleep(WaitMs), await_response(WaitMs, Retries-1);
+await_response(Client, WaitMs, Retries) ->
+    case gen_server:call(Client, get_response) of
+        waiting -> timer:sleep(WaitMs), await_response(Client, WaitMs, Retries-1);
         {ready, Response} -> Response
     end.
 
--spec has_message(chatlib_proto:room_id_direct(), chatlib_proto:room_name(), chatlib_proto:message_text()) ->
+get_messages(Client, RoomId) ->
+    gen_server:call(Client, {get_messages, RoomId}).
+
+-spec has_message(pid(), chatlib_proto:room_id_direct(), chatlib_proto:room_name(), chatlib_proto:message_text()) ->
     boolean().
-has_message(RoomId, Name, Message) ->
-    gen_server:call(?SERVER, {has_message, RoomId, Name, Message}).
+has_message(Client, RoomId, Name, Message) ->
+    gen_server:call(Client, {has_message, RoomId, Name, Message}).
 
 %%%
 %%% gen_server
@@ -109,12 +115,15 @@ handle_call(get_response, _, State = #{conn_state := waiting}) ->
 handle_call(get_response, _, State = #{conn_state := ready, last_response := Response}) ->
     {reply, {ready, Response}, State};
 
+handle_call({get_messages, RoomId}, _, State = #{message_history := MsgHis}) ->
+    {reply, maps:get(RoomId, MsgHis, []), State};
+
 handle_call({has_message, RoomId, Name, Message}, _, State = #{message_history := MsgHis}) ->
     RoomMsgs = maps:get(RoomId, MsgHis, []),
 
     Result = lists:foldl(
         fun({_, MName, MMessage}, _Res) ->
-            (Name == MName) and (MMessage == Message)
+            (MName == Name) and (MMessage == Message)
         end,
         false, RoomMsgs
     ),
@@ -145,22 +154,22 @@ handle_info({gun_ws, ConnPid, _, {text, Data}}, State = #{connpid := ConnPid}) -
     {noreply, NewState};
 
 handle_info({gun_upgrade, ConnPid, _, [<<"websocket">>], _}, State = #{connpid := ConnPid, conn_state := upgrading}) ->
-    io:format("Updgraded!"),
+    ok = lager:info("Updgraded!"),
 
     {noreply, State#{conn_state => ready}};
 
 handle_info({gun_response, ConnPid, _, _, _, _}, State = #{connpid := ConnPid}) ->
-    io:format("Error!"),
+    ok = lager:error("Error!"),
     {noreply, State};
 
 handle_info({gun_up, ConnPid, _}, State = #{connpid := ConnPid, conn_state := connecting}) ->
-    io:format("Connected!"),
+    ok = lager:info("Connected!"),
 
     _ = gun:ws_upgrade(ConnPid, "/ws"),
     {noreply, State#{conn_state => upgrading}};
 
 handle_info({gun_error, ConnPid, _, _}, State = #{connpid := ConnPid}) ->
-    io:format("Error!"),
+    ok = lager:error("Error!"),
     {noreply, State};
 
 handle_info(_Info, State) ->
@@ -173,6 +182,7 @@ handle_info(_Info, State) ->
 -spec handle_ws(chatlib_proto:packet(), Old :: state()) ->
     New :: state().
 handle_ws({receive_messages, RoomId, MessageList}, State) ->
+    lager:info("Recived messages ~p ~p~n", [RoomId, MessageList]),
     add_messages_to_history(RoomId, MessageList, State);
 
 handle_ws({server_response, _, ResponseCode}, State = #{conn_state := waiting}) ->
@@ -192,7 +202,7 @@ add_messages_to_history(RoomId, NewMessages, State = #{message_history := Histor
 encode_and_send(Msg, State = #{connpid := ConnPid}) ->
     RequestData = chatlib_proto:encode(Msg),
 
-    {reply, ws_send(ConnPid, RequestData), State#{conn_state := waiting}}.
+    {reply, ws_send(ConnPid, RequestData), State#{conn_state => waiting}}.
 
 -spec ws_send(pid(), binary()) ->
     ok.

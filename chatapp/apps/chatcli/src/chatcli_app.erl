@@ -1,4 +1,4 @@
--module(chatcli).
+-module(chatcli_app).
 -behaviour(application).
 
 -export([start/2, stop/1]).
@@ -10,7 +10,7 @@
 -spec start(any(), any()) ->
     {ok, pid()} | {error, any()}.
 start(_StartType, _StartArgs) ->
-    chatcli_client:start_link("localhost", 8888).
+    chatcli_sup:start_link().
 
 -spec stop(any()) ->
     ok.
