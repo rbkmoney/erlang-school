@@ -9,7 +9,8 @@
 -export([encode/3]).
 -export([get_room_id/1]).
 -export([message_to_json/1]).
--export([mesasge_to_client_json/3]).
+-export([decode_server_json/1]).
+-export([message_to_client_json/3]).
 -export([json_to_server_message/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -33,9 +34,13 @@ encode(Atom, Username) ->
 encode(message, Username, Message) ->
     {message, Username, Message}.
 
-mesasge_to_client_json(Event, Body, Room) ->
+message_to_client_json(Event, Body, Room) ->
     DataMap = create_client_map(Event, Body, Room),
     jiffy:encode(DataMap).
+
+decode_server_json(Json) ->
+    RawMap = jiffy:decode(Json, [return_maps]),
+    decode_server_map(RawMap).
 
 -spec message_to_json(Data :: data()) ->
     json().
@@ -74,6 +79,16 @@ create_json_map({Event, Username}) ->
 
 -spec decode_client_map(map()) ->
     {atom, binary(), atom()}.
+
+decode_server_map(DataMap) ->
+    Event = binary_to_atom(maps:get(<<"event">>, DataMap)),
+    Username = maps:get(<<"user">>, DataMap),
+    case maps:get(<<"message">>, DataMap, badkey) of
+        badkey ->
+            #{event => Event, user => Username};
+        Message ->
+            #{event => Event, user => Username, message => Message}
+    end.
 
 decode_client_map(DataMap) ->
     Event = maps:get(<<"event">>, DataMap),

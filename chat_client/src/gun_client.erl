@@ -29,7 +29,8 @@ test() ->
     Room = room1,
     connected = connect("localhost", 8080, Id),
     set_username(Id, <<"Igor">>),
-    join(Id, Room).
+    join(Id, Room),
+    send(Id, <<"Holla">>, Room).
 
 start_link(Id) ->
     gen_server:start_link({local, Id}, ?MODULE, "Incognito", []).
@@ -78,6 +79,20 @@ ws_connect(Host, Port, State) ->
     NewState = update_status(connected, State),
     maps:put(pid, Pid, NewState).
 
+format_message(Json) ->
+    DataMap = protocol:decode_server_json(Json),
+    Username = maps:get(user, DataMap),
+    Event = maps:get(event, DataMap),
+    case Event of
+        send_message ->
+            Message = maps:get(message, DataMap),
+            io:format("~p: ~p~n", [binary_to_list(Username), binary_to_list(Message)]);
+        success ->
+            ok;
+        _ ->
+            io:format("~p ~p this room~n", [binary_to_list(Username), Event])
+    end.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init(Username) ->
@@ -94,32 +109,29 @@ handle_call({set_username, Username}, _From, State) ->
 handle_call({join, RoomId}, _From, #{status := connected} = State) ->
     PID = pid(State),
     Username = username(State),
-    Message = protocol:mesasge_to_client_json(register, Username, RoomId),
+    Message = protocol:message_to_client_json(register, Username, RoomId),
     lager:info("Sending message ~p throught websocket", [Message]),
     gun:ws_send(PID, {text, Message}),
     NewState = update_status(registered, State),
-    {reply, ok, State};
+    {reply, ok, NewState};
 
 handle_call(_, _, State) ->
     {reply, ok, State}.
 
 handle_cast({send_message, {Message, RoomId}}, #{status := registered} = State) ->
-    case pid(State) of
-        not_connected ->
-            {error, not_connected};
-        PID ->
-            Username = username(State),
-            Message = protocol:mesasge_to_client_json(send_message, Message, RoomId),
-            lager:info("Sending message ~p throught websocket", [Message]),
-            gun:ws_send(PID, {text, Message})
-    end,
+        PID = pid(State),
+        Username = username(State),
+        EncodedMessage = protocol:message_to_client_json(send_message, Message, RoomId),
+        lager:info("Sending message ~p throught websocket", [EncodedMessage]),
+        gun:ws_send(PID, {text, EncodedMessage}),
     {noreply, State};
 
 handle_cast(_, State) ->
     {noreply, State}.
 
-handle_info({gun_ws, ConnPid, StreamRef, Frame}, State) ->
-    lager:info("Caught a message: ~p", [Frame]),
+handle_info({gun_ws, ConnPid, StreamRef, {text, Message}}, State) ->
+    lager:info("Caught a message: ~p", [Message]),
+    format_message(Message),
     {noreply, State};
 
 handle_info(_, State) ->
