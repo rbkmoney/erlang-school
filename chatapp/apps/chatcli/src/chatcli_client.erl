@@ -18,7 +18,8 @@
     conn_addr := addr(),
     connpid := pid() | undefined,
     conn_state := ready | { waiting, {pid(), any()}},
-    message_history := #{ chatlib_proto:room_id_direct() => chatlib_proto:message_list() }
+    message_history := #{ chatlib_proto:room_id_direct() => chatlib_proto:message_list() },
+    message_cb := fun()
 }.
 
 -export([
@@ -59,8 +60,8 @@ get_messages(Client, RoomId) ->
 %%%
 %%% gen_server
 %%%
--spec init(addr()) ->
-    {ok, state(), {continue, connect}}.
+-spec init(list()) ->
+    {ok, state()}.
 init([Addr = {Ip, Port}, MessageCB]) ->
     {ok, ConnPid} = gun:open(Ip, Port),
     {ok, _} = gun:await_up(ConnPid),
@@ -126,9 +127,9 @@ handle_info(_Info, State) ->
 -spec handle_ws(chatlib_proto:packet(), Old :: state()) ->
     New :: state().
 handle_ws({receive_messages, RoomId, MessageList}, State = #{message_cb := MessageCB}) ->
-    lager:info("Recived messages ~p ~p~n", [RoomId, MessageList]),
+    ok = lager:info("Recived messages ~p ~p~n", [RoomId, MessageList]),
 
-    MessageCB(),
+    _ = MessageCB(),
 
     add_messages_to_history(RoomId, MessageList, State);
 
@@ -146,8 +147,8 @@ add_messages_to_history(RoomId, NewMessages, State = #{message_history := Histor
 
     State #{message_history := NewHistory}.
 
--spec encode_and_send(any(), state()) ->
-    {reply, ok, state()}.
+-spec encode_and_send(any(), pid()) ->
+    ok.
 encode_and_send(Msg, ConnPid) ->
     RequestData = chatlib_proto:encode(Msg),
     ws_send(ConnPid, RequestData).

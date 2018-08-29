@@ -1,7 +1,9 @@
 -module(chatserv_SUITE).
 -include_lib("common_test/include/ct.hrl").
 
--compile([export_all]).
+-compile([
+    export_all
+]).
 
 -define(AWAIT_DELAY, 50).
 -define(AWAIT_RETRIES, 10).
@@ -36,7 +38,7 @@ end_per_suite(C) ->
     [application:stop(App) || App <- ?config(apps, C)].
 
 %%
-%% solo_happy
+%% Tests
 %%
 
 solo_happy(_) ->
@@ -95,6 +97,7 @@ duo_exchange(_) ->
 %%
 %% Helpers
 %%
+
 receive_messages([]) -> ok;
 receive_messages([H|T]) ->
     receive
