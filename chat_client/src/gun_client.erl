@@ -15,9 +15,10 @@
 -export([send/3]).
 -export([join/2]).
 -export([leave/1]).
--export([set_username/2]).
--export([start_link/1]).
 -export([connect/3]).
+-export([start_link/1]).
+-export([get_messages/1]).
+-export([set_username/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -31,7 +32,9 @@ test() ->
     connected = connect("localhost", 8080, Id),
     set_username(Id, <<"Igor">>),
     join(Id, Room),
-    send(Id, <<"Holla">>, Room).
+    send(Id, <<"Holla">>, Room),
+    timer:sleep(200), % Give some time to handle sending and receiving messages,
+    get_messages(Id).
 
 start_link(Id) ->
     gen_server:start_link({local, Id}, ?MODULE, "Incognito", []).
@@ -51,7 +54,20 @@ join(Id, RoomId) ->
 leave(Id) ->
     gen_server:call(Id, stop).
 
+get_messages(Id) ->
+    gen_server:call(Id, get_messages).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_message(Json, State) ->
+    Message = protocol:decode(Json),
+    lager:info("Adding message ~p to mesageList", [Message]),
+    MessageList = maps:get(messageList, State),
+    NewMessageList = [Message | MessageList],
+    maps:put(messageList, NewMessageList, State).
+
+get_messages_(State) ->
+    maps:get(messageList, State).
 
 connection_info(State) ->
     {username(State), pid(State)}.
@@ -86,7 +102,7 @@ ws_connect(Host, Port, State) ->
     NewState = update_status(connected, State),
     maps:put(pid, Pid, NewState).
 
-format_message(Json) ->
+format_message(Json) -> % Optional output
     Decoded = protocol:decode(Json),
     Username = protocol:user(Decoded),
     Event = protocol:event(Decoded),
@@ -103,7 +119,7 @@ format_message(Json) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init(Username) ->
-    {ok, #{status => not_connected, username => Username}}.
+    {ok, #{status => not_connected, username => Username, messageList => []}}.
 
 handle_call({connect, Host, Port}, _From, #{status := not_connected} = State) ->
     NewState = ws_connect(Host, Port, State),
@@ -127,6 +143,11 @@ handle_call(stop, _From, State) -> % Stopping connection will cause leaving the 
     NewState = update_status(not_connected, State),
     {ok, disconnected, NewState};
 
+handle_call(get_messages, _From, State) ->
+    lager:info("User ~p asked for received messages"),
+    MessageList = get_messages_(State),
+    {reply, MessageList, State};
+
 handle_call(_, _, State) ->
     {reply, ok, State}.
 
@@ -143,8 +164,9 @@ handle_cast(_, State) ->
 
 handle_info({gun_ws, _, _, {text, Message}}, State) ->
     lager:info("Caught a message: ~p", [Message]),
+    NewState = add_message(Message, State),
     format_message(Message),
-    {noreply, State};
+    {noreply, NewState};
 
 handle_info(_, State) ->
     {noreply, State}.
