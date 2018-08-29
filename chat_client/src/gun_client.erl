@@ -14,6 +14,7 @@
 -export([test/0]).
 -export([send/3]).
 -export([join/2]).
+-export([leave/1]).
 -export([set_username/2]).
 -export([start_link/1]).
 -export([connect/3]).
@@ -47,7 +48,13 @@ set_username(Id, Username) ->
 join(Id, RoomId) ->
     gen_server:call(Id, {join, RoomId}).
 
+leave(Id) ->
+    gen_server:call(Id, stop).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+connection_info(State) ->
+    {username(State), pid(State)}.
 
 update_status(NewStatus, State) ->
     maps:put(status, NewStatus, State).
@@ -63,15 +70,15 @@ pid(State) ->
 
 ws_connect(Host, Port, State) ->
     {ok, Pid} = gun:open(Host, Port),
-    {ok, Protocol} = gun:await_up(Pid),
+    {ok, _} = gun:await_up(Pid),
     lager:info("Connection to ~p:~p established, perfoming upgrade", [Host, Port]),
     gun:ws_upgrade(Pid, "/websocket"),
     receive
-        {gun_upgrade, ConnPid, StreamRef, [<<"websocket">>], Headers} ->
+        {gun_upgrade, Pid, _, [<<"websocket">>], _} ->
             lager:info("Success");
-        {gun_response, ConnPid, _, _, Status, Headers} ->
+        {gun_response, Pid, _, _, Status, Headers} ->
             exit({ws_upgrade_failed, Status, Headers});
-        {gun_error, ConnPid, StreamRef, Reason} ->
+        {gun_error, Pid, _, Reason} ->
             exit({ws_upgrade_failed, Reason})
     after 1000 ->
         exit(timeout)
@@ -86,11 +93,11 @@ format_message(Json) ->
     case Event of
         send_message ->
             Message = maps:get(message, DataMap),
-            io:format("~p: ~p~n", [binary_to_list(Username), binary_to_list(Message)]);
+            io:fwrite("~p: ~p~n", [binary_to_list(Username), binary_to_list(Message)]);
         success ->
             ok;
         _ ->
-            io:format("~p ~p this room~n", [binary_to_list(Username), Event])
+            io:fwrite("~p ~p this room~n", [binary_to_list(Username), Event])
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -107,19 +114,24 @@ handle_call({set_username, Username}, _From, State) ->
     {reply, ok, NewState};
 
 handle_call({join, RoomId}, _From, #{status := connected} = State) ->
-    PID = pid(State),
-    Username = username(State),
+    {Username, PID} = connection_info(State),
     Message = protocol:message_to_client_json(register, Username, RoomId),
     lager:info("Sending message ~p throught websocket", [Message]),
     gun:ws_send(PID, {text, Message}),
     NewState = update_status(registered, State),
     {reply, ok, NewState};
 
+handle_call(stop, _From, State) -> % Stopping connection will cause leaving the server.
+    PID = pid(State),
+    gun:close(PID),
+    NewState = update_status(not_connected, State),
+    {ok, disconnected, NewState};
+
 handle_call(_, _, State) ->
     {reply, ok, State}.
 
 handle_cast({send_message, {Message, RoomId}}, #{status := registered} = State) ->
-        PID = pid(State),
+        {Username, PID} = connection_info(State),
         Username = username(State),
         EncodedMessage = protocol:message_to_client_json(send_message, Message, RoomId),
         lager:info("Sending message ~p throught websocket", [EncodedMessage]),
@@ -129,7 +141,7 @@ handle_cast({send_message, {Message, RoomId}}, #{status := registered} = State) 
 handle_cast(_, State) ->
     {noreply, State}.
 
-handle_info({gun_ws, ConnPid, StreamRef, {text, Message}}, State) ->
+handle_info({gun_ws, _, _, {text, Message}}, State) ->
     lager:info("Caught a message: ~p", [Message]),
     format_message(Message),
     {noreply, State};
