@@ -87,12 +87,12 @@ ws_connect(Host, Port, State) ->
     maps:put(pid, Pid, NewState).
 
 format_message(Json) ->
-    DataMap = protocol:decode_server_json(Json),
-    Username = maps:get(user, DataMap),
-    Event = maps:get(event, DataMap),
+    Decoded = protocol:decode(Json),
+    Username = protocol:user(Decoded),
+    Event = protocol:event(Decoded),
     case Event of
         send_message ->
-            Message = maps:get(message, DataMap),
+            Message = protocol:message(Decoded),
             io:fwrite("~p: ~p~n", [binary_to_list(Username), binary_to_list(Message)]);
         success ->
             ok;
@@ -115,7 +115,7 @@ handle_call({set_username, Username}, _From, State) ->
 
 handle_call({join, RoomId}, _From, #{status := connected} = State) ->
     {Username, PID} = connection_info(State),
-    Message = protocol:message_to_client_json(register, Username, RoomId),
+    Message = protocol:encode(register, Username, <<"">>, RoomId),
     lager:info("Sending message ~p throught websocket", [Message]),
     gun:ws_send(PID, {text, Message}),
     NewState = update_status(registered, State),
@@ -133,7 +133,7 @@ handle_call(_, _, State) ->
 handle_cast({send_message, {Message, RoomId}}, #{status := registered} = State) ->
         {Username, PID} = connection_info(State),
         Username = username(State),
-        EncodedMessage = protocol:message_to_client_json(send_message, Message, RoomId),
+        EncodedMessage = protocol:encode(send_message, <<"">>, Message, RoomId),
         lager:info("Sending message ~p throught websocket", [EncodedMessage]),
         gun:ws_send(PID, {text, EncodedMessage}),
     {noreply, State};

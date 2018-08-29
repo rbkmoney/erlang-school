@@ -27,14 +27,7 @@ websocket_init(_) ->
     {ok, connected}.
 
 websocket_handle({text, Message}, State) ->
-    case chat_server:send(Message, self()) of
-        {error, no_room} ->
-            lager:info("Chat room not found"),
-            Reply = protocol2:encode(error, <<"">>, <<"NO ROOM">>, <<"">>);
-        ok ->
-            Reply = protocol2:encode(success, <<"">>, <<"">>, <<"">>)
-    end,
-    self() ! {send, Reply},
+    chat_server:send(Message, self()),
     {ok, State};
 
 websocket_handle(_Data, State) ->

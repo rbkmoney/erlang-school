@@ -78,23 +78,21 @@
       function onMessage(evt) {
            Result = JSON.parse(evt.data);
            event_ = Result.event;
-           text = Result.user;
            switch (event_) {
                 case 'error':
-                   showScreen('<span style="color: red;">ERROR: ' + text +'</span>');
+                   showScreen('<span style="color: red;">ERROR: ' + Result.message +'</span>');
                    break;
                 case 'success':
                     showScreen('<span style="color: green;">Registred</span>');
                     $("#registration").hide();
                     $("#connected").fadeIn('slow');
-                    //$("#content").fadeIn('slow');
                     break;
                 case 'send_message':
-                    text += ": " + Result.message;
+                    text = Result.user + ": " + Result.message;
                     showScreen('<span style="color: blue;">' + text + '</span>');
                     break;
                 default:
-                     text += " " + event_ + " this room";
+                     text = Result.user + " " + event_ + " this room";
                      showScreen('<span style="color: blue;">' + text + '</span>');
            }
       };
