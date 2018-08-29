@@ -27,15 +27,14 @@ websocket_init(_) ->
     {ok, connected}.
 
 websocket_handle({text, Message}, State) ->
-    Test = protocol:json_to_server_message(Message, self()),
-    lager:info("Decoded JSON: ~p", [Test]),
-    case chat_server:send(Test) of
+    case chat_server:send(Message, self()) of
         {error, no_room} ->
             lager:info("Chat room not found"),
-            self() ! {send, {error, <<"NO ROOM">>}};
+            Reply = protocol2:encode(error, <<"">>, <<"NO ROOM">>, <<"">>);
         ok ->
-            self() ! {send, {success, user}}
+            Reply = protocol2:encode(success, <<"">>, <<"">>, <<"">>)
     end,
+    self() ! {send, Reply},
     {ok, State};
 
 websocket_handle(_Data, State) ->
@@ -43,8 +42,7 @@ websocket_handle(_Data, State) ->
 
 websocket_info({send, Message}, State) ->
     lager:info("Websocket info: ~p", [Message]),
-    Json = protocol:message_to_json(Message),
-    {reply, {text, Json}, State}.
+    {reply, {text, Message}, State}.
 
 % -spec websocket_terminate(term(), term(), state()) ->
 %     ok.

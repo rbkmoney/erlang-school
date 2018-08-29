@@ -13,7 +13,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export([start_link/1]).
--export([send/1]).
+-export([send/2]).
 -export([stop/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -36,13 +36,14 @@
 start_link(Id) ->
     gen_server:start_link({local, Id}, ?MODULE, Id, []).
 
-send(ClientMessage) ->
-    RoomId = protocol:get_room_id(ClientMessage),
+send(Json, Source) ->
+    ClientMessage = protocol2:decode(Json),
+    RoomId = protocol2:room(ClientMessage),
     Return = case room_manager:get_room(RoomId) of
         not_found ->
             {error, no_room};
         _ ->
-            gen_server:cast(RoomId, {client_message, ClientMessage}),
+            gen_server:cast(RoomId, {client_message, ClientMessage, Source}),
             ok
     end,
     lager:info("Chat_server:send returns ~p", [Return]),
@@ -62,7 +63,8 @@ stop(RoomId) ->
 
 broadcast(Message, State) ->
     lager:info("Sending message to all users"),
-    RecipientList = maps:keys(State),
+    Connections = maps:get(connections, State),
+    RecipientList = maps:keys(Connections),
     [inform(Message, Recipient) || Recipient <- RecipientList],
     ok.
 
@@ -74,17 +76,24 @@ inform(Message, Recipient) ->
     Recipient ! {send, Message},
     ok.
 
+this_room(State) ->
+    maps:get(room, State).
+
 -spec add_user(PID :: pid(), Username :: username(), State :: state()) ->
     state().
 
 add_user(PID, Username, State) ->
-    maps:put(PID, Username, State).
+    Connections = maps:get(connections, State),
+    NewConnections = maps:put(PID, Username, Connections),
+    maps:put(connections, NewConnections, State).
 
 -spec remove_user(PID :: pid(), State :: state()) ->
     state().
 
 remove_user(PID, State) ->
-    maps:remove(PID, State).
+    Connections = maps:get(connections, State),
+    NewConnections = maps:remove(PID, Connections),
+    maps:put(connections, NewConnections, State).
 
 -spec register_user(Username :: username(), PID :: pid(), State :: state()) ->
     state().
@@ -93,14 +102,15 @@ register_user(Username, PID, State) ->
     lager:info("Registration of new user ~p", [Username]),
     NewState = add_user(PID, Username, State),
     erlang:monitor(process, PID),
-    Reply = protocol:encode(joined, Username),
+    Reply = protocol2:encode(joined, Username, <<"">>, this_room(State)),
     broadcast(Reply, NewState),
     NewState.
 
 -spec get_user(pid(), state()) ->
     username().
  get_user(PID, State) ->
-     maps:get(PID, State, "Incognito").
+     Connections = maps:get(connections, State),
+     maps:get(PID, Connections, "Incognito").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -111,26 +121,23 @@ init(Id) ->
     process_flag(trap_exit, true),
     lager:notice("Initialized chat room"),
     room_manager:register_room(Id, self()),
-    {ok, #{}}.
+    {ok, #{room => Id, connections => #{}}}.
 
 -spec handle_cast
     ({client_message, client_message()}, State :: state()) ->
         {noreply, state()}.
 
-handle_cast({client_message, {send_message, Message, _, Source}}, State) ->
+handle_cast({client_message, {send_message, _Username, Message, RoomId}, Source}, State) ->
     Username = get_user(Source, State),
     lager:info("Chat server got a message ~p from ~p", [Message, Username]),
-    Reply = protocol:encode(message, Username, Message),
+    Reply = protocol2:encode(send_message, Username, Message, RoomId),
     broadcast(Reply, State),
     {noreply, State};
 
-handle_cast({client_message, {register, Username, _, Source}}, State) ->
+handle_cast({client_message, {register, Username, _Message, RoomId}, Source}, State) ->
     NewState = register_user(Username, Source, State),
     % It actuay works, even if client sends message immediatly after calling for registration, wow!
     {noreply, NewState}.
-
-% -spec handle_call(term(), term(), state()) ->
-%     {reply, ok, state()}.
 
 handle_call(stop, _From, State) ->
     lager:info("Calling to terminate this room"),
@@ -145,7 +152,8 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
     Username = get_user(PID, State),
     lager:info("User ~p disconnected", [Username]),
     NewState = remove_user(PID, State),
-    Reply = protocol:encode(left, Username),
+    RoomId = this_room(State),
+    Reply = protocol2:encode(left, Username, <<"">>, RoomId),
     broadcast(Reply, NewState),
     {noreply, NewState}.
 
@@ -153,6 +161,6 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
     ok.
 
 terminate(_, State) ->
-    Reply = protocol:encode(error, <<"Room is terminated">>),
+    Reply = protocol2:encode(error, <<"">>, <<"Room is terminated">>, this_room(State)),
     broadcast(Reply, State),
     ok.

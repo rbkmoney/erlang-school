@@ -130,6 +130,7 @@ handle_call({get_rooms}, _From, State) ->
     {reply, Rooms, State};
 
 handle_call({get_room_pid, Id}, _From, State) ->
+    lager:info("Searching for room ~p", [Id]),
     RoomPID = find_room(Id, State),
     {reply, RoomPID, State};
 

@@ -45,7 +45,7 @@
       function sendTxt() {
           if ($("#send_txt").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "send_message","body": $("#send_txt").val(), "room": $("#roomId").val()};
+                  txt = {"event" : "send_message", "user": $("#username"), "message": $("#send_txt").val(), "room": $("#roomId").val()};
                   websocket.send(JSON.stringify(txt));
                   $("#send_txt").val('');
               } else {
@@ -57,7 +57,8 @@
       function register() {
           if ($("#username").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "register", "body": $("#username").val(), "room": $("#roomId").val()};
+                  txt = {"event" : "register", "user": $("#username").val(), "message": "",
+                    "room": $("#roomId").val()};
                   websocket.send(JSON.stringify(txt));
               } else {
                   showScreen('websocket is not connected');
