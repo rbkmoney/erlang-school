@@ -5,7 +5,7 @@
 %% API
 -export([
     start_link/0,
-    start_client/2,
+    start_client/3,
     stop_client/1
 ]).
 
@@ -22,10 +22,10 @@
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
--spec start_client(inet:hostname(), inet:port_number()) ->
+-spec start_client(inet:hostname(), inet:port_number(), pid()) ->
     {ok, pid()} | {error, _}.
-start_client(HostName, Port) ->
-    supervisor:start_child(?SERVER, [HostName, Port]).
+start_client(HostName, Port, MessageCB) ->
+    supervisor:start_child(?SERVER, [HostName, Port, MessageCB]).
 
 -spec stop_client(pid()) ->
     ok | {error, term()}.

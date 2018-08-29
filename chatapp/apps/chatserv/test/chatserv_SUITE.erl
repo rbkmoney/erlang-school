@@ -6,32 +6,15 @@
 -define(AWAIT_DELAY, 50).
 -define(AWAIT_RETRIES, 10).
 
+-define(HOST, "localhost").
+-define(IP, {0, 0, 0, 0}).
+-define(PORT, 8888).
+
 all() ->
     [
-        {group, solo_happy},
-        {group, solo_failes},
-        {group, duo_exchange}
-    ].
-
-groups() ->
-    [
-        {solo_happy, [sequence], [
-            join_room,
-            set_name,
-            send_message
-        ]},
-        {solo_failes, [sequence], [
-            fail_to_set_name,
-            fail_to_send_message,
-            fail_to_join_room,
-            fail_to_double_join
-        ]},
-        {duo_exchange, [sequence], [
-            duo_join,
-            duo_names,
-            duo_send_same_rooms,
-            duo_send_diff_rooms
-        ]}
+        solo_happy,
+        solo_happy,
+        duo_exchange
     ].
 
 %%
@@ -39,181 +22,90 @@ groups() ->
 %%
 
 init_per_suite(C) ->
-    application:ensure_all_started(chatserv),
-    application:ensure_all_started(chatcli),
-    C.
+    ok = application:load(chatserv),
+
+    ok = application:set_env(chatserv, listen_ip, ?IP),
+    ok = application:set_env(chatserv, listen_port, ?PORT),
+
+    {ok, Apps1} = application:ensure_all_started(chatserv),
+    {ok, Apps2} = application:ensure_all_started(chatcli),
+
+    [{apps, Apps1 ++ Apps2}|C].
 
 end_per_suite(C) ->
-    application:stop(chatcli),
-    application:stop(chatserv),
-    C.
-
-init_per_group(solo_happy, C) ->
-    make_solo(C);
-
-init_per_group(solo_failes, C) ->
-    make_solo(C);
-
-init_per_group(duo_exchange, C) ->
-    make_duo(C);
-
-init_per_group(_, C) -> C.
-
-end_per_group(solo_happy, C) ->
-    clean_solo(C);
-
-end_per_group(solo_failes, C) ->
-    clean_solo(C);
-
-end_per_group(duo_exchange, C) ->
-    clean_duo(C);
-
-end_per_group(_, C) -> C.
+    [application:stop(App) || App <- ?config(apps, C)].
 
 %%
 %% solo_happy
 %%
 
-join_room(C) ->
-    C1 = get_c1(C),
+solo_happy(_) ->
+    This = self(),
+    C1 = make_client(fun() -> This ! {recieve_message, self()} end),
 
-    ok = join_room_and_await(C1, 1, ok).
+    ok = chatcli_client:join_room(C1, 1),
+    ok = chatcli_client:set_name(C1, 1, "Test"),
+    ok = chatcli_client:send_message(C1, 1, "Test Message"),
 
-set_name(C) ->
-    C1 = get_c1(C),
+    ok = receive_messages([C1]),
 
-    ok = set_name_and_await(C1, 1, "Test", ok).
+    stop_client(C1).
 
-send_message(C) ->
-    C1 = get_c1(C),
+solo_fails(_) ->
+    C1 = make_client(fun() -> ok end),
 
-    ok = send_message_and_await(C1, 1, "Test Message", ok),
-    _ = timer:sleep(1500),
+    room_not_joined = chatcli_client:set_name(C1, 1, "Test"),
+    room_not_joined = chatcli_client:send_message(C1, 1, "Test Message"),
 
-    1 = length(chatcli_client:get_messages(C1, 1)).
+    room_does_not_exist = chatcli_client:join_room(C1, 999),
 
-%%
-%% solo_fails
-%%
+    ok = chatcli_client:join_room(C1, 1),
+    room_already_joined = chatcli_client:join_room(C1, 1),
 
-fail_to_set_name(C) ->
-    C1 = get_c1(C),
+    stop_client(C1).
 
-    ok = set_name_and_await(C1, 1, "Test", room_not_joined).
+duo_exchange(_) ->
+    This = self(),
+    C1 = make_client(fun() -> This ! {recieve_message, self()} end),
+    C2 = make_client(fun() -> This ! {recieve_message, self()} end),
 
-fail_to_send_message(C) ->
-    C1 = get_c1(C),
+    ok = chatcli_client:join_room(C1, 1),
 
-    ok = send_message_and_await(C1, 1, "Test Message", room_not_joined).
+    ok = chatcli_client:join_room(C2, 1),
+    ok = chatcli_client:join_room(C2, 2),
 
-fail_to_join_room(C) ->
-    C1 = get_c1(C),
+    ok = chatcli_client:set_name(C1, 1, "TestUser1"),
 
-    ok = join_room_and_await(C1, 999, room_does_not_exist).
+    ok = chatcli_client:set_name(C2, 1, "TestUser2"),
+    ok = chatcli_client:set_name(C2, 2, "TestUser2"),
 
-fail_to_double_join(C) ->
-    C1 = get_c1(C),
+    ok = chatcli_client:send_message(C1, 1, "Test Message From User 1"),
+    ok = chatcli_client:send_message(C2, 1, "Test Message From User 2"),
 
-    ok = join_room_and_await(C1, 1, ok),
-    ok = join_room_and_await(C1, 1, room_already_joined).
+    ok = receive_messages([C1, C2]),
 
-%%
-%% duo_exchange
-%%
+    ok = chatcli_client:send_message(C2, 2, "A message from User 2 user 1 should not see"),
 
-duo_join(C) ->
-    {C1, C2} = get_c1_c2(C),
+    ok = receive_messages([C2]),
+    timeout = receive_messages([C1]),
 
-    ok = join_room_and_await(C1, 1, ok),
-
-    ok = join_room_and_await(C2, 1, ok),
-    ok = join_room_and_await(C2, 2, ok).
-
-duo_names(C) ->
-    {C1, C2} = get_c1_c2(C),
-
-    ok = set_name_and_await(C1, 1, "TestUser1", ok),
-
-    ok = set_name_and_await(C2, 1, "TestUser2", ok),
-    ok = set_name_and_await(C2, 2, "TestUser2", ok).
-
-duo_send_same_rooms(C) ->
-    {C1, C2} = get_c1_c2(C),
-
-    ok = send_message_and_await(C1, 1, "Test Message From User 1", ok),
-    ok = send_message_and_await(C2, 1, "Test Message From User 2", ok),
-
-    _ = timer:sleep(1500), %should definitely have time to receive everything
-
-    2 = length(chatcli_client:get_messages(C1, 1)),
-    2 = length(chatcli_client:get_messages(C2, 1)),
-
-    0 = length(chatcli_client:get_messages(C1, 2)),
-    0 = length(chatcli_client:get_messages(C2, 2)).
-
-duo_send_diff_rooms(C) ->
-    {C1, C2} = get_c1_c2(C),
-
-    ok = send_message_and_await(C2, 2, "A message from User 2 user 1 should not see", ok),
-
-    _ = timer:sleep(1500), %should definitely have time to receive everything
-
-    0 = length(chatcli_client:get_messages(C1, 2)),
-    1 = length(chatcli_client:get_messages(C2, 2)).
+    stop_client(C1),
+    stop_client(C2).
 
 %%
 %% Helpers
 %%
+receive_messages([]) -> ok;
+receive_messages([H|T]) ->
+    receive
+        {recieve_message, H} -> receive_messages(T)
+        after 2000 -> timeout
+    end.
 
-join_room_and_await(Pid, RoomId, Resp) ->
-    ok = chatcli_client:join_room(Pid, RoomId),
-    Resp = chatcli_client:await_response(Pid, ?AWAIT_DELAY, ?AWAIT_RETRIES),
-    ok.
+stop_client(Pid) ->
+    chatcli_sup:stop_client(Pid).
 
-set_name_and_await(Pid, RoomId, Name, Resp) ->
-    ok = chatcli_client:set_name(Pid, RoomId, Name),
-    Resp = chatcli_client:await_response(Pid, ?AWAIT_DELAY, ?AWAIT_RETRIES),
-    ok.
+make_client(MessageCB) ->
+    {ok, Pid} = chatcli_sup:start_client(?HOST, ?PORT, MessageCB),
 
-send_message_and_await(Pid, RoomId, Message, Resp) ->
-    ok = chatcli_client:send_message(Pid, RoomId, Message),
-    Resp = chatcli_client:await_response(Pid, ?AWAIT_DELAY, ?AWAIT_RETRIES),
-    ok.
-
-get_c1(C) ->
-    proplists:get_value(client1, C, not_started).
-
-get_c1_c2(C) ->
-    {
-        proplists:get_value(client1, C, not_started),
-        proplists:get_value(client2, C, not_started)
-    }.
-
-make_solo(C) ->
-    {ok, Client1} = chatcli_sup:start_client("localhost", 8888),
-    _ = timer:sleep(500), %some time to connect
-
-    [{client1, Client1} | C].
-
-make_duo(C) ->
-    {ok, Client1} = chatcli_sup:start_client("localhost", 8888),
-    {ok, Client2} = chatcli_sup:start_client("localhost", 8888),
-    _ = timer:sleep(500), %some time to connect
-
-    [{client1, Client1}, {client2, Client2}  | C].
-
-clean_solo(C) ->
-    Pid = proplists:get_value(client1, C, not_started),
-    chatcli_sup:stop_client(Pid),
-
-    proplists:delete(client1, C).
-
-clean_duo(C) ->
-    Pid1 = proplists:get_value(client1, C, not_started),
-    Pid2 = proplists:get_value(client2, C, not_started),
-
-    chatcli_sup:stop_client(Pid1),
-    chatcli_sup:stop_client(Pid2),
-
-    C1 = proplists:delete(client1, C),
-    proplists:delete(client2, C1).
+    Pid.
