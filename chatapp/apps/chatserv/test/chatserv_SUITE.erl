@@ -203,11 +203,17 @@ make_duo(C) ->
     [{client1, Client1}, {client2, Client2}  | C].
 
 clean_solo(C) ->
-    %@todo actually stop proc with supervisor
+    Pid = proplists:get_value(client1, C, not_started),
+    chatcli_sup:stop_client(Pid),
+
     proplists:delete(client1, C).
 
 clean_duo(C) ->
-    %@todo actually stop proc with supervisor
+    Pid1 = proplists:get_value(client1, C, not_started),
+    Pid2 = proplists:get_value(client2, C, not_started),
+
+    chatcli_sup:stop_client(Pid1),
+    chatcli_sup:stop_client(Pid2),
 
     C1 = proplists:delete(client1, C),
     proplists:delete(client2, C1).

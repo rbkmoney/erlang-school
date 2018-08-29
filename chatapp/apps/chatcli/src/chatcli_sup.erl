@@ -5,7 +5,8 @@
 %% API
 -export([
     start_link/0,
-    start_client/2
+    start_client/2,
+    stop_client/1
 ]).
 
 %% Supervisor callbacks
@@ -25,6 +26,11 @@ start_link() ->
     {ok, pid()} | {error, _}.
 start_client(HostName, Port) ->
     supervisor:start_child(?SERVER, [HostName, Port]).
+
+-spec stop_client(pid()) ->
+    ok | {error, term()}.
+stop_client(Pid) ->
+    supervisor:terminate_child(?SERVER, Pid).
 
 %%
 %% Supervisor callbacks
