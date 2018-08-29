@@ -88,9 +88,9 @@ send_message(C) ->
     C1 = get_c1(C),
 
     ok = send_message_and_await(C1, 1, "Test Message", ok),
-    _ = timer:sleep(1000),
+    _ = timer:sleep(1500),
 
-    true = chatcli_client:has_message(C1, 1, "Test", "Test Message").
+    1 = length(chatcli_client:get_messages(C1, 1)).
 
 %%
 %% solo_fails
@@ -145,16 +145,21 @@ duo_send_same_rooms(C) ->
 
     _ = timer:sleep(1500), %should definitely have time to receive everything
 
-    lager:info("Messages on c1: ~p", [chatcli_client:get_messages(C1, 1)]),
-    lager:info("Messages on c2: ~p", [chatcli_client:get_messages(C2, 1)]),
+    2 = length(chatcli_client:get_messages(C1, 1)),
+    2 = length(chatcli_client:get_messages(C2, 1)),
 
-    true = chatcli_client:has_message(C1, 1, "TestUser1", "Test Message From User 1"),
-    true = chatcli_client:has_message(C1, 1, "TestUser2", "Test Message From User 2"),
+    0 = length(chatcli_client:get_messages(C1, 2)),
+    0 = length(chatcli_client:get_messages(C2, 2)).
 
-    true = chatcli_client:has_message(C2, 1, "TestUser1", "Test Message From User 1"),
-    true = chatcli_client:has_message(C2, 1, "TestUser2", "Test Message From User 2").
+duo_send_diff_rooms(C) ->
+    {C1, C2} = get_c1_c2(C),
 
-duo_send_diff_rooms(C) -> ok.
+    ok = send_message_and_await(C2, 2, "A message from User 2 user 1 should not see", ok),
+
+    _ = timer:sleep(1500), %should definitely have time to receive everything
+
+    0 = length(chatcli_client:get_messages(C1, 2)),
+    1 = length(chatcli_client:get_messages(C2, 2)).
 
 %%
 %% Helpers
@@ -186,14 +191,14 @@ get_c1_c2(C) ->
 
 make_solo(C) ->
     {ok, Client1} = chatcli_sup:start_client("localhost", 8888),
-    _ = timer:sleep(1000), %some time to connect
+    _ = timer:sleep(500), %some time to connect
 
     [{client1, Client1} | C].
 
 make_duo(C) ->
     {ok, Client1} = chatcli_sup:start_client("localhost", 8888),
     {ok, Client2} = chatcli_sup:start_client("localhost", 8888),
-    _ = timer:sleep(1000), %some time to connect
+    _ = timer:sleep(500), %some time to connect
 
     [{client1, Client1}, {client2, Client2}  | C].
 

@@ -9,8 +9,7 @@
     set_name/3,
     send_message/3,
     await_response/3,
-    get_messages/2,
-    has_message/4
+    get_messages/2
 ]).
 
 %% gen_server
@@ -70,11 +69,6 @@ await_response(Client, WaitMs, Retries) ->
 get_messages(Client, RoomId) ->
     gen_server:call(Client, {get_messages, RoomId}).
 
--spec has_message(pid(), chatlib_proto:room_id_direct(), chatlib_proto:room_name(), chatlib_proto:message_text()) ->
-    boolean().
-has_message(Client, RoomId, Name, Message) ->
-    gen_server:call(Client, {has_message, RoomId, Name, Message}).
-
 %%%
 %%% gen_server
 %%%
@@ -117,18 +111,6 @@ handle_call(get_response, _, State = #{conn_state := ready, last_response := Res
 
 handle_call({get_messages, RoomId}, _, State = #{message_history := MsgHis}) ->
     {reply, maps:get(RoomId, MsgHis, []), State};
-
-handle_call({has_message, RoomId, Name, Message}, _, State = #{message_history := MsgHis}) ->
-    RoomMsgs = maps:get(RoomId, MsgHis, []),
-
-    Result = lists:foldl(
-        fun({_, MName, MMessage}, _Res) ->
-            (MName == Name) and (MMessage == Message)
-        end,
-        false, RoomMsgs
-    ),
-
-    {reply, Result, State};
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
