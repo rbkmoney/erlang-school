@@ -1,0 +1,13 @@
+{application, library,
+ [{description, "A protocol library for client and server"},
+  {vsn, "0.1.0"},
+  {applications,
+   [kernel,
+    stdlib,
+    jiffy
+   ]},
+  {env,[]},
+  {modules, []},
+  {maintainers, []},
+  {links, []}
+ ]}.
