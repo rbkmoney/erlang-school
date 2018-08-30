@@ -119,7 +119,7 @@ handle_info(_Info, State) ->
 
 -spec handle_ws(chatlib_proto:packet(), Old :: state()) ->
     New :: state().
-handle_ws({receive_messages, RoomId, MessageList}, State = #{message_cb := MessageCB}) ->
+handle_ws({message_notification, RoomId, MessageList}, State = #{message_cb := MessageCB}) ->
     ok = lager:info("Recived messages ~p ~p~n", [RoomId, MessageList]),
 
     _ = MessageCB(RoomId, MessageList),

@@ -7,8 +7,8 @@
     join_room |
     set_name |
     send_message |
-    receive_messages |
-    receive_rooms.
+    message_notification |
+    rooms_notification.
 
 -type member_name() :: nonempty_string().
 -type message_text() :: nonempty_string().
@@ -33,8 +33,8 @@
     {join_room, room_id_direct()} |
     {set_name, room_id_direct(), member_name()} |
     {send_message, room_id_direct(), message_text()} |
-    {receive_rooms, global, room_list()} |
-    {receive_messages, room_id_direct(), message_list()} |
+    {rooms_notification, global, room_list()} |
+    {message_notification, room_id_direct(), message_list()} |
     {server_response, room_id(), response_code()}.
 
 -export_type([
@@ -99,11 +99,11 @@ packet_to_json({set_name, RoomId, NameString}) ->
 packet_to_json({send_message, RoomId, MessageString}) ->
     make_json(send_message, RoomId, list_to_binary(MessageString));
 
-packet_to_json({receive_rooms, global, RoomList}) ->
-    make_json(receive_rooms, global, room_list_to_json(RoomList));
+packet_to_json({rooms_notification, global, RoomList}) ->
+    make_json(rooms_notification, global, room_list_to_json(RoomList));
 
-packet_to_json({receive_messages, RoomId, MessageList}) ->
-    make_json(receive_messages, RoomId, message_list_to_json(MessageList)).
+packet_to_json({message_notification, RoomId, MessageList}) ->
+    make_json(message_notification, RoomId, message_list_to_json(MessageList)).
 
 -spec make_json(packet_type()) -> json().
 make_json(Type) ->
@@ -176,15 +176,15 @@ packet_from_json(Msg = #{<<"type">> := <<"send_message">>}) ->
 
     {send_message, decode_room_id(RoomId), binary_to_list(MessageString)};
 
-packet_from_json(Msg = #{<<"type">> := <<"receive_rooms">>}) ->
+packet_from_json(Msg = #{<<"type">> := <<"rooms_notification">>}) ->
     {RoomId, RoomListJson} = parse_json(Msg),
 
-    {receive_rooms, decode_room_id(RoomId), decode_room_list(RoomListJson)};
+    {rooms_notification, decode_room_id(RoomId), decode_room_list(RoomListJson)};
 
-packet_from_json(Msg = #{<<"type">> := <<"receive_messages">>}) ->
+packet_from_json(Msg = #{<<"type">> := <<"message_notification">>}) ->
     {RoomId, MessageListJson} = parse_json(Msg),
 
-    {receive_messages, decode_room_id(RoomId), decode_message_list(MessageListJson)}.
+    {message_notification, decode_room_id(RoomId), decode_message_list(MessageListJson)}.
 
 -spec parse_json(json()) ->
     {json(), json()} | {json()}.

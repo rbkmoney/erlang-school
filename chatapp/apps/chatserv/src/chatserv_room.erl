@@ -2,7 +2,7 @@
 
 %% API
 -define(DEFAULT_DISPLAY_NAME, "New User").
--define(MESSAGE_SNDOUT_FREQUENCY, 1000).
+-define(MESSAGE_SNDOUT_INTERVAL, 1000).
 
 -type state() :: #{
     members := member_map(),
@@ -21,7 +21,7 @@
 
 -export([
     join/1,
-    change_name/2,
+    change_member_name/2,
     send_message/2,
     get_room_name/1
 ]).
@@ -45,9 +45,9 @@
 join(Pid) ->
     gen_server:call(Pid, {join_room, self()}).
 
--spec change_name(room_pid(), chatlib_proto:member_name()) ->
+-spec change_member_name(room_pid(), chatlib_proto:member_name()) ->
     chatlib_proto:response_code().
-change_name(Pid, Name) ->
+change_member_name(Pid, Name) ->
     gen_server:call(Pid, {set_name, self(), Name}).
 
 -spec send_message(room_pid(), chatlib_proto:message_text()) ->
@@ -91,9 +91,6 @@ handle_call(get_room_name, _, State = #{name := Name}) ->
 handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name := Name}) ->
     %@todo redundant check here, possibly get rid of
     case add_new_member(Pid, ?DEFAULT_DISPLAY_NAME, Members) of
-        {error, already_exists} ->
-            {reply, user_already_exists, State};
-
         {ok, NewMemberList} ->
             ok = lager:info(
                 "New user joined room (~p, ~p). Current member list: ~p",
@@ -102,7 +99,10 @@ handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name :=
 
             _ = erlang:monitor(process, Pid),
 
-            {reply, ok, State#{members := NewMemberList}}
+            {reply, ok, State#{members := NewMemberList}};
+
+        {error, already_exists} ->
+            {reply, user_already_exists, State}
     end;
 
 handle_call({set_name, Pid, NewName}, _, State = #{members := Members}) ->
@@ -219,5 +219,5 @@ add_new_message(MemberName, NewMessageText, Messages) ->
 -spec set_sendout_timeout() ->
     ok.
 set_sendout_timeout() ->
-    _ = erlang:send_after(?MESSAGE_SNDOUT_FREQUENCY, self(), send_messages),
+    _ = erlang:send_after(?MESSAGE_SNDOUT_INTERVAL, self(), send_messages),
     ok.

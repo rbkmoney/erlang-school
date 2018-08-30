@@ -119,8 +119,6 @@ room_exists(RoomId, Rooms) ->
     New :: state().
 add_room(RoomId, RoomName, State = #{rooms := Rooms, rooms_by_pid := RoomsByPid}) ->
     case room_exists(RoomId, Rooms) of
-        true ->
-            State;
         false ->
             {ok, Pid} = chatserv_room_sup:start_room(RoomId, RoomName),
             _ = erlang:monitor(process, Pid),
@@ -128,7 +126,10 @@ add_room(RoomId, RoomName, State = #{rooms := Rooms, rooms_by_pid := RoomsByPid}
             State#{
                 rooms := maps:put(RoomId, Pid, Rooms),
                 rooms_by_pid := maps:put(Pid, RoomId, RoomsByPid)
-            }
+            };
+
+        true ->
+            State
     end.
 
 -spec remove_room(chatlib_proto:room_id(), Old :: state()) ->

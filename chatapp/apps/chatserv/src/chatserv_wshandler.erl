@@ -30,7 +30,7 @@
 -spec send_messages(pid(), chatlib_proto:room_id(), chatlib_proto:message_list()) ->
     ok.
 send_messages(MemberPid, RoomId, MessageList) ->
-    MemberPid ! {receive_messages, RoomId, MessageList},
+    MemberPid ! {message_notification, RoomId, MessageList},
     ok.
 
 %%
@@ -58,10 +58,10 @@ websocket_handle({text, RequestData}, State) ->
 websocket_handle(_Data, State) ->
     {ok, State}.
 
--spec websocket_info({receive_messages, chatlib_proto:room_id(), chatlib_proto:message_list()}, state()) ->
+-spec websocket_info({message_notification, chatlib_proto:room_id(), chatlib_proto:message_list()}, state()) ->
     {ok, state()} | {reply, {text, binary()}, state()}.
 
-websocket_info(Msg = {receive_messages, _, _}, State) ->
+websocket_info(Msg = {message_notification, _, _}, State) ->
     Response = chatlib_proto:encode(Msg),
 
     {reply, {text, Response}, State};
@@ -81,45 +81,46 @@ websocket_terminate(_Reason, _State) ->
     {chatlib_proto:packet(), state()}.
 handle_message(get_rooms, State) ->
     RoomsList = chatserv_room_manager:get_rooms_with_names(),
-    Response = {receive_rooms, global, RoomsList},
+    Response = {rooms_notification, global, RoomsList},
 
     {Response, State};
 
 handle_message({join_room, RoomId}, State = #{joined_rooms := Rooms}) ->
     case chatserv_room_manager:get_room_pid(RoomId) of
         {ok, Pid} ->
-            {UpdatedRooms, Response} = do_join_room(Pid, RoomId, Rooms);
+            {UpdatedRooms, Response} = do_join_room(Pid, RoomId, Rooms),
+
+            {Response, State#{joined_rooms := UpdatedRooms}};
 
         {error, room_does_not_exist} ->
-            UpdatedRooms = Rooms,
-            Response = {server_response, RoomId, room_does_not_exist}
-    end,
-
-    {Response, State#{joined_rooms := UpdatedRooms}};
+            {{server_response, RoomId, room_does_not_exist}, State#{joined_rooms := Rooms}}
+    end;
 
 handle_message({set_name, RoomId, NameString}, State = #{joined_rooms := Rooms}) ->
-    case get_room_pid(RoomId, Rooms) of
-        {ok, RoomPid} ->
-            Result = chatserv_room:change_name(RoomPid, NameString),
+    Response =
+        case get_room_pid(RoomId, Rooms) of
+            {ok, RoomPid} ->
+                Result = chatserv_room:change_member_name(RoomPid, NameString),
 
-            Response = {server_response, RoomId, Result};
+                {server_response, RoomId, Result};
 
-        {error, room_not_joined} ->
-            Response = {server_response, RoomId, room_not_joined}
-    end,
+            {error, room_not_joined} ->
+                {server_response, RoomId, room_not_joined}
+        end,
 
     {Response, State};
 
 handle_message({send_message, RoomId, MessageString}, State = #{joined_rooms := Rooms}) ->
-    case get_room_pid(RoomId, Rooms) of
-        {ok, RoomPid} ->
-            Result = chatserv_room:send_message(RoomPid, MessageString),
+    Response =
+        case get_room_pid(RoomId, Rooms) of
+            {ok, RoomPid} ->
+                Result = chatserv_room:send_message(RoomPid, MessageString),
 
-            Response = {server_response, RoomId, Result};
+                {server_response, RoomId, Result};
 
-        {error, room_not_joined} ->
-            Response = {server_response, RoomId, room_not_joined}
-    end,
+            {error, room_not_joined} ->
+                {server_response, RoomId, room_not_joined}
+        end,
 
     {Response, State}.
 
@@ -129,17 +130,11 @@ handle_message({send_message, RoomId, MessageString}, State = #{joined_rooms := 
 do_join_room(Pid, RoomId, Rooms) ->
     case join_room(Pid, RoomId, Rooms) of
         {ok, NewRooms} ->
-            UpdatedRooms = NewRooms,
-
-            Response = {server_response, RoomId, ok};
+            {NewRooms, {server_response, RoomId, ok}};
 
         {error, room_already_joined} ->
-            UpdatedRooms = Rooms,
-
-            Response = {server_response, RoomId, room_already_joined}
-    end,
-
-    {UpdatedRooms, Response}.
+            {Rooms, {server_response, RoomId, room_already_joined}}
+    end.
 
 -spec room_joined(chatlib_proto:room_id(), rooms_map()) ->
     boolean().
@@ -150,13 +145,13 @@ room_joined(RoomId, Rooms) ->
     {error, chatlib_proto:response_code()} | {ok, rooms_map()}.
 join_room(RoomPid, RoomId, Rooms) ->
     case room_joined(RoomId, Rooms) of
-        true ->
-            {error, room_already_joined};
-
         false ->
             ok = chatserv_room:join(RoomPid),
 
-            {ok, maps:put(RoomId, RoomPid, Rooms)}
+            {ok, maps:put(RoomId, RoomPid, Rooms)};
+
+        true ->
+            {error, room_already_joined}
     end.
 
 -spec get_room_pid(chatlib_proto:room_id(), rooms_map()) ->
@@ -165,6 +160,7 @@ get_room_pid(RoomId, Rooms) ->
     case room_joined(RoomId, Rooms) of
         true ->
             {ok, maps:get(RoomId, Rooms)};
+
         false ->
             {error, room_not_joined}
     end.

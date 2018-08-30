@@ -28,8 +28,8 @@ proto_encode_decode(_) ->
         {join_room, 0},
         {set_name, 0, "Test Name"},
         {send_message, 0, "Test Message"},
-        {receive_rooms, global, #{0=>"Test room", 1=>"Best room"}},
-        {receive_messages, 1, [
+        {rooms_notification, global, #{0=>"Test room", 1=>"Best room"}},
+        {message_notification, 1, [
             {{{2018, 8, 23}, {10, 26, 22}}, "My Name", "My Message"},
             {{{2018, 8, 23}, {14, 26, 22}}, "Another Name", "My other message"}
         ]}
