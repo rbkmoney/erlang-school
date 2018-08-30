@@ -5,8 +5,7 @@
     export_all
 ]).
 
--define(AWAIT_DELAY, 50).
--define(AWAIT_RETRIES, 10).
+-define(MESSAGE_RCV_TIMEOUT, 1100).
 
 -define(HOST, "localhost").
 -define(IP, {0, 0, 0, 0}).
@@ -103,7 +102,7 @@ receive_messages([]) -> ok;
 receive_messages([H|T]) ->
     receive
         {recieve_message, H} -> receive_messages(T)
-        after 2000 -> timeout
+        after ?MESSAGE_RCV_TIMEOUT -> timeout
     end.
 
 stop_client(Pid) ->
