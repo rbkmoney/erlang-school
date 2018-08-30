@@ -42,8 +42,7 @@ end_per_suite(C) ->
 %%
 
 solo_happy(_) ->
-    This = self(),
-    C1 = make_client(fun() -> This ! {recieve_message, self()} end),
+    C1 = make_client(message_cb(self())),
 
     ok = chatcli_client:join_room(C1, 1),
     ok = chatcli_client:set_name(C1, 1, "Test"),
@@ -67,9 +66,8 @@ solo_fails(_) ->
     stop_client(C1).
 
 duo_exchange(_) ->
-    This = self(),
-    C1 = make_client(fun() -> This ! {recieve_message, self()} end),
-    C2 = make_client(fun() -> This ! {recieve_message, self()} end),
+    C1 = make_client(message_cb(self())),
+    C2 = make_client(message_cb(self())),
 
     ok = chatcli_client:join_room(C1, 1),
 
@@ -97,6 +95,9 @@ duo_exchange(_) ->
 %%
 %% Helpers
 %%
+
+message_cb(TestPid) ->
+    fun(_, _) -> TestPid ! {recieve_message, self()} end.
 
 receive_messages([]) -> ok;
 receive_messages([H|T]) ->

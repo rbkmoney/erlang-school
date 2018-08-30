@@ -7,19 +7,19 @@
 -export([
     join_room/2,
     set_name/3,
-    send_message/3,
-    get_messages/2
+    send_message/3
 ]).
 
 %% gen_server
 
+-type message_callback() :: fun((chatlib_proto:room_id(), chatlib_proto:message_list()) -> any()).
 -type addr() :: { inet:hostname(), inet:port_number() }.
+
 -type state() :: #{
     conn_addr := addr(),
     connpid := pid() | undefined,
     conn_state := ready | { waiting, {pid(), any()}},
-    message_history := #{ chatlib_proto:room_id_direct() => chatlib_proto:message_list() },
-    message_cb := fun()
+    message_cb := message_callback()
 }.
 
 -export([
@@ -34,10 +34,10 @@
 %%%
 %%% API
 %%%
--spec start_link(inet:hostname(), inet:port_number(), fun()) ->
+-spec start_link(inet:hostname(), inet:port_number(), message_callback()) ->
     {ok, pid()} | {error, _}.
 start_link(Host, Port, MessageCB) ->
-    gen_server:start_link(?MODULE, [{Host, Port}, MessageCB], []).
+    gen_server:start_link(?MODULE, {{Host, Port}, MessageCB}, []).
 
 -spec join_room(pid(), chatlib_proto:room_id_direct()) ->
     ok.
@@ -54,15 +54,12 @@ set_name(Client, RoomId, Name) ->
 send_message(Client, RoomId, Message) ->
     gen_server:call(Client, {send_message, RoomId, Message}).
 
-get_messages(Client, RoomId) ->
-    gen_server:call(Client, {get_messages, RoomId}).
-
 %%%
 %%% gen_server
 %%%
--spec init(list()) ->
+-spec init({addr(), message_callback()}) ->
     {ok, state()}.
-init([Addr = {Ip, Port}, MessageCB]) ->
+init({Addr = {Ip, Port}, MessageCB}) ->
     {ok, ConnPid} = gun:open(Ip, Port),
     {ok, _} = gun:await_up(ConnPid),
 
@@ -77,12 +74,11 @@ init([Addr = {Ip, Port}, MessageCB]) ->
         conn_addr => Addr,
         connpid => ConnPid,
         conn_state => ready,
-        message_history => #{},
         message_cb => MessageCB
     }}.
 
 -spec handle_call(any(), any(), state()) ->
-    {reply, ok, state()}.
+    {reply, ok, state()} | {noreply, state()}.
 handle_call(Msg = {join_room, _}, From, State = #{connpid := ConnPid, conn_state := ready}) ->
     ok = encode_and_send(Msg, ConnPid),
     {noreply, State #{conn_state := {waiting, From}}};
@@ -99,10 +95,7 @@ handle_call(get_response, _, State = #{conn_state := waiting}) ->
     {reply, waiting, State};
 
 handle_call(get_response, _, State = #{conn_state := ready, last_response := Response}) ->
-    {reply, {ready, Response}, State};
-
-handle_call({get_messages, RoomId}, _, State = #{message_history := MsgHis}) ->
-    {reply, maps:get(RoomId, MsgHis, []), State}.
+    {reply, {ready, Response}, State}.
 
 -spec handle_cast(any(), state()) ->
     {noreply, state()}.
@@ -129,23 +122,14 @@ handle_info(_Info, State) ->
 handle_ws({receive_messages, RoomId, MessageList}, State = #{message_cb := MessageCB}) ->
     ok = lager:info("Recived messages ~p ~p~n", [RoomId, MessageList]),
 
-    _ = MessageCB(),
+    _ = MessageCB(RoomId, MessageList),
 
-    add_messages_to_history(RoomId, MessageList, State);
+    State;
 
 handle_ws({server_response, _, ResponseCode}, State = #{conn_state := {waiting, From}}) ->
     gen_server:reply(From, ResponseCode),
 
     State #{conn_state => ready}.
-
--spec add_messages_to_history(chatlib_proto:room_id_direct(), chatlib_proto:message_list(), state()) ->
-    state().
-add_messages_to_history(RoomId, NewMessages, State = #{message_history := History}) ->
-    OldMsgs = maps:get(RoomId, History, []),
-    NewMsgs = NewMessages ++ OldMsgs,
-    NewHistory = maps:put(RoomId, NewMsgs, History),
-
-    State #{message_history := NewHistory}.
 
 -spec encode_and_send(any(), pid()) ->
     ok.
