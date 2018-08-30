@@ -1,4 +1,4 @@
--module(gun_client).
+-module(client).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% BEHAVIOUR EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -39,8 +39,8 @@ test() ->
 start_link(Id) ->
     gen_server:start_link({local, Id}, ?MODULE, "Incognito", []).
 
-connect(Host, Port, Username) -> %переписать
-    gen_server:call(Username, {connect, Host, Port}).
+connect(Host, Port, Id) -> %переписать
+    gen_server:call(Id, {connect, Host, Port}).
 
 send(Id, Message, RoomId) ->
     gen_server:cast(Id, {send_message, {Message, RoomId}}).

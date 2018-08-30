@@ -40,7 +40,7 @@ init([]) ->
     Client = #{
         id => client1,
         type => worker,
-        start => {gun_client, start_link, [client1]}
+        start => {client, start_link, [client1]}
     },
     {ok, {SupArgs, [Client]}}.
 
