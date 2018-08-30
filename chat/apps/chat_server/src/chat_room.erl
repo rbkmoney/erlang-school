@@ -34,7 +34,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_link(Id) ->
-    gen_server:start_link({local, Id}, ?MODULE, Id, []).
+    gen_server:start_link({global, Id}, ?MODULE, Id, []).
 
 send(Json, Source) ->
     ClientMessage = protocol:decode(Json),
@@ -44,7 +44,7 @@ send(Json, Source) ->
             Reply = protocol:encode(error, <<"">>, <<"NO ROOM">>, <<"">>),
             inform(Reply, Source);
         _ ->
-            gen_server:cast(RoomId, {client_message, ClientMessage, Source})
+            gen_server:cast({global, RoomId}, {client_message, ClientMessage, Source})
     end.
 
 -spec stop(atom()) ->

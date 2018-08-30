@@ -37,25 +37,25 @@ test() ->
     get_messages(Id).
 
 start_link(Id) ->
-    gen_server:start_link({local, Id}, ?MODULE, "Incognito", []).
+    gen_server:start_link({global, Id}, ?MODULE, "Incognito", []).
 
 connect(Host, Port, Id) -> %переписать
-    gen_server:call(Id, {connect, Host, Port}).
+    gen_server:call({global, Id}, {connect, Host, Port}).
 
 send(Id, Message, RoomId) ->
-    gen_server:cast(Id, {send_message, {Message, RoomId}}).
+    gen_server:cast({global, Id}, {send_message, {Message, RoomId}}).
 
 set_username(Id, Username) ->
-    gen_server:call(Id, {set_username, Username}).
+    gen_server:call({global, Id}, {set_username, Username}).
 
 join(Id, RoomId) ->
-    gen_server:call(Id, {join, RoomId}).
+    gen_server:call({global, Id}, {join, RoomId}).
 
 leave(Id) ->
-    gen_server:call(Id, stop).
+    gen_server:call({global, Id}, stop).
 
 get_messages(Id) ->
-    gen_server:call(Id, get_messages).
+    gen_server:call({global, Id}, get_messages).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 

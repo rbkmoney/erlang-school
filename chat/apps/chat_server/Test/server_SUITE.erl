@@ -12,7 +12,7 @@ all() ->
 groups() ->
     [
         {room_management, [sequence], [
-            get_room_list,
+            %get_room_list,
             create_room,
             find_room,
             cant_create_existing_room,
@@ -33,10 +33,10 @@ init_per_suite(C) ->
           {send_message, <<"{\"user\":\"Igor\",\"room\":\"room1\",\"message\":\"Hello\",\"event\":\"send_message\"}">>}
          ] ++ C,
     application:ensure_all_started(chat_server),
+    application:start(chat_server),
     C1.
 
 end_per_suite(C) ->
-    application:stop(chat_client),
     application:stop(chat_server),
     C.
 

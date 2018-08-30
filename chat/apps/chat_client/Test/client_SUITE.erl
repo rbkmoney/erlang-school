@@ -28,8 +28,10 @@ init_per_suite(C) ->
             {user, <<"Igor">>},
             {message, <<"Hello">>}
          ] ++ C,
-    %application:ensure_all_started(chat_server),
+    application:ensure_all_started(chat_server),
+    application:start(chat_server),
     application:ensure_all_started(chat_client),
+    application:start(chat_client),
     C1.
 
 end_per_suite(C) ->
@@ -75,7 +77,7 @@ send_message(C) ->
 receive_message(C) ->
     Message = get(message, C),
     Id = get(id, C),
-    timer:sleep(50), %give server some time to handle and respond
+    timer:sleep(150), %give server some time to handle and respond
     List = client:get_messages(Id),
     ct:print("MessageList is ~p", [List]),
     [{_, _, Message, _}, _, _] = List,

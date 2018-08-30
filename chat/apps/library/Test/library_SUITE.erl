@@ -19,7 +19,6 @@ groups() ->
     ].
 
 init_per_suite(C) ->
-    application:load(library),
     C1 = [{event, send_message},
             {user, <<"Igor">>},
             {message, <<"Hello">>},
@@ -28,6 +27,7 @@ init_per_suite(C) ->
             {decoded, {send_message, <<"Igor">>, <<"Hello">>, room1}}
          ] ++ C,
     application:ensure_all_started(library),
+    application:start(library),
     C1.
 
 end_per_suite(C) ->
