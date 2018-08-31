@@ -5,11 +5,15 @@
 -export([room/1]).
 -export([user/1]).
 -export([event/1]).
--export([message/1]).
+-export([encode/1]).
 -export([encode/4]).
 -export([decode/1]).
+-export([message/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+encode({Event, User, Message, RoomId}) ->
+    encode(Event, User, Message, RoomId).
 
 encode(Event, User, Message, RoomId) ->
     Map = raw_to_map(Event, User, Message, RoomId),

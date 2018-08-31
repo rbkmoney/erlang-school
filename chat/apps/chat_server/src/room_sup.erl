@@ -27,7 +27,7 @@ start_link() ->
     supervisor:start_link({global, ?MODULE}, ?MODULE, []).
 
 get_children() ->
-    supervisor:which_children(?MODULE).
+    supervisor:which_children({global, room_sup}).
 
 -spec create_room(RoomId :: atom()) ->
     supervisor:startchild_ret() | {error, already_exists}.
@@ -39,12 +39,12 @@ create_room(RoomId) ->
         type => worker,
         start => {chat_room, start_link, [RoomId]}
     },
-    supervisor:start_child(room_sup, Child).
+    supervisor:start_child({global, room_sup}, Child).
 
 delete_room(RoomId) ->
     lager:info("Room supervisor is trying to delete child ~p", [RoomId]),
-    supervisor:terminate_child(room_sup, RoomId),
-    supervisor:delete_child(room_sup, RoomId).
+    supervisor:terminate_child({global, room_sup}, RoomId),
+    supervisor:delete_child({global, room_sup}, RoomId).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 

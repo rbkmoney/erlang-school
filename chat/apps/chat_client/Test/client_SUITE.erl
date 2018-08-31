@@ -36,14 +36,8 @@ init_per_suite(C) ->
 
 end_per_suite(C) ->
     application:stop(chat_client),
-    application:stop(chat_server),
+    %application:stop(chat_server),
     C.
-
-% init_per_group(basic_interactions, C) ->
-%     make_solo(C);
-%
-% end_per_group(basic_interactions, C) ->
-%     clean_solo(C).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% BASIC INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -79,7 +73,6 @@ receive_message(C) ->
     Id = get(id, C),
     timer:sleep(150), %give server some time to handle and respond
     List = client:get_messages(Id),
-    ct:print("MessageList is ~p", [List]),
     [{_, _, Message, _}, _, _] = List,
     C.
 
