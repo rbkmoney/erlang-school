@@ -2,11 +2,11 @@
 -behaviour(cowboy_websocket).
 
 %% API
--type room_pid() :: pid().
--type rooms_map() :: #{chatlib_proto:room_id() => room_pid()}.
+
+-type rooms_list() :: list(chatlib_proto:room_id()).
 
 -type state() :: #{
-    joined_rooms := rooms_map()
+    joined_rooms := rooms_list()
 }.
 
 -export([
@@ -37,9 +37,9 @@ send_messages(MemberPid, RoomId, MessageList) ->
 %% cowboy_websocket_handler
 %%
 -spec init(cowboy_req:req(), any()) ->
-    {cowboy_websocket, cowboy_req:req(), any()}.
+    {cowboy_websocket, cowboy_req:req(), state()}.
 init(Req, _State) ->
-    {cowboy_websocket, Req, #{joined_rooms => #{}}}.
+    {cowboy_websocket, Req, #{joined_rooms => []}}.
 
 -spec websocket_init(any()) ->
     {ok, state()}.
@@ -86,25 +86,25 @@ handle_message(get_rooms, State) ->
     {Response, State};
 
 handle_message({join_room, RoomId}, State = #{joined_rooms := Rooms}) ->
-    case chatserv_room_manager:get_room_pid(RoomId) of
-        {ok, Pid} ->
-            {UpdatedRooms, Response} = do_join_room(Pid, RoomId, Rooms),
+    case chatserv_room_manager:room_exists(RoomId) of
+        true ->
+            {UpdatedRooms, Response} = do_join_room(RoomId, Rooms),
 
             {Response, State#{joined_rooms := UpdatedRooms}};
 
-        {error, room_does_not_exist} ->
+        false ->
             {{server_response, RoomId, room_does_not_exist}, State#{joined_rooms := Rooms}}
     end;
 
 handle_message({set_name, RoomId, NameString}, State = #{joined_rooms := Rooms}) ->
     Response =
-        case get_room_pid(RoomId, Rooms) of
-            {ok, RoomPid} ->
-                Result = chatserv_room:change_member_name(RoomPid, NameString),
+        case room_joined(RoomId, Rooms) of
+            true ->
+                Result = chatserv_room:change_member_name(RoomId, NameString),
 
                 {server_response, RoomId, Result};
 
-            {error, room_not_joined} ->
+            false ->
                 {server_response, RoomId, room_not_joined}
         end,
 
@@ -112,23 +112,23 @@ handle_message({set_name, RoomId, NameString}, State = #{joined_rooms := Rooms})
 
 handle_message({send_message, RoomId, MessageString}, State = #{joined_rooms := Rooms}) ->
     Response =
-        case get_room_pid(RoomId, Rooms) of
-            {ok, RoomPid} ->
-                Result = chatserv_room:send_message(RoomPid, MessageString),
+        case room_joined(RoomId, Rooms) of
+            true ->
+                Result = chatserv_room:send_message(RoomId, MessageString),
 
                 {server_response, RoomId, Result};
 
-            {error, room_not_joined} ->
+            false ->
                 {server_response, RoomId, room_not_joined}
         end,
 
     {Response, State}.
 
 
--spec do_join_room(room_pid(), chatlib_proto:room_id(), rooms_map()) ->
-    {rooms_map(), chatlib_proto:packet()}.
-do_join_room(Pid, RoomId, Rooms) ->
-    case join_room(Pid, RoomId, Rooms) of
+-spec do_join_room(chatlib_proto:room_id(), rooms_list()) ->
+    {rooms_list(), chatlib_proto:packet()}.
+do_join_room(RoomId, Rooms) ->
+    case join_room(RoomId, Rooms) of
         {ok, NewRooms} ->
             {NewRooms, {server_response, RoomId, ok}};
 
@@ -136,31 +136,20 @@ do_join_room(Pid, RoomId, Rooms) ->
             {Rooms, {server_response, RoomId, room_already_joined}}
     end.
 
--spec room_joined(chatlib_proto:room_id(), rooms_map()) ->
+-spec room_joined(chatlib_proto:room_id(), rooms_list()) ->
     boolean().
 room_joined(RoomId, Rooms) ->
-    maps:is_key(RoomId, Rooms).
+    lists:member(RoomId, Rooms).
 
--spec join_room(room_pid(), chatlib_proto:room_id(), rooms_map()) ->
-    {error, chatlib_proto:response_code()} | {ok, rooms_map()}.
-join_room(RoomPid, RoomId, Rooms) ->
+-spec join_room(chatlib_proto:room_id(), rooms_list()) ->
+    {error, chatlib_proto:response_code()} | {ok, rooms_list()}.
+join_room(RoomId, Rooms) ->
     case room_joined(RoomId, Rooms) of
         false ->
-            ok = chatserv_room:join(RoomPid),
+            ok = chatserv_room:join(RoomId),
 
-            {ok, maps:put(RoomId, RoomPid, Rooms)};
+            {ok, [RoomId | Rooms]};
 
         true ->
             {error, room_already_joined}
-    end.
-
--spec get_room_pid(chatlib_proto:room_id(), rooms_map()) ->
-    {error, chatlib_proto:response_code()} | {ok, room_pid()}.
-get_room_pid(RoomId, Rooms) ->
-    case room_joined(RoomId, Rooms) of
-        true ->
-            {ok, maps:get(RoomId, Rooms)};
-
-        false ->
-            {error, room_not_joined}
     end.

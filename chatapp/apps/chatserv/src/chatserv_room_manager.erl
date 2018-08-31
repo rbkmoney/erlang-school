@@ -2,13 +2,11 @@
 -behavior(gen_server).
 
 %% API
--type rooms_by_id() :: #{chatlib_proto:room_id() => pid()}.
--type rooms_by_pid() :: #{pid() => chatlib_proto:room_id()}.
-
+-type room_ids() :: list(chatlib_proto:room_id_direct()).
 
 -export([
     get_rooms_with_names/0,
-    get_room_pid/1
+    room_exists/1
 ]).
 
 %% gen_server
@@ -32,24 +30,21 @@
 get_rooms_with_names() ->
     RoomList = gen_server:call(?SERVER, get_rooms_list),
 
-    maps:map(
-        fun(_, V) ->
-            chatserv_room:get_room_name(V)
+    lists:foldl(
+        fun(Id, Acc) ->
+            Acc#{Id => chatserv_room:get_room_name(Id)}
         end,
-        RoomList
+        #{}, RoomList
     ).
 
--spec get_room_pid(chatlib_proto:room_id()) ->
-    {error, chatlib_proto:response_code()} | {ok, pid()}.
-get_room_pid(RoomId) ->
-    gen_server:call(?SERVER, {get_room_pid, RoomId}).
+room_exists(RoomId) ->
+    gen_server:call(?SERVER, {room_exists, RoomId}).
 
 %%
 %% gen_server
 %%
 -type state() :: #{
-    rooms := rooms_by_id(),
-    rooms_by_pid := rooms_by_pid()
+    room_ids := room_ids()
 }.
 
 -spec start_link() ->
@@ -57,30 +52,22 @@ get_room_pid(RoomId) ->
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-
 -spec init([]) ->
     {ok, state(), {continue, load_rooms}}.
 init([]) ->
     {ok, #{
-        rooms => #{},
-        rooms_by_pid => #{}
+        room_ids => []
     }, {
         continue, load_rooms
     }}.
 
--spec handle_call(get_rooms_list, {pid(), _}, state()) ->
-    {reply, rooms_by_id(), state()}.
-handle_call(get_rooms_list, _, State = #{rooms := Rooms}) ->
+-spec handle_call(get_rooms_list | {room_exists, chatlib_proto:room_id_direct()}, any(), state()) ->
+    {reply, room_ids() | boolean(), state()}.
+handle_call(get_rooms_list, _, State = #{room_ids := Rooms}) ->
     {reply, Rooms, State};
 
-handle_call({get_room_pid, RoomId}, _, State = #{rooms := Rooms}) ->
-    case room_exists(RoomId, Rooms) of
-        true ->
-            {reply, {ok, get_room_pid_by_id(RoomId, Rooms)}, State};
-
-        false ->
-            {reply, {error, room_does_not_exist}, State}
-    end.
+handle_call({room_exists, RoomId}, _, State = #{room_ids := Rooms}) ->
+    {reply, do_room_exists(RoomId, Rooms), State}.
 
 -spec handle_cast(any(), state()) ->
     {noreply, state()}.
@@ -91,18 +78,15 @@ handle_cast(_, State) ->
     {noreply, state()}.
 handle_continue(load_rooms, State) ->
     ResState = maps:fold(
-        fun(Id, Name, CurState) ->
-            add_room(Id, Name, CurState)
-        end,
+        fun add_room/3,
         State, #{1=>"Room", 2=>"Better room"}
     ),
 
     {noreply, ResState}.
 
--spec handle_info({'DOWN', reference(), process, pid(), atom()}, state()) ->
+-spec handle_info({gproc, unreg, _, {chat_room, chatlib_proto:room_id_direct()}}, state()) ->
     {noreply, state()}.
-handle_info({'DOWN', _Ref, process, Pid, _Reason}, State = #{rooms := Rooms}) ->
-    RoomId = get_room_id_by_pid(Pid, Rooms),
+handle_info({gproc, unreg, _, {chat_room, RoomId}}, State) ->
     NewState = remove_room(RoomId, State),
     {noreply, NewState}.
 
@@ -110,44 +94,26 @@ handle_info({'DOWN', _Ref, process, Pid, _Reason}, State = #{rooms := Rooms}) ->
 %% Internal
 %%
 
--spec room_exists(chatlib_proto:room_id(), rooms_by_id()) ->
+-spec do_room_exists(chatlib_proto:room_id_direct(), room_ids()) ->
     boolean().
-room_exists(RoomId, Rooms) ->
-    maps:is_key(RoomId, Rooms).
+do_room_exists(RoomId, Rooms) ->
+    lists:member(RoomId, Rooms).
 
--spec add_room(chatlib_proto:room_id(), chatlib_proto:room_name(), Old :: state()) ->
+-spec add_room(chatlib_proto:room_id_direct(), chatlib_proto:room_name(), Old :: state()) ->
     New :: state().
-add_room(RoomId, RoomName, State = #{rooms := Rooms, rooms_by_pid := RoomsByPid}) ->
-    case room_exists(RoomId, Rooms) of
+add_room(RoomId, RoomName, State = #{room_ids := Rooms}) ->
+    case do_room_exists(RoomId, Rooms) of
         false ->
-            {ok, Pid} = chatserv_room_sup:start_room(RoomId, RoomName),
-            _ = erlang:monitor(process, Pid),
+            {ok, _} = chatserv_room_sup:start_room(RoomId, RoomName),
+            _ = gproc:monitor({n, l, {chat_room, RoomId}}),
 
-            State#{
-                rooms := maps:put(RoomId, Pid, Rooms),
-                rooms_by_pid := maps:put(Pid, RoomId, RoomsByPid)
-            };
+            State#{room_ids := [RoomId | Rooms]};
 
         true ->
             State
     end.
 
--spec remove_room(chatlib_proto:room_id(), Old :: state()) ->
+-spec remove_room(chatlib_proto:room_id_direct(), Old :: state()) ->
     New :: state().
-remove_room(RoomId, State = #{rooms := Rooms, rooms_by_pid := RoomsByPid}) ->
-    Pid = get_room_pid_by_id(RoomId, Rooms),
-
-    State#{
-        rooms := maps:remove(RoomId, Rooms),
-        rooms_by_pid := maps:remove(Pid, RoomsByPid)
-    }.
-
--spec get_room_pid_by_id(chatlib_proto:room_id(), rooms_by_id()) ->
-    pid().
-get_room_pid_by_id(RoomId, RoomList) ->
-    maps:get(RoomId, RoomList).
-
--spec get_room_id_by_pid(pid(), rooms_by_pid()) ->
-    chatlib_proto:room_id().
-get_room_id_by_pid(RoomPid, RoomList) ->
-    maps:get(RoomPid, RoomList).
+remove_room(RoomId, State = #{room_ids := Rooms}) ->
+    State#{room_ids := lists:delete(RoomId, Rooms)}.

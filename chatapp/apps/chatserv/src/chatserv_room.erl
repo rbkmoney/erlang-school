@@ -11,10 +11,9 @@
     name := chatlib_proto:room_name()
 }.
 
--type member_pid() :: pid().
--type member_map() :: #{member_pid() => room_member()}.
+-type member_id() :: pid().
+-type member_map() :: #{member_id() => room_member()}.
 
--type room_pid() :: pid().
 -type room_member() :: #{
     display_name := chatlib_proto:member_name()
 }.
@@ -23,7 +22,8 @@
     join/1,
     change_member_name/2,
     send_message/2,
-    get_room_name/1
+    get_room_name/1,
+    via_roomid/1
 ]).
 
 %% gen_server
@@ -40,25 +40,30 @@
 %% API
 %%
 
--spec join(room_pid()) ->
+-spec join(chatlib_proto:room_id_direct()) ->
     chatlib_proto:response_code().
-join(Pid) ->
-    gen_server:call(Pid, {join_room, self()}).
+join(RoomId) ->
+    gen_server:call(via_roomid(RoomId), {join_room, self()}).
 
--spec change_member_name(room_pid(), chatlib_proto:member_name()) ->
+-spec change_member_name(chatlib_proto:room_id_direct(), chatlib_proto:member_name()) ->
     chatlib_proto:response_code().
-change_member_name(Pid, Name) ->
-    gen_server:call(Pid, {set_name, self(), Name}).
+change_member_name(RoomId, Name) ->
+    gen_server:call(via_roomid(RoomId), {set_name, self(), Name}).
 
--spec send_message(room_pid(), chatlib_proto:message_text()) ->
+-spec send_message(chatlib_proto:room_id_direct(), chatlib_proto:message_text()) ->
     chatlib_proto:response_code().
-send_message(Pid, MessageText) ->
-    gen_server:call(Pid, {send_message, self(), MessageText}).
+send_message(RoomId, MessageText) ->
+    gen_server:call(via_roomid(RoomId), {send_message, self(), MessageText}).
 
--spec get_room_name(room_pid()) ->
+-spec get_room_name(chatlib_proto:room_id_direct()) ->
     chatlib_proto:room_name().
-get_room_name(Pid) ->
-    gen_server:call(Pid, get_room_name).
+get_room_name(RoomId) ->
+    gen_server:call(via_roomid(RoomId), get_room_name).
+
+-spec via_roomid(chatlib_proto:room_id_direct()) ->
+    {via, gproc, {n, l, {chat_room, chatlib_proto:room_id_direct()}}}.
+via_roomid(RoomId) ->
+    {via, gproc, {n, l, {chat_room, RoomId}}}.
 
 %%
 %% gen_server
@@ -67,7 +72,7 @@ get_room_name(Pid) ->
 -spec start_link(non_neg_integer(), nonempty_string()) ->
     {ok, pid()} | {error, _}.
 start_link(Id, Name) ->
-    gen_server:start_link(?MODULE, [Id, Name], []).
+    gen_server:start_link(via_roomid(Id) ,?MODULE, [Id, Name], []).
 
 -spec init(list()) ->
     {ok, state()}.
@@ -78,9 +83,9 @@ init([Id, Name]) ->
 
 -spec handle_call(
     get_room_name |
-    {join_room, member_pid()} |
-    {set_name, member_pid(), chatlib_proto:member_name()} |
-    {send_message, member_pid(), chatlib_proto:message_text()},
+    {join_room, member_id()} |
+    {set_name, member_id(), chatlib_proto:member_name()} |
+    {send_message, member_id(), chatlib_proto:message_text()},
     any(), state()
 ) ->
     {reply, ok | badarg | chatlib_proto:room_name(), state()}.
@@ -175,12 +180,12 @@ handle_info({'DOWN', _Ref, process, Pid, Reason}, State = #{members := Members, 
 %%
 %% Internal
 %%
--spec member_exists(member_pid(), Current :: member_map()) ->
+-spec member_exists(member_id(), Current :: member_map()) ->
     Result :: boolean().
 member_exists(Pid, Members) ->
     maps:is_key(Pid, Members).
 
--spec add_new_member(member_pid(), chatlib_proto:member_name(), Old :: member_map()) ->
+-spec add_new_member(member_id(), chatlib_proto:member_name(), Old :: member_map()) ->
     {ok, New :: member_map()} | {error, already_exists}.
 add_new_member(Pid, MemberName, Members) ->
     case member_exists(Pid, Members) of
@@ -191,7 +196,7 @@ add_new_member(Pid, MemberName, Members) ->
             {error, already_exists}
     end.
 
--spec change_member_name(member_pid(), chatlib_proto:member_name(), Old :: member_map()) ->
+-spec change_member_name(member_id(), chatlib_proto:member_name(), Old :: member_map()) ->
     New :: member_map().
 change_member_name(Pid, NewName, Members) ->
     Member = get_member(Pid, Members),
@@ -199,12 +204,12 @@ change_member_name(Pid, NewName, Members) ->
 
     maps:put(Pid, NewMember, Members).
 
--spec get_member(member_pid(), member_map()) ->
+-spec get_member(member_id(), member_map()) ->
     room_member().
 get_member(Pid, Members) ->
     maps:get(Pid, Members).
 
--spec remove_member(member_pid(), Old :: member_map()) ->
+-spec remove_member(member_id(), Old :: member_map()) ->
     New :: member_map().
 remove_member(Pid, Members) ->
     maps:remove(Pid, Members).
