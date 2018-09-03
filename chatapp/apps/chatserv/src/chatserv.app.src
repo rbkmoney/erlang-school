@@ -1,0 +1,21 @@
+{application, chatserv, [
+    {description, "A chat server app with tcp support"},
+    {vsn, "0.0.1"},
+    {registered, []},
+    {mod, {chatserv_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        lager,
+        cowboy,
+        gproc,
+        uuid,
+        chatlib
+    ]},
+    {env, []},
+    {modules, []},
+
+    {maintainers, []},
+    {licenses, []},
+    {links, []}
+]}.

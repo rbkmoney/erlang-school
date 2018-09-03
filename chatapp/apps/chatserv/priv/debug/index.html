@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+          integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+          crossorigin="anonymous">
+
+    <title>Erlang chat debugger</title>
+
+    <style>
+
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <span class="navbar-brand">Erlang chat debugger</span>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item" id="status"></li>
+        </ul>
+        <form class="form-inline my-2 my-lg-0">
+            <input class="form-control mr-sm-2" readonly id="server">
+            <button class="btn btn-outline-primary my-2 my-sm-0" type="button" onclick="toggle_connection()">Toggle
+                Connection
+            </button>
+        </form>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12" style="">
+            <div class="row" style="padding-bottom:20px;">
+                <div class="col-12">
+                    <div id="content" style="height:800px;overflow:scroll;">
+                        <div id="output"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="form-row">
+                        <div class="col-2">
+                            <input type="number" class="form-control" id="req_room" placeholder="Room Id"/>
+                        </div>
+                        <div class="col-6">
+                            <input type="text" class="form-control" id="req_content" placeholder="Content"/>
+                        </div>
+                        <div class="col-4">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-primary" onclick="getRooms();">get_rooms</button>
+                                <button type="button" class="btn btn-primary" onclick="joinRoom();">join_room</button>
+                                <button type="button" class="btn btn-primary" onclick="setName();">set_name</button>
+                                <button type="button" class="btn btn-primary" onclick="sendMessage();">send_message
+                                </button>
+                            </div>
+
+                            <button type="button" class="btn btn-light" onclick="clearScreen()">Clear log</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.3.1.min.js"
+        integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+        crossorigin="anonymous"></script>
+<script src="debug/client.js"></script>
+</body>
+</html>

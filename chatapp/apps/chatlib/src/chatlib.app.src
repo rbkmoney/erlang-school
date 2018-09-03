@@ -1,0 +1,17 @@
+{application, chatlib, [
+    {description, "A chat protocol libary"},
+    {vsn, "0.0.1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        uuid,
+        jiffy
+    ]},
+    {env, []},
+    {modules, []},
+
+    {maintainers, []},
+    {licenses, []},
+    {links, []}
+]}.
