@@ -2,11 +2,11 @@
 -behaviour(cowboy_websocket).
 
 %% API
-
 -type rooms_list() :: list(chatlib_proto:room_id()).
 
 -type state() :: #{
-    joined_rooms := rooms_list()
+    joined_rooms := rooms_list(),
+    auth_id := chatlib_proto:auth_id() | unauthorized
 }.
 
 -export([
@@ -27,10 +27,10 @@
 %% API
 %%
 
--spec send_messages(pid(), chatlib_proto:room_id(), chatlib_proto:message_list()) ->
+-spec send_messages(chatlib_proto:auth_id(), chatlib_proto:room_id(), chatlib_proto:message_list()) ->
     ok.
-send_messages(MemberPid, RoomId, MessageList) ->
-    MemberPid ! {message_notification, RoomId, MessageList},
+send_messages(MemberId, RoomId, MessageList) ->
+    _ = gproc_send(MemberId, {message_notification, RoomId, MessageList}),
     ok.
 
 %%
@@ -39,12 +39,18 @@ send_messages(MemberPid, RoomId, MessageList) ->
 -spec init(cowboy_req:req(), any()) ->
     {cowboy_websocket, cowboy_req:req(), state()}.
 init(Req, _State) ->
-    {cowboy_websocket, Req, #{joined_rooms => []}}.
+    {cowboy_websocket, Req, #{joined_rooms => [], auth_id => unauthorized}}.
 
 -spec websocket_init(any()) ->
     {ok, state()}.
 websocket_init(State) ->
-    {ok, State}.
+
+    UUID = uuid:uuid4(), %@todo an actual auth here, but something like this will do for now
+
+    ok = lager:info("Registered self as  ~p", [{chat_member, UUID}]),
+    gproc:reg({n, l, {chat_member, UUID}}),
+
+    {ok, State#{auth_id => UUID}}.
 
 -spec websocket_handle({text, binary()}, state()) ->
     {reply, {text, binary()}, state()} | {ok, state()}.
@@ -61,8 +67,9 @@ websocket_handle(_Data, State) ->
 -spec websocket_info({message_notification, chatlib_proto:room_id(), chatlib_proto:message_list()}, state()) ->
     {ok, state()} | {reply, {text, binary()}, state()}.
 
-websocket_info(Msg = {message_notification, _, _}, State) ->
+websocket_info(Msg = {message_notification, _, _}, State = #{auth_id := MemberId}) ->
     Response = chatlib_proto:encode(Msg),
+    ok = lager:info("Sending new messages to ~p", [MemberId]),
 
     {reply, {text, Response}, State};
 
@@ -77,6 +84,11 @@ websocket_terminate(_Reason, _State) ->
 %%
 %% internal
 %%
+-spec gproc_send(chatlib_proto:auth_id(), Msg :: tuple()) ->
+    Msg :: tuple().
+gproc_send(MemberId, Message) ->
+    gproc:send({n, l, {chat_member, MemberId}}, Message).
+
 -spec handle_message(chatlib_proto:packet(), state()) ->
     {chatlib_proto:packet(), state()}.
 handle_message(get_rooms, State) ->
@@ -85,10 +97,10 @@ handle_message(get_rooms, State) ->
 
     {Response, State};
 
-handle_message({join_room, RoomId}, State = #{joined_rooms := Rooms}) ->
+handle_message({join_room, RoomId}, State = #{joined_rooms := Rooms, auth_id := MemberId}) ->
     case chatserv_room_manager:room_exists(RoomId) of
         true ->
-            {UpdatedRooms, Response} = do_join_room(RoomId, Rooms),
+            {UpdatedRooms, Response} = do_join_room(MemberId, RoomId, Rooms),
 
             {Response, State#{joined_rooms := UpdatedRooms}};
 
@@ -96,11 +108,11 @@ handle_message({join_room, RoomId}, State = #{joined_rooms := Rooms}) ->
             {{server_response, RoomId, room_does_not_exist}, State#{joined_rooms := Rooms}}
     end;
 
-handle_message({set_name, RoomId, NameString}, State = #{joined_rooms := Rooms}) ->
+handle_message({set_name, RoomId, NameString}, State = #{joined_rooms := Rooms, auth_id := MemberId}) ->
     Response =
         case room_joined(RoomId, Rooms) of
             true ->
-                Result = chatserv_room:change_member_name(RoomId, NameString),
+                Result = chatserv_room:change_member_name(MemberId, RoomId, NameString),
 
                 {server_response, RoomId, Result};
 
@@ -110,11 +122,11 @@ handle_message({set_name, RoomId, NameString}, State = #{joined_rooms := Rooms})
 
     {Response, State};
 
-handle_message({send_message, RoomId, MessageString}, State = #{joined_rooms := Rooms}) ->
+handle_message({send_message, RoomId, MessageString}, State = #{joined_rooms := Rooms, auth_id := MemberId}) ->
     Response =
         case room_joined(RoomId, Rooms) of
             true ->
-                Result = chatserv_room:send_message(RoomId, MessageString),
+                Result = chatserv_room:send_message(MemberId, RoomId, MessageString),
 
                 {server_response, RoomId, Result};
 
@@ -125,10 +137,10 @@ handle_message({send_message, RoomId, MessageString}, State = #{joined_rooms := 
     {Response, State}.
 
 
--spec do_join_room(chatlib_proto:room_id(), rooms_list()) ->
+-spec do_join_room(chatlib_proto:auth_id(), chatlib_proto:room_id(), rooms_list()) ->
     {rooms_list(), chatlib_proto:packet()}.
-do_join_room(RoomId, Rooms) ->
-    case join_room(RoomId, Rooms) of
+do_join_room(MemberId, RoomId, Rooms) ->
+    case join_room(MemberId, RoomId, Rooms) of
         {ok, NewRooms} ->
             {NewRooms, {server_response, RoomId, ok}};
 
@@ -141,12 +153,12 @@ do_join_room(RoomId, Rooms) ->
 room_joined(RoomId, Rooms) ->
     lists:member(RoomId, Rooms).
 
--spec join_room(chatlib_proto:room_id(), rooms_list()) ->
+-spec join_room(chatlib_proto:auth_id(), chatlib_proto:room_id(), rooms_list()) ->
     {error, chatlib_proto:response_code()} | {ok, rooms_list()}.
-join_room(RoomId, Rooms) ->
+join_room(MemberId, RoomId, Rooms) ->
     case room_joined(RoomId, Rooms) of
         false ->
-            ok = chatserv_room:join(RoomId),
+            ok = chatserv_room:join(MemberId, RoomId),
 
             {ok, [RoomId | Rooms]};
 

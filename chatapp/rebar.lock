@@ -6,7 +6,11 @@
  {<<"gun">>,{pkg,<<"gun">>,<<"1.0.0">>},0},
  {<<"jiffy">>,{pkg,<<"jiffy">>,<<"0.15.2">>},0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.6.4">>},0},
- {<<"ranch">>,{pkg,<<"ranch">>,<<"1.5.0">>},1}]}.
+ {<<"ranch">>,{pkg,<<"ranch">>,<<"1.5.0">>},1},
+ {<<"uuid">>,
+  {git,"https://github.com/avtobiff/erlang-uuid.git",
+       {ref,"cb02a2039a9b29dd2eef0446039c9c6e164df9ef"}},
+  0}]}.
 [
 {pkg_hash,[
  {<<"cowboy">>, <<"F1B72FABE9C8A5FC64AC5AC85FB65474D64733D1DF52A26FAD5D4BA3D9F70A9F">>},

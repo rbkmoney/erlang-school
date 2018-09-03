@@ -10,6 +10,7 @@
     message_notification |
     rooms_notification.
 
+-type auth_id() :: uuid:uuid().
 -type member_name() :: nonempty_string().
 -type message_text() :: nonempty_string().
 
@@ -44,6 +45,7 @@
     room_name/0,
     room_list/0,
     room_message/0,
+    auth_id/0,
     member_name/0,
     message_text/0,
     message_list/0,

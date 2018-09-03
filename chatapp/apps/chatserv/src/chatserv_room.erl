@@ -11,7 +11,7 @@
     name := chatlib_proto:room_name()
 }.
 
--type member_id() :: pid().
+-type member_id() :: chatlib_proto:auth_id().
 -type member_map() :: #{member_id() => room_member()}.
 
 -type room_member() :: #{
@@ -19,9 +19,9 @@
 }.
 
 -export([
-    join/1,
-    change_member_name/2,
-    send_message/2,
+    join/2,
+    change_member_name/3,
+    send_message/3,
     get_room_name/1,
     via_roomid/1
 ]).
@@ -40,20 +40,20 @@
 %% API
 %%
 
--spec join(chatlib_proto:room_id_direct()) ->
+-spec join(chatlib_proto:auth_id(), chatlib_proto:room_id_direct()) ->
     chatlib_proto:response_code().
-join(RoomId) ->
-    gen_server:call(via_roomid(RoomId), {join_room, self()}).
+join(MemberId, RoomId) ->
+    gen_server:call(via_roomid(RoomId), {join_room, MemberId}).
 
--spec change_member_name(chatlib_proto:room_id_direct(), chatlib_proto:member_name()) ->
+-spec change_member_name(chatlib_proto:auth_id(), chatlib_proto:room_id_direct(), chatlib_proto:member_name()) ->
     chatlib_proto:response_code().
-change_member_name(RoomId, Name) ->
-    gen_server:call(via_roomid(RoomId), {set_name, self(), Name}).
+change_member_name(MemberId, RoomId, Name) ->
+    gen_server:call(via_roomid(RoomId), {set_name, MemberId, Name}).
 
--spec send_message(chatlib_proto:room_id_direct(), chatlib_proto:message_text()) ->
+-spec send_message(chatlib_proto:auth_id(), chatlib_proto:room_id_direct(), chatlib_proto:message_text()) ->
     chatlib_proto:response_code().
-send_message(RoomId, MessageText) ->
-    gen_server:call(via_roomid(RoomId), {send_message, self(), MessageText}).
+send_message(MemberId, RoomId, MessageText) ->
+    gen_server:call(via_roomid(RoomId), {send_message, MemberId, MessageText}).
 
 -spec get_room_name(chatlib_proto:room_id_direct()) ->
     chatlib_proto:room_name().
@@ -93,16 +93,16 @@ init([Id, Name]) ->
 handle_call(get_room_name, _, State = #{name := Name}) ->
     {reply, Name, State};
 
-handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name := Name}) ->
+handle_call({join_room, MemberId}, _, State = #{members := Members, id := Id, name := Name}) ->
     %@todo redundant check here, possibly get rid of
-    case add_new_member(Pid, ?DEFAULT_DISPLAY_NAME, Members) of
+    case add_new_member(MemberId, ?DEFAULT_DISPLAY_NAME, Members) of
         {ok, NewMemberList} ->
             ok = lager:info(
                 "New user joined room (~p, ~p). Current member list: ~p",
                 [Id, Name, NewMemberList]
             ),
 
-            _ = erlang:monitor(process, Pid),
+            _ = gproc:monitor({n, l, {chat_member, MemberId}}),
 
             {reply, ok, State#{members := NewMemberList}};
 
@@ -110,8 +110,8 @@ handle_call({join_room, Pid}, _, State = #{members := Members, id := Id, name :=
             {reply, user_already_exists, State}
     end;
 
-handle_call({set_name, Pid, NewName}, _, State = #{members := Members}) ->
-    NewMemberList = change_member_name(Pid, NewName, Members),
+handle_call({set_name, MemberId, NewName}, _, State = #{members := Members}) ->
+    NewMemberList = do_change_member_name(MemberId, NewName, Members),
 
     ok = lager:info(
         "A member has changed their name. New: ~p; New list: ~p",
@@ -120,18 +120,18 @@ handle_call({set_name, Pid, NewName}, _, State = #{members := Members}) ->
 
     {reply, ok, State#{members := NewMemberList}};
 
-handle_call({send_message, Pid, NewMessageText}, _, State) ->
+handle_call({send_message, MemberId, NewMessageText}, _, State) ->
     #{id := Id, name := Name, members:= Members, pending_messages := Messages} = State,
 
-    #{display_name := MemberName} = get_member(Pid, Members),
+    #{display_name := MemberName} = get_member(MemberId, Members),
     NewMessages = add_new_message(MemberName, NewMessageText, Messages),
 
     ok = lager:info("New message in room (~p,~p): ~p", [Id, Name, NewMessages]),
 
     {reply, ok, State#{pending_messages := NewMessages}};
 
-handle_call({leave_room, Pid}, _, State = #{members := Members, id := Id, name := Name}) ->
-    NewMemberList = remove_member(Pid, Members),
+handle_call({leave_room, MemberId}, _, State = #{members := Members, id := Id, name := Name}) ->
+    NewMemberList = remove_member(MemberId, Members),
 
     ok = lager:info(
         "User left room (~p, ~p); Current member list: ~p",
@@ -146,16 +146,15 @@ handle_cast(_, State) ->
     {noreply, State}.
 
 %%send_messages
--spec handle_info(send_messages | {'DOWN', reference(), process, pid(), atom()}, state()) ->
+-spec handle_info(send_messages | {gproc, unreg, _, {n, l, {chat_member, member_id()}}}, state()) ->
     {noreply, state()}.
 
 handle_info(send_messages, State = #{id:= RoomId, members:= Members, pending_messages := Messages}) ->
     case length(Messages) > 0 of
         true ->
             _ = maps:fold(
-                fun(Pid, _, ok) ->
-                    ok = lager:info("Sending new messages to ~p", [Pid]),
-                    ok = chatserv_wshandler:send_messages(Pid, RoomId, Messages)
+                fun(MemberId, _, ok) ->
+                    ok = chatserv_wshandler:send_messages(MemberId, RoomId, Messages)
                 end,
                 ok, Members
             );
@@ -167,12 +166,12 @@ handle_info(send_messages, State = #{id:= RoomId, members:= Members, pending_mes
     ok = set_sendout_timeout(),
     {noreply, State#{pending_messages:= []}};
 
-handle_info({'DOWN', _Ref, process, Pid, Reason}, State = #{members := Members, id := Id, name := Name}) ->
-    NewMemberList = remove_member(Pid, Members),
+handle_info({gproc, unreg, _, {n, l, {chat_member, MemberId}}}, State = #{members := Members, id := Id, name := Name}) ->
+    NewMemberList = remove_member(MemberId, Members),
 
     ok = lager:info(
-        "User disconnected from room (~p, ~p) with reason ~p; Current member list: ~p",
-        [Id, Name, Reason, NewMemberList]
+        "User disconnected from room (~p, ~p); Current member list: ~p",
+        [Id, Name, NewMemberList]
     ),
 
     {noreply, State#{members := NewMemberList}}.
@@ -182,37 +181,37 @@ handle_info({'DOWN', _Ref, process, Pid, Reason}, State = #{members := Members, 
 %%
 -spec member_exists(member_id(), Current :: member_map()) ->
     Result :: boolean().
-member_exists(Pid, Members) ->
-    maps:is_key(Pid, Members).
+member_exists(MemberId, Members) ->
+    maps:is_key(MemberId, Members).
 
 -spec add_new_member(member_id(), chatlib_proto:member_name(), Old :: member_map()) ->
     {ok, New :: member_map()} | {error, already_exists}.
-add_new_member(Pid, MemberName, Members) ->
-    case member_exists(Pid, Members) of
+add_new_member(MemberId, MemberName, Members) ->
+    case member_exists(MemberId, Members) of
         false ->
             NewMember = #{display_name => MemberName},
-            {ok, maps:put(Pid, NewMember, Members)};
+            {ok, maps:put(MemberId, NewMember, Members)};
         _ ->
             {error, already_exists}
     end.
 
--spec change_member_name(member_id(), chatlib_proto:member_name(), Old :: member_map()) ->
+-spec do_change_member_name(member_id(), chatlib_proto:member_name(), Old :: member_map()) ->
     New :: member_map().
-change_member_name(Pid, NewName, Members) ->
-    Member = get_member(Pid, Members),
+do_change_member_name(MemberId, NewName, Members) ->
+    Member = get_member(MemberId, Members),
     NewMember = Member#{display_name => NewName},
 
-    maps:put(Pid, NewMember, Members).
+    maps:put(MemberId, NewMember, Members).
 
 -spec get_member(member_id(), member_map()) ->
     room_member().
-get_member(Pid, Members) ->
-    maps:get(Pid, Members).
+get_member(MemberId, Members) ->
+    maps:get(MemberId, Members).
 
 -spec remove_member(member_id(), Old :: member_map()) ->
     New :: member_map().
-remove_member(Pid, Members) ->
-    maps:remove(Pid, Members).
+remove_member(MemberId, Members) ->
+    maps:remove(MemberId, Members).
 
 -spec add_new_message(chatlib_proto:member_name(), chatlib_proto:message_text(), Old :: chatlib_proto:message_list()) ->
     New :: chatlib_proto:message_list().

@@ -84,9 +84,9 @@ handle_continue(load_rooms, State) ->
 
     {noreply, ResState}.
 
--spec handle_info({gproc, unreg, _, {chat_room, chatlib_proto:room_id_direct()}}, state()) ->
+-spec handle_info({gproc, unreg, _, {n, l, {chat_room, chatlib_proto:room_id_direct()}}}, state()) ->
     {noreply, state()}.
-handle_info({gproc, unreg, _, {chat_room, RoomId}}, State) ->
+handle_info({gproc, unreg, _, {n, l, {chat_room, RoomId}}}, State) ->
     NewState = remove_room(RoomId, State),
     {noreply, NewState}.
 
