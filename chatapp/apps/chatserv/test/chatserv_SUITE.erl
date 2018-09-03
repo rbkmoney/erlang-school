@@ -5,7 +5,7 @@
     export_all
 ]).
 
--define(MESSAGE_RCV_TIMEOUT, 1100).
+-define(RCV_TIMEOUT, 1100).
 
 -define(HOST, "localhost").
 -define(IP, {0, 0, 0, 0}).
@@ -43,6 +43,10 @@ end_per_suite(C) ->
 solo_happy(_) ->
     C1 = make_client(message_cb(self())),
 
+    Rooms = chatcli_client:get_rooms(C1),
+
+    true = maps:is_key(1, Rooms),
+
     ok = chatcli_client:join_room(C1, 1),
     ok = chatcli_client:set_name(C1, 1, "Test"),
     ok = chatcli_client:send_message(C1, 1, "Test Message"),
@@ -52,7 +56,7 @@ solo_happy(_) ->
     stop_client(C1).
 
 solo_fails(_) ->
-    C1 = make_client(fun() -> ok end),
+    C1 = make_client(fun(_, _) -> ok end),
 
     room_not_joined = chatcli_client:set_name(C1, 1, "Test"),
     room_not_joined = chatcli_client:send_message(C1, 1, "Test Message"),
@@ -102,7 +106,7 @@ receive_messages([]) -> ok;
 receive_messages([H|T]) ->
     receive
         {recieve_message, H} -> receive_messages(T)
-        after ?MESSAGE_RCV_TIMEOUT -> timeout
+        after ?RCV_TIMEOUT -> timeout
     end.
 
 stop_client(Pid) ->

@@ -5,6 +5,7 @@
 -export([start_link/3]).
 
 -export([
+    get_rooms/1,
     join_room/2,
     set_name/3,
     send_message/3
@@ -13,6 +14,7 @@
 %% gen_server
 
 -type message_callback() :: fun((chatlib_proto:room_id(), chatlib_proto:message_list()) -> any()).
+
 -type addr() :: { inet:hostname(), inet:port_number() }.
 
 -type state() :: #{
@@ -38,6 +40,11 @@
     {ok, pid()} | {error, _}.
 start_link(Host, Port, MessageCB) ->
     gen_server:start_link(?MODULE, {{Host, Port}, MessageCB}, []).
+
+-spec get_rooms(pid()) ->
+    ok.
+get_rooms(Client) ->
+    gen_server:call(Client, get_rooms).
 
 -spec join_room(pid(), chatlib_proto:room_id_direct()) ->
     ok.
@@ -79,6 +86,10 @@ init({Addr = {Ip, Port}, MessageCB}) ->
 
 -spec handle_call(any(), any(), state()) ->
     {reply, ok, state()} | {noreply, state()}.
+handle_call(Msg = get_rooms, From, State = #{connpid := ConnPid, conn_state := ready}) ->
+    ok = encode_and_send(Msg, ConnPid),
+    {noreply, State #{conn_state := {waiting, From}}};
+
 handle_call(Msg = {join_room, _}, From, State = #{connpid := ConnPid, conn_state := ready}) ->
     ok = encode_and_send(Msg, ConnPid),
     {noreply, State #{conn_state := {waiting, From}}};
@@ -125,6 +136,11 @@ handle_ws({message_notification, RoomId, MessageList}, State = #{message_cb := M
     _ = MessageCB(RoomId, MessageList),
 
     State;
+
+handle_ws({rooms_notification, global, RoomsList}, State = #{conn_state := {waiting, From}}) ->
+    gen_server:reply(From, RoomsList),
+
+    State #{conn_state => ready};
 
 handle_ws({server_response, _, ResponseCode}, State = #{conn_state := {waiting, From}}) ->
     gen_server:reply(From, ResponseCode),

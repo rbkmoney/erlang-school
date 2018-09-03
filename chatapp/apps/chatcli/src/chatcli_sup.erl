@@ -22,7 +22,7 @@
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
--spec start_client(inet:hostname(), inet:port_number(), pid()) ->
+-spec start_client(inet:hostname(), inet:port_number(), fun()) ->
     {ok, pid()} | {error, _}.
 start_client(HostName, Port, MessageCB) ->
     supervisor:start_child(?SERVER, [HostName, Port, MessageCB]).
