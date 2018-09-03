@@ -72,7 +72,7 @@ via_roomid(RoomId) ->
 -spec start_link(non_neg_integer(), nonempty_string()) ->
     {ok, pid()} | {error, _}.
 start_link(Id, Name) ->
-    gen_server:start_link(via_roomid(Id) ,?MODULE, [Id, Name], []).
+    gen_server:start_link(via_roomid(Id), ?MODULE, [Id, Name], []).
 
 -spec init(list()) ->
     {ok, state()}.
@@ -166,7 +166,8 @@ handle_info(send_messages, State = #{id:= RoomId, members:= Members, pending_mes
     ok = set_sendout_timeout(),
     {noreply, State#{pending_messages:= []}};
 
-handle_info({gproc, unreg, _, {n, l, {chat_member, MemberId}}}, State = #{members := Members, id := Id, name := Name}) ->
+handle_info({gproc, unreg, _, {n, l, {chat_member, MemberId}}}, State) ->
+    #{members := Members, id := Id, name := Name} = State,
     NewMemberList = remove_member(MemberId, Members),
 
     ok = lager:info(

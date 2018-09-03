@@ -20,7 +20,7 @@
     websocket_init/1,
     websocket_handle/2,
     websocket_info/2,
-    websocket_terminate/2
+    terminate/3
 ]).
 
 %%
@@ -76,9 +76,11 @@ websocket_info(Msg = {message_notification, _, _}, State = #{auth_id := MemberId
 websocket_info(_Info, State) ->
     {ok, State}.
 
--spec websocket_terminate(_, state()) ->
+-spec terminate(_, _, state()) ->
     ok.
-websocket_terminate(_Reason, _State) ->
+terminate(_, _, #{auth_id := MemberId}) ->
+    true = gproc:unreg({n, l, {chat_member, MemberId}}),
+    ok = lager:info("Unregistered self as  ~p", [{chat_member, MemberId}]),
     ok.
 
 %%
