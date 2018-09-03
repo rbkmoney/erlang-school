@@ -30,8 +30,7 @@
 -spec send_messages(chatlib_proto:auth_id(), chatlib_proto:room_id(), chatlib_proto:message_list()) ->
     ok.
 send_messages(MemberId, RoomId, MessageList) ->
-    _ = gproc_send(MemberId, {message_notification, RoomId, MessageList}),
-    ok.
+    ok = msg_send(MemberId, {message_notification, RoomId, MessageList}).
 
 %%
 %% cowboy_websocket_handler
@@ -48,7 +47,7 @@ websocket_init(State) ->
     UUID = uuid:uuid4(), %@todo an actual auth here, but something like this will do for now
 
     ok = lager:info("Registered self as  ~p", [{chat_member, UUID}]),
-    gproc:reg({n, l, {chat_member, UUID}}),
+    ok = proc_reg(UUID),
 
     {ok, State#{auth_id => UUID}}.
 
@@ -79,17 +78,34 @@ websocket_info(_Info, State) ->
 -spec terminate(_, _, state()) ->
     ok.
 terminate(_, _, #{auth_id := MemberId}) ->
-    true = gproc:unreg({n, l, {chat_member, MemberId}}),
-    ok = lager:info("Unregistered self as  ~p", [{chat_member, MemberId}]),
-    ok.
+    ok = proc_unreg(MemberId),
+    ok = lager:info("Unregistered self as  ~p", [{chat_member, MemberId}]).
 
 %%
 %% internal
 %%
--spec gproc_send(chatlib_proto:auth_id(), Msg :: tuple()) ->
-    Msg :: tuple().
-gproc_send(MemberId, Message) ->
-    gproc:send({n, l, {chat_member, MemberId}}, Message).
+-spec msg_send(chatlib_proto:auth_id(), Msg :: tuple()) ->
+    ok.
+msg_send(MemberId, Message) ->
+    Message = gproc:send(gproc_tuple({chat_member, MemberId}), Message),
+    ok.
+
+-spec proc_reg(chatlib_proto:auth_id()) ->
+    ok.
+proc_reg(MemberId) ->
+    true = gproc:reg(gproc_tuple({chat_member, MemberId})),
+    ok.
+
+-spec proc_unreg(chatlib_proto:auth_id()) ->
+    ok.
+proc_unreg(MemberId) ->
+    true = gproc:unreg(gproc_tuple({chat_member, MemberId})),
+    ok.
+
+-spec gproc_tuple(Id::tuple()) ->
+    {n, l, Id::tuple()}.
+gproc_tuple(Id) ->
+    {n, l, Id}.
 
 -spec handle_message(chatlib_proto:packet(), state()) ->
     {chatlib_proto:packet(), state()}.

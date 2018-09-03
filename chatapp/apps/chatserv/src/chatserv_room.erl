@@ -102,7 +102,7 @@ handle_call({join_room, MemberId}, _, State = #{members := Members, id := Id, na
                 [Id, Name, NewMemberList]
             ),
 
-            _ = gproc:monitor({n, l, {chat_member, MemberId}}),
+            _ = monitor_member(MemberId),
 
             {reply, ok, State#{members := NewMemberList}};
 
@@ -180,6 +180,11 @@ handle_info({gproc, unreg, _, {n, l, {chat_member, MemberId}}}, State) ->
 %%
 %% Internal
 %%
+-spec monitor_member(member_id()) ->
+    reference().
+monitor_member(MemberId) ->
+    gproc:monitor({n, l, {chat_member, MemberId}}).
+
 -spec member_exists(member_id(), Current :: member_map()) ->
     Result :: boolean().
 member_exists(MemberId, Members) ->

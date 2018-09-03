@@ -93,6 +93,10 @@ handle_info({gproc, unreg, _, {n, l, {chat_room, RoomId}}}, State) ->
 %%
 %% Internal
 %%
+-spec monitor_room(chatlib_proto:room_id_direct()) ->
+    reference().
+monitor_room(RoomId) ->
+    gproc:monitor({n, l, {chat_room, RoomId}}).
 
 -spec do_room_exists(chatlib_proto:room_id_direct(), room_ids()) ->
     boolean().
@@ -105,7 +109,7 @@ add_room(RoomId, RoomName, State = #{room_ids := Rooms}) ->
     case do_room_exists(RoomId, Rooms) of
         false ->
             {ok, _} = chatserv_room_sup:start_room(RoomId, RoomName),
-            _ = gproc:monitor({n, l, {chat_room, RoomId}}),
+            _ = monitor_room(RoomId),
 
             State#{room_ids := [RoomId | Rooms]};
 
