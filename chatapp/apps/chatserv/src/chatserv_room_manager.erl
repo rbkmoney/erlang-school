@@ -2,13 +2,10 @@
 -behavior(gen_server).
 
 %% API
--type rooms_by_id() :: #{chatlib_proto:room_id() => pid()}.
--type rooms_by_pid() :: #{pid() => chatlib_proto:room_id()}.
-
 
 -export([
     get_rooms_with_names/0,
-    get_room_pid/1
+    check_room_exists/1
 ]).
 
 %% gen_server
@@ -30,26 +27,18 @@
 -spec get_rooms_with_names() ->
     chatlib_proto:room_list().
 get_rooms_with_names() ->
-    RoomList = gen_server:call(?SERVER, get_rooms_list),
+    gen_server:call(?SERVER, get_rooms_list).
 
-    maps:map(
-        fun(_, V) ->
-            chatserv_room:get_room_name(V)
-        end,
-        RoomList
-    ).
-
--spec get_room_pid(chatlib_proto:room_id()) ->
-    {error, chatlib_proto:response_code()} | {ok, pid()}.
-get_room_pid(RoomId) ->
-    gen_server:call(?SERVER, {get_room_pid, RoomId}).
+-spec check_room_exists(chatlib_proto:room_id_direct()) ->
+    boolean().
+check_room_exists(RoomId) ->
+    gen_server:call(?SERVER, {room_exists, RoomId}).
 
 %%
 %% gen_server
 %%
 -type state() :: #{
-    rooms := rooms_by_id(),
-    rooms_by_pid := rooms_by_pid()
+    rooms := chatlib_proto:room_list()
 }.
 
 -spec start_link() ->
@@ -62,25 +51,20 @@ start_link() ->
     {ok, state(), {continue, load_rooms}}.
 init([]) ->
     {ok, #{
-        rooms => #{},
-        rooms_by_pid => #{}
+        rooms => #{}
     }, {
         continue, load_rooms
     }}.
 
--spec handle_call(get_rooms_list, {pid(), _}, state()) ->
-    {reply, rooms_by_id(), state()}.
+
+-spec handle_call(get_rooms_list | {room_exists, chatlib_proto:room_id_direct()}, _, state()) ->
+    {reply, chatlib_proto:room_list() | boolean(), state()}.
 handle_call(get_rooms_list, _, State = #{rooms := Rooms}) ->
     {reply, Rooms, State};
 
-handle_call({get_room_pid, RoomId}, _, State = #{rooms := Rooms}) ->
-    case room_exists(RoomId, Rooms) of
-        true ->
-            {reply, {ok, get_room_pid_by_id(RoomId, Rooms)}, State};
+handle_call({room_exists, RoomId}, _, State = #{rooms := Rooms}) ->
+    {reply, room_exists(RoomId, Rooms), State}.
 
-        false ->
-            {reply, {error, room_does_not_exist}, State}
-    end.
 
 -spec handle_cast(any(), state()) ->
     {noreply, state()}.
@@ -94,60 +78,33 @@ handle_continue(load_rooms, State) ->
         fun(Id, Name, CurState) ->
             add_room(Id, Name, CurState)
         end,
-        State, #{1=>"Room", 2=>"Better room"}
+        State, #{ 1 => "Room", 2 => "Better room"}
     ),
 
     {noreply, ResState}.
 
--spec handle_info({'DOWN', reference(), process, pid(), atom()}, state()) ->
+-spec handle_info(any(), state()) ->
     {noreply, state()}.
-handle_info({'DOWN', _Ref, process, Pid, _Reason}, State = #{rooms := Rooms}) ->
-    RoomId = get_room_id_by_pid(Pid, Rooms),
-    NewState = remove_room(RoomId, State),
-    {noreply, NewState}.
+handle_info(_, State) ->
+    {noreply, State}.
 
 %%
 %% Internal
 %%
 
--spec room_exists(chatlib_proto:room_id(), rooms_by_id()) ->
+-spec room_exists(chatlib_proto:room_id(), chatlib_proto:room_list()) ->
     boolean().
 room_exists(RoomId, Rooms) ->
     maps:is_key(RoomId, Rooms).
 
 -spec add_room(chatlib_proto:room_id(), chatlib_proto:room_name(), Old :: state()) ->
     New :: state().
-add_room(RoomId, RoomName, State = #{rooms := Rooms, rooms_by_pid := RoomsByPid}) ->
+add_room(RoomId, RoomName, State = #{ rooms := Rooms }) ->
     case room_exists(RoomId, Rooms) of
         false ->
-            {ok, Pid} = chatserv_room_sup:start_room(RoomId, RoomName),
-            _ = erlang:monitor(process, Pid),
-
             State#{
-                rooms := maps:put(RoomId, Pid, Rooms),
-                rooms_by_pid := maps:put(Pid, RoomId, RoomsByPid)
+                rooms := maps:put(RoomId, RoomName, Rooms)
             };
-
         true ->
             State
     end.
-
--spec remove_room(chatlib_proto:room_id(), Old :: state()) ->
-    New :: state().
-remove_room(RoomId, State = #{rooms := Rooms, rooms_by_pid := RoomsByPid}) ->
-    Pid = get_room_pid_by_id(RoomId, Rooms),
-
-    State#{
-        rooms := maps:remove(RoomId, Rooms),
-        rooms_by_pid := maps:remove(Pid, RoomsByPid)
-    }.
-
--spec get_room_pid_by_id(chatlib_proto:room_id(), rooms_by_id()) ->
-    pid().
-get_room_pid_by_id(RoomId, RoomList) ->
-    maps:get(RoomId, RoomList).
-
--spec get_room_id_by_pid(pid(), rooms_by_pid()) ->
-    chatlib_proto:room_id().
-get_room_id_by_pid(RoomPid, RoomList) ->
-    maps:get(RoomPid, RoomList).

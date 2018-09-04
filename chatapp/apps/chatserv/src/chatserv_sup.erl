@@ -34,9 +34,8 @@ init([]) ->
     SupFlags = #{},
     Children = [
         #{
-            id => room_sup,
-            start => {chatserv_messaging_sup, start_link, []},
-            type => supervisor
+            id => room_manager,
+            start => {chatserv_room_manager, start_link, []}
         }
     ],
     {ok, {SupFlags, Children}}.

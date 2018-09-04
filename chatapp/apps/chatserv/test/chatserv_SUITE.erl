@@ -72,6 +72,8 @@ duo_exchange(_) ->
     C1 = make_client(message_cb(self())),
     C2 = make_client(message_cb(self())),
 
+    lager:info("~p", [C1]),
+
     ok = chatcli_client:join_room(C1, 1),
 
     ok = chatcli_client:join_room(C2, 1),
@@ -100,7 +102,7 @@ duo_exchange(_) ->
 %%
 
 message_cb(TestPid) ->
-    fun(_, _) -> TestPid ! {recieve_message, self()} end.
+    fun(_, Messages) -> lager:info("~p ~p", [self(), Messages]), TestPid ! {recieve_message, self()} end.
 
 receive_messages([]) -> ok;
 receive_messages([H|T]) ->
