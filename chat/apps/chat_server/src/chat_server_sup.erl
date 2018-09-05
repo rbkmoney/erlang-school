@@ -29,7 +29,7 @@ start_link() ->
     {ok, {supervisor_args(), [child_args()]}}.
 
 init([]) ->
-    lager:notice("Application supervisor Initialized"),
+    ok = lager:notice("Application supervisor Initialized"),
     SupArgs = #{
         strategy => one_for_one,
         intensity => 10,

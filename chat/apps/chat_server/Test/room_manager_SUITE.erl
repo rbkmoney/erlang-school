@@ -2,12 +2,34 @@
 
 -include_lib("common_test/include/ct.hrl").
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 -compile([export_all]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-export_type([groupName/0]).
+-export_type([proplist/0]).
+-export_type([config/0]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-type groupName() :: atom().
+-type proplist() :: [{atom(), term()}].
+-type config() :: proplist().
+
+%%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec all() ->
+    [{group, groupName()}].
 
 all() ->
     [
         {group, room_management}
     ].
+
+-spec groups() ->
+    [{groupName(), [sequence], [atom()]}].
 
 groups() ->
     [
@@ -22,6 +44,11 @@ groups() ->
         ]}
     ].
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%% SUITE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec init_per_suite(C :: config()) ->
+    config().
+
 init_per_suite(C) ->
     C1 = [{default_room, room1},
           {created_room, room2},
@@ -32,17 +59,31 @@ init_per_suite(C) ->
     application:start(chat_server),
     C1.
 
+-spec end_per_suite(C :: config()) ->
+    config().
+
 end_per_suite(C) ->
     C.
+
+%%%%%%%%%%%%%%%%%%%%%%%%% GROUP INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec init_per_group(groupName(), C :: config()) ->
+    config().
 
 init_per_group(room_management, C) ->
     C1 = [{default_room, room1}, {created_room, room2}] ++ C,
     C1.
 
+-spec end_per_group(groupName() ,C :: config()) ->
+    config().
+
 end_per_group(room_management, C) ->
     C.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% ROOM MANAGEMENT %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec get_room_list(C :: config()) ->
+    config().
 
 get_room_list(C) ->
     Default = get(default_room, C),
@@ -50,35 +91,58 @@ get_room_list(C) ->
     ct:print("Room manager returned ~p", [Default]),
     C.
 
+-spec create_room(C :: config()) ->
+    config().
+
 create_room(C) ->
     Created = get(created_room, C),
     created = room_manager:create_room(Created),
     C.
 
+-spec find_room(C :: config()) ->
+    config().
+
 find_room(C) ->
     Created = get(created_room, C),
-    PID = room_manager:get_room(Created),
+    _ = room_manager:get_room(Created),
     C.
+
+-spec cant_create_existing_room(C :: config()) ->
+    config().
 
 cant_create_existing_room(C) ->
     Created = get(created_room, C),
     already_exists = room_manager:create_room(Created),
     C.
 
+-spec delete_room(C :: config()) ->
+    config().
+
 delete_room(C) ->
     Created = get(created_room, C),
     deleted = room_manager:delete_room(Created),
     C.
+
+-spec cant_delete_nonexistent_room(C :: config()) ->
+    config().
 
 cant_delete_nonexistent_room(C) ->
     Created = get(created_room, C),
     not_found = room_manager:delete_room(Created),
     C.
 
+-spec cant_find_nonexistent_room(C :: config()) ->
+    config().
+
 cant_find_nonexistent_room(C) ->
     Created = get(created_room, C),
     not_found = room_manager:get_room(Created),
     C.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec get(Key :: atom(), List :: proplist()) ->
+    term() | undefined.
 
 get(Key, List) ->
     proplists:get_value(Key, List).

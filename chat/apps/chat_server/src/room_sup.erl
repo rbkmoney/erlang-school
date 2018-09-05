@@ -24,27 +24,35 @@
     {ok, pid()}.
 
 start_link() ->
-    supervisor:start_link({global, ?MODULE}, ?MODULE, []).
+    supervisor:start_link({global, room_sup}, ?MODULE, []).
+
+-spec get_children() ->
+    [{atom(), undefined | pid() | restarting, worker | supervisor, term()}].
 
 get_children() ->
     supervisor:which_children({global, room_sup}).
 
 -spec create_room(RoomId :: atom()) ->
-    supervisor:startchild_ret() | {error, already_exists}.
+    created.
 
 create_room(RoomId) ->
-    lager:notice("Creating room ~p", [RoomId]),
+    ok = lager:notice("Creating room ~p", [RoomId]),
     Child = #{
         id => RoomId,
         type => worker,
         start => {chat_room, start_link, [RoomId]}
     },
-    supervisor:start_child({global, room_sup}, Child).
+    _ = supervisor:start_child({global, room_sup}, Child),
+    created.
+
+-spec delete_room(RoomId :: atom()) ->
+    deleted.
 
 delete_room(RoomId) ->
-    lager:info("Room supervisor is trying to delete child ~p", [RoomId]),
-    supervisor:terminate_child({global, room_sup}, RoomId),
-    supervisor:delete_child({global, room_sup}, RoomId).
+    ok = lager:info("Room supervisor is trying to delete child ~p", [RoomId]),
+    _ = supervisor:terminate_child({global, room_sup}, RoomId),
+    _ = supervisor:delete_child({global, room_sup}, RoomId),
+    deleted.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -52,7 +60,7 @@ delete_room(RoomId) ->
     {ok, {supervisor_args(), [child_args()]}}.
 
 init([]) ->
-    lager:notice("Room supervisor initialized"),
+    ok = lager:notice("Room supervisor initialized"),
     SupArgs = #{
         strategy => one_for_one,
         intensity => 10,

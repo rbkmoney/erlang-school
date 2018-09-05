@@ -3,9 +3,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%% BEHAVIOUR EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -behaviour(gen_server).
-
 -export([init/1]).
--export([start_link/0]).
 -export([handle_cast/2]).
 -export([handle_call/3]).
 
@@ -13,6 +11,7 @@
 
 -export([get_room/1]).
 -export([get_rooms/0]).
+-export([start_link/0]).
 -export([create_room/1]).
 -export([delete_room/1]).
 -export([register_room/2]).
@@ -23,34 +22,40 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec register_room(Id :: atom(), PID :: pid()) ->
-    ok.
+-spec create_room(Id :: atom()) ->
+    created | already_exists.
 
 create_room(Id) ->
     case get_room(Id) of
         not_found ->
-            room_sup:create_room(Id),
+            created = room_sup:create_room(Id),
             created;
         _ ->
             already_exists
     end.
 
+-spec register_room(Id :: atom(), PID :: pid()) ->
+    ok.
+
 register_room(Id, PID) ->
-    lager:notice("Room ~p wants to sign up as ~p", [PID, Id]),
+    ok = lager:notice("Room ~p wants to sign up as ~p", [PID, Id]),
     gen_server:cast({global, ?MODULE}, {create, Id, PID}),
     ok.
+
+-spec get_room(Id :: term) ->
+    pid() | not_found.
 
 get_room(Id) ->
     gen_server:call({global, ?MODULE}, {get_room_pid, Id}).
 
 -spec get_rooms() ->
-    list().
+    [atom()].
 
 get_rooms() ->
     gen_server:call({global, ?MODULE}, {get_rooms}).
 
--spec get_room(Id :: atom()) ->
-    pid() | not_found.
+-spec delete_room(Id :: atom) ->
+    deleted | not_found.
 
 delete_room(Id) ->
     gen_server:call({global, ?MODULE}, {delete_room, Id}).
@@ -80,16 +85,22 @@ find_room(Id, State) ->
 register_room(Id, PID, State) ->
     maps:put(Id, PID, State).
 
--spec room_id_list(State :: state()) ->
-    list().
+-spec delete_room(Id :: atom(), State :: state()) ->
+    state().
 
 delete_room(Id, State) ->
     maps:remove(Id, State).
+
+-spec room_id_list(State :: state()) ->
+    [atom()].
 
 room_id_list(State) ->
     maps:keys(State).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec start_link() ->
+    {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 
 start_link() ->
     gen_server:start_link({global, ?MODULE}, ?MODULE, undefined, []).
@@ -98,7 +109,7 @@ start_link() ->
     {ok, state()}.
 
 init(undefined) ->
-    lager:notice("Initialized room manager"),
+    ok = lager:notice("Initialized room manager"),
     {ok, #{}}.
 
 -spec handle_cast
@@ -109,9 +120,9 @@ handle_cast({create, Id, PID}, State) ->
     case room_exists(Id, State) of
         false ->
             NewState = register_room(Id, PID, State),
-            lager:info("Room ~p succesfully signed up in manager", [Id]);
+            ok = lager:info("Room ~p succesfully signed up in manager", [Id]);
         true ->
-            lager:info("Room ~p already exists", [Id]),
+            ok = lager:info("Room ~p already exists", [Id]),
             NewState = State
     end,
     {noreply, NewState}.
@@ -122,7 +133,7 @@ handle_cast({create, Id, PID}, State) ->
     ({get_room_pid, Id :: atom()}, _From :: {pid(), reference()}, State :: state()) ->
         {reply, pid(), state()};
     ({delete_room, Id :: atom()}, _From :: {pid(), reference()}, State :: state()) ->
-        {noreply, state()}.
+        {reply, deleted | not_found, state()}.
 
 
 handle_call({get_rooms}, _From, State) ->
@@ -130,15 +141,15 @@ handle_call({get_rooms}, _From, State) ->
     {reply, Rooms, State};
 
 handle_call({get_room_pid, Id}, _From, State) ->
-    lager:info("Searching for room ~p", [Id]),
+    ok = lager:info("Searching for room ~p", [Id]),
     RoomPID = find_room(Id, State),
     {reply, RoomPID, State};
 
 handle_call({delete_room, Id}, _From, State) ->
     NewState = case room_exists(Id, State) of
         true ->
-            lager:notice("Deleting room ~p", [Id]),
-            room_sup:delete_room(Id),
+            ok = lager:notice("Deleting room ~p", [Id]),
+            deleted = room_sup:delete_room(Id),
             Reply = deleted,
             delete_room(Id, State);
         false ->

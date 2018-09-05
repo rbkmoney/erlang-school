@@ -23,7 +23,7 @@ init(Req, Opts) ->
     {cowboy_websocket, Req, Opts}.
 
 websocket_init(_) ->
-    lager:notice("Initializing websocket, PID: ~p", [self()]),
+    ok = lager:notice("Initializing websocket, PID: ~p", [self()]),
     {ok, connected}.
 
 websocket_handle({text, Message}, State) ->
@@ -34,11 +34,11 @@ websocket_handle(_Data, State) ->
     {ok, State}.
 
 websocket_info({send, Message}, State) ->
-    lager:info("Websocket info: ~p", [Message]),
+    ok = lager:info("Websocket info: ~p", [Message]),
     {reply, {text, Message}, State}.
 
 % -spec websocket_terminate(term(), term(), state()) ->
 %     ok.
 terminate(_Reason, _Req, _State) ->
-    lager:info("Websocket process ~p is terminated", [self()]),
+    ok = lager:info("Websocket process ~p is terminated", [self()]),
     ok.

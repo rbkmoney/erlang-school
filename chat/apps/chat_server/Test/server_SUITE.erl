@@ -1,14 +1,30 @@
 -module(server_SUITE).
 
 -include_lib("common_test/include/ct.hrl").
-%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 -compile([export_all]).
-%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-type groupName() :: room_manager_SUITE:groupName().
+-type proplist() :: room_manager_SUITE:proplist().
+-type config() :: room_manager_SUITE:config().
+
+%%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec all() ->
+    [{group, groupName()}].
+
 all() ->
      [
         {group, impossible_interactions},
         {group, basic_interactions}
      ].
+
+-spec groups() ->
+    [{groupName(), [sequence], [atom()]}].
 
 groups() ->
     [
@@ -20,7 +36,10 @@ groups() ->
         ]}
     ].
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%% _ PER SUITE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%% SUITE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec init_per_suite(C :: config()) ->
+    config().
 
 init_per_suite(C) ->
     application:ensure_all_started(chat_server),
@@ -29,11 +48,17 @@ init_per_suite(C) ->
     application:start(library),
     C.
 
+-spec end_per_suite(C :: config()) ->
+    config().
+
 end_per_suite(C) ->
     application:stop(chat_server),
     C.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%% _ PER GROUP %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%% GROUP INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec init_per_group(groupName(), C :: config()) ->
+    config().
 
 init_per_group(basic_interactions, C) ->
     C1 = [
@@ -53,6 +78,10 @@ init_per_group(impossible_interactions, _C) ->
     ],
     C1.
 
+
+-spec end_per_group(groupName(), C :: config()) ->
+    config().
+
 end_per_group(basic_interactions, C) ->
     C;
 
@@ -61,11 +90,17 @@ end_per_group(impossible_interactions, C) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% BASIC INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec server_workflow(C :: config()) ->
+    config().
+
 server_workflow(C) -> % Need to send from 1 pid, so I putted all functions inside
     join_room(C),
     send_message(C),
     get_termination_message(C),
     C.
+
+-spec join_room(C :: config()) ->
+    config().
 
 join_room(C) ->
     {Event, Username, Message, Room} = get(registration_message, C),
@@ -78,6 +113,9 @@ join_room(C) ->
     ExpectedReply2 = receive_reply(),
     C.
 
+-spec send_message(C :: config()) ->
+    config().
+
 send_message(C) ->
     {Event, Username, Message, Room} = get(send_message, C),
     Json = protocol:encode(Event, Username, Message, Room),
@@ -87,6 +125,9 @@ send_message(C) ->
     ExpectedReply = receive_reply(),
     C.
 
+-spec get_termination_message(C :: config()) ->
+    config().
+
 get_termination_message(C) ->
     ExpectedReply = get(termination_message, C),
     Room = get(room, C),
@@ -95,6 +136,9 @@ get_termination_message(C) ->
     C.
 
 %%%%%%%%%%%%%%%%%%%%%%% IMPOSSIBLE INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%
+
+-spec cant_send_to_nonexistent_room(C :: config()) ->
+    config().
 
 cant_send_to_nonexistent_room(C) ->
     {Event, Username, Message, Room} = get(nonexistent_room_message, C),
@@ -106,6 +150,9 @@ cant_send_to_nonexistent_room(C) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec receive_reply() ->
+    protocol:source_message() | nothing.
+
 receive_reply() ->
     receive
         {send, Reply} ->
@@ -114,8 +161,14 @@ receive_reply() ->
         nothing
     end.
 
+-spec get(Key :: atom(), List :: proplist()) ->
+    term() | undefined.
+
 get(Key, List) ->
     proplists:get_value(Key, List).
+
+-spec del(Key :: atom(), List :: proplist()) ->
+    proplist().
 
 del(Key, List) ->
     proplists:delete(Key, List).
