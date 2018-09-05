@@ -29,7 +29,9 @@ all() ->
 groups() ->
     [
         {basic_interactions, [sequence], [
-            server_workflow
+            join_room,
+            send_message,
+            receive_message
         ]},
         {impossible_interactions, [sequence], [
             cant_send_to_nonexistent_room
@@ -44,8 +46,7 @@ groups() ->
 init_per_suite(C) ->
     application:ensure_all_started(chat_server),
     application:ensure_all_started(library),
-    application:start(chat_server),
-    application:start(library),
+    application:ensure_all_started(chat_client),
     C.
 
 -spec end_per_suite(C :: config()) ->
@@ -62,19 +63,19 @@ end_per_suite(C) ->
 
 init_per_group(basic_interactions, C) ->
     C1 = [
-            {room, room1},
-            {registration_message, {register, <<"Igor">>, <<"">>, room1}},
-            {registration_reply, {success, <<"">>, <<"">>, room1}},
-            {joined_reply, {joined, <<"Igor">>, <<"">>, room1}},
-            {send_message, {send_message, <<"Igor">>, <<"Hello">>, room1}},
-            {termination_message, {error, <<"">>, <<"Room is terminated">>, room1}}
+    {       host, "localhost"},
+            {port, 8080},
+            {id, <<"client1">>},
+            {user, <<"Igor">>},
+            {message, <<"Hello">>},
+            {room, <<"room1">>}
          ] ++ C,
     C1;
 
 init_per_group(impossible_interactions, _C) ->
     C1 = [
-            {nonexistent_room_message, {register, <<"Igor">>, <<"">>, noroom}},
-            {no_room_reply, {error, <<"">>, <<"NO ROOM">>, no_room}}
+            {nonexistent_room_message, {register, <<"Igor">>, <<"">>, <<"noroom">>}},
+            {no_room_reply, {error, <<"">>, <<"NO ROOM">>, <<"">>}}
     ],
     C1.
 
@@ -90,50 +91,40 @@ end_per_group(impossible_interactions, C) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% BASIC INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec server_workflow(C :: config()) ->
-    config().
-
-server_workflow(C) -> % Need to send from 1 pid, so I putted all functions inside
-    join_room(C),
-    send_message(C),
-    get_termination_message(C),
-    C.
-
 -spec join_room(C :: config()) ->
     config().
 
 join_room(C) ->
-    {Event, Username, Message, Room} = get(registration_message, C),
-    Json = protocol:encode(Event, Username, Message, Room),
-    chat_room:send(Json, self()),
-    ct:print("PID: ~p~n", [self()]),
-    ExpectedReply1 = get(registration_reply, C),
-    ExpectedReply2 = get(joined_reply, C),
-    ExpectedReply1 = receive_reply(),
-    ExpectedReply2 = receive_reply(),
+    Host = ?config(host, C),
+    Port = ?config(port, C),
+    Id   = ?config(id, C),
+    connected = client:connect(Host, Port, Id),
+    RoomId = ?config(room, C),
+    ok = client:join(Id, RoomId),
     C.
 
 -spec send_message(C :: config()) ->
     config().
 
 send_message(C) ->
-    {Event, Username, Message, Room} = get(send_message, C),
-    Json = protocol:encode(Event, Username, Message, Room),
-    chat_room:send(Json, self()),
-    ct:print("PID: ~p~n", [self()]),
-    ExpectedReply = {Event, Username, Message, Room},
-    ExpectedReply = receive_reply(),
+    Message = ?config(message, C),
+    Id = ?config(id, C),
+    RoomId = ?config(room, C),
+    client:send(Id, Message, RoomId),
     C.
 
--spec get_termination_message(C :: config()) ->
-    config().
-
-get_termination_message(C) ->
-    ExpectedReply = get(termination_message, C),
-    Room = get(room, C),
-    room_manager:delete_room(Room),
-    ExpectedReply = receive_reply(),
+receive_message(C) ->
+    Message = ?config(message, C),
+    Id = ?config(id, C),
+    timer:sleep(150), % give server some time to handle and respond
+    List = client:get_messages(Id),
+    [
+        {send_message,<<"Incognito">>,<<"Hello">>,<<"room1">>},
+        {joined,<<"Incognito">>,<<>>,<<"room1">>},
+        {success,<<>>,<<>>,<<"room1">>}
+    ] = List,
     C.
+
 
 %%%%%%%%%%%%%%%%%%%%%%% IMPOSSIBLE INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%
 
@@ -141,10 +132,9 @@ get_termination_message(C) ->
     config().
 
 cant_send_to_nonexistent_room(C) ->
-    {Event, Username, Message, Room} = get(nonexistent_room_message, C),
-    Json = protocol:encode(Event, Username, Message, Room),
-    chat_room:send(Json, self()),
-    ExpectedReply = get(no_room_reply, C),
+    SourceMessage = ?config(nonexistent_room_message, C),
+    chat_room:send(SourceMessage, self()),
+    ExpectedReply = ?config(no_room_reply, C),
     ExpectedReply = receive_reply(),
     C.
 
@@ -156,16 +146,10 @@ cant_send_to_nonexistent_room(C) ->
 receive_reply() ->
     receive
         {send, Reply} ->
-            protocol:decode(Reply)
+            Reply
     after 2500 ->
         nothing
     end.
-
--spec get(Key :: atom(), List :: proplist()) ->
-    term() | undefined.
-
-get(Key, List) ->
-    proplists:get_value(Key, List).
 
 -spec del(Key :: atom(), List :: proplist()) ->
     proplist().

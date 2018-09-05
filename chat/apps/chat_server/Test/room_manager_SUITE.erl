@@ -50,8 +50,8 @@ groups() ->
     config().
 
 init_per_suite(C) ->
-    C1 = [{default_room, room1},
-          {created_room, room2},
+    C1 = [{default_room, <<"room1">>},
+          {created_room, <<"room2">>},
           {register, <<"{\"user\":\"Igor\",\"room\":\"room1\",\"message\":\"Hello\",\"event\":\"register\"}">>},
           {send_message, <<"{\"user\":\"Igor\",\"room\":\"room1\",\"message\":\"Hello\",\"event\":\"send_message\"}">>}
          ] ++ C,
@@ -71,8 +71,7 @@ end_per_suite(C) ->
     config().
 
 init_per_group(room_management, C) ->
-    C1 = [{default_room, room1}, {created_room, room2}] ++ C,
-    C1.
+    C.
 
 -spec end_per_group(groupName() ,C :: config()) ->
     config().

@@ -66,8 +66,8 @@ init([]) ->
         intensity => 10,
         period => 10
     },
-    Server = #{  %Single room at the start
+    Server = #{  % Single room at the start
         id => room1,
-        start => {chat_room, start_link, [room1]}
+        start => {chat_room, start_link, [<<"room1">>]}
     },
     {ok, {SupArgs, [Server]}}.

@@ -9,7 +9,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type groupName() :: room_manager_SUITE:groupName().
--type proplist() :: room_manager_SUITE:proplist().
 -type config() :: room_manager_SUITE:config().
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -30,7 +29,7 @@ groups() ->
         {basic_interactions, [sequence], [
             encodeJson,
             decodeJson,
-            reverse
+            symmetry
         ]}
     ].
 
@@ -40,12 +39,12 @@ groups() ->
     config().
 
 init_per_suite(C) ->
-    C1 = [{event, send_message},
-            {user, <<"Igor">>},
-            {message, <<"Hello">>},
-            {room, room1},
-            {encoded, <<"{\"user\":\"Igor\",\"room\":\"room1\",\"message\":\"Hello\",\"event\":\"send_message\"}">>},
-            {decoded, {send_message, <<"Igor">>, <<"Hello">>, room1}}
+    C1 = [
+            {source, {left, <<"Igor">>, <<"Hello">>, <<"rm1">>}},
+            {
+                encoded,
+                <<"{\"user\":\"Igor\",\"room\":\"rm1\",\"message\":\"Hello\",\"event\":\"left\"}">>
+            }
          ] ++ C,
     application:ensure_all_started(library),
     application:start(library),
@@ -64,39 +63,24 @@ end_per_suite(C) ->
     config().
 
 encodeJson(C) ->
-    Json = get(encoded, C),
-    Event = get(event, C),
-    User = get(user, C),
-    Message = get(message, C),
-    Room = get(room, C),
-    Json = protocol:encode(Event, User, Message, Room),
+    SourceMessage = ?config(source, C),
+    Json = ?config(encoded, C),
+    Json = protocol:encode(SourceMessage),
     C.
 
 -spec decodeJson(C :: config()) ->
     config().
 
 decodeJson(C) ->
-    Target = get(decoded, C),
-    Json = get(encoded, C),
-    Target = protocol:decode(Json),
+    SourceMessage = ?config(source, C),
+    Json = ?config(encoded, C),
+    SourceMessage = protocol:decode(Json),
     C.
 
--spec reverse(C :: config()) ->
+-spec symmetry(C :: config()) ->
     config().
 
-reverse(C) ->
-    Event = get(event, C),
-    User = get(user, C),
-    Message = get(message, C),
-    Room = get(room, C),
-    Json = protocol:encode(Event, User, Message, Room),
-    {Event, User, Message, Room} = protocol:decode(Json),
+symmetry(C) ->
+    SourceMessage = ?config(source, C),
+    SourceMessage = protocol:decode(protocol:encode(SourceMessage)),
     C.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
-
--spec get(Key :: atom(), List :: proplist()) ->
-    term() | undefined.
-
-get(Key, List) ->
-    proplists:get_value(Key, List).

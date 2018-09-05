@@ -26,30 +26,29 @@
 -type state() :: map().
 -type username() :: message().
 -type message() :: binary() | string().
--type client_message() :: {atom(), message(), username(), atom()}.
+-type source_message() :: protocol:source_message().
 -type websocket_down_message() :: {'DOWN', reference(), process, pid(), term()}.
--type broadcast_message() :: binary().
+-type broadcast_message() :: jiffy:json_value().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec start_link(Id :: atom()) ->
+-spec start_link(Id :: binary()) ->
     {ok, pid()}.
 
 start_link(Id) ->
     gen_server:start_link({global, Id}, ?MODULE, Id, []).
 
--spec send(Json :: protocol:json(), Source :: pid()) ->
+-spec send(SourceMessage :: source_message(), Source :: pid()) ->
     no_return().
 
-send(Json, Source) ->
-    ClientMessage = protocol:decode(Json),
-    RoomId = protocol:room(ClientMessage),
+send(SourceMessage, Source) ->
+    RoomId = protocol:room(SourceMessage),
     case room_manager:get_room(RoomId) of
         not_found ->
-            Reply = protocol:encode(error, <<"">>, <<"NO ROOM">>, no_room),
-            inform(Reply, Source);
+            Reply = {error, <<"">>, <<"NO ROOM">>, <<"">>},
+            ws_handler:send(Reply, Source);
         _ ->
-            gen_server:cast({global, RoomId}, {client_message, ClientMessage, Source})
+            gen_server:cast({global, RoomId}, {source_message, SourceMessage, Source})
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -61,19 +60,11 @@ broadcast(Message, State) ->
     ok = lager:info("Sending message to all users"),
     Connections = maps:get(connections, State),
     RecipientList = maps:keys(Connections),
-    [inform(Message, Recipient) || Recipient <- RecipientList],
-    ok.
-
--spec inform(broadcast_message(), pid()) ->
-    ok.
-
-inform(Message, Recipient) ->
-    ok = lager:info("Sending erlang message to process ~p", [Recipient]),
-    Recipient ! {send, Message},
+    [ws_handler:send(Message, Recipient) || Recipient <- RecipientList],
     ok.
 
 -spec this_room(State :: state()) ->
-    atom().
+    binary().
 
 this_room(State) ->
     maps:get(room, State).
@@ -101,7 +92,7 @@ register_user(Username, PID, State) ->
     ok = lager:info("Registration of new user ~p", [Username]),
     NewState = add_user(PID, Username, State),
     erlang:monitor(process, PID),
-    Reply = protocol:encode(joined, Username, <<"">>, this_room(State)),
+    Reply = {joined, Username, <<"">>, this_room(State)},
     broadcast(Reply, NewState),
     NewState.
 
@@ -123,19 +114,19 @@ init(Id) ->
     {ok, #{room => Id, connections => #{}}}.
 
 -spec handle_cast
-    ({client_message, client_message(), pid()}, State :: state()) ->
+    ({source_message, source_message(), pid()}, State :: state()) ->
         {noreply, state()}.
 
-handle_cast({client_message, {send_message, _Username, Message, RoomId}, Source}, State) ->
+handle_cast({source_message, {send_message, _Username, Message, RoomId}, Source}, State) ->
     Username = get_user(Source, State),
     ok = lager:info("Chat server got a message ~p from ~p", [Message, Username]),
-    Reply = protocol:encode(send_message, Username, Message, RoomId),
+    Reply = {send_message, Username, Message, RoomId},
     broadcast(Reply, State),
     {noreply, State};
 
-handle_cast({client_message, {register, Username, _Message, _RoomId}, Source}, State) ->
-    Success = protocol:encode(success, <<"">>, <<"">>, this_room(State)),
-    inform(Success, Source),
+handle_cast({source_message, {register, Username, _Message, _RoomId}, Source}, State) ->
+    Success = {success, <<"">>, <<"">>, this_room(State)},
+    ws_handler:send(Success, Source),
     NewState = register_user(Username, Source, State),
     % It actuay works, even if client sends message immediatly after calling for registration, wow!
     {noreply, NewState}.
@@ -154,7 +145,7 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
     ok = lager:info("User ~p disconnected", [Username]),
     NewState = remove_user(PID, State),
     RoomId = this_room(State),
-    Reply = protocol:encode(left, Username, <<"">>, RoomId),
+    Reply = {left, Username, <<"">>, RoomId},
     broadcast(Reply, NewState),
     {noreply, NewState}.
 
@@ -162,6 +153,6 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
     ok.
 
 terminate(_, State) ->
-    Reply = protocol:encode(error, <<"">>, <<"Room is terminated">>, this_room(State)),
+    Reply = {error, <<"">>, <<"Room is terminated">>, this_room(State)},
     broadcast(Reply, State),
     ok.

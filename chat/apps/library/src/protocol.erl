@@ -1,104 +1,96 @@
 -module(protocol).
 
+
+% На вход подаем {atom, binary, binary, binary}
+% На выходе получаем binary
+% На вход подаем binary
+% На выходе получаем {atom, binary, binary, binary}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export([room/1]).
 -export([user/1]).
 -export([event/1]).
 -export([encode/1]).
--export([encode/4]).
 -export([decode/1]).
 -export([message/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export_type([json/0]).
 -export_type([source_message/0]).
+-export_type([event/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type json() :: binary().
--type source_message() :: {atom(), binary(), binary(), atom()}.
--type message_map() :: #{
-    event => atom(),
-    user => binary(),
-    message => binary(),
-    room => atom()}.
--type binary_key_map() :: #{<<>> => <<>>}.
+-type event() :: register | left | joined | error | send_message | success.
+-type source_message() :: {event(), binary(), binary(), binary()}.
+-type binary_key_map() :: #{binary() => binary()}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec encode(source_message()) ->
-    json().
+    jiffy:json_value().
 
-encode({Event, User, Message, RoomId}) ->
-    encode(Event, User, Message, RoomId).
+encode(SourceMessage) ->
+    Map = raw_to_map(SourceMessage),
+    jiffy:encode(Map).
 
--spec encode(Event :: atom(), User :: binary(), Message :: binary(), RoomId :: atom()) ->
-    json().
-
-encode(Event, User, Message, RoomId) ->
-    Map = raw_to_map(Event, User, Message, RoomId),
-    create_json(Map).
-
--spec decode(json()) ->
+-spec decode(jiffy:json_value()) ->
     source_message().
 
 decode(Json) ->
-    Binary_key_map = jiffy:decode(Json, [return_maps]),
-    normalize_map(Binary_key_map).
+    Map = jiffy:decode(Json, [return_maps]),
+    map_to_raw(Map).
 
 -spec room(source_message()) ->
-    atom().
+    binary().
 
-room({_Event, _Username, _Message, RoomId}) ->
-    RoomId.
+room({_Event, _Username, _Message, Room}) ->
+    Room.
 
 -spec event(source_message()) ->
     atom().
 
-event({Event, _Username, _Message, _RoomId}) ->
+event({Event, _Username, _Message, _Room}) ->
     Event.
 
 -spec message(source_message()) ->
     binary().
 
-message({_Event, _Username, Message, _RoomId}) ->
+message({_Event, _Username, Message, _Room}) ->
     Message.
 
 -spec user(source_message()) ->
     binary().
 
-user({_Event, Username, _Message, _RoomId}) ->
+user({_Event, Username, _Message, _Room}) ->
     Username.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec raw_to_map(Event :: atom(), User :: binary(), Message :: binary(), RoomId :: atom()) ->
-    message_map().
+-spec raw_to_map(source_message()) ->
+    jiffy:json_value().
 
-raw_to_map(Event, User, Message, RoomId) ->
-    #{event => Event, user => User, message => Message, room => RoomId}.
+raw_to_map({Event, User, Message, Room}) ->
+    #{<<"event">> => Event, <<"user">> => User, <<"message">> => Message, <<"room">> => Room}.
 
--spec create_json(message_map()) ->
-    json().
+map_to_raw(#{<<"event">> := Event, <<"user">> := User, <<"message">> := Msg, <<"room">> := Room}) ->
+    {decode_event(Event), User, Msg, Room}.
 
-create_json(Map) ->
-    jiffy:encode(Map).
+-spec decode_event(binary()) ->
+    event().
 
--spec normalize_map(binary_key_map()) ->
-    source_message().
-
-normalize_map(Binary_key_map) -> % Not really nessesary, yet added to extend the readability
-    Event = binary_to_atom(maps:get(<<"event">>, Binary_key_map)),
-    User = maps:get(<<"user">>, Binary_key_map),
-    Message = maps:get(<<"message">>, Binary_key_map),
-    RoomId = binary_to_atom(maps:get(<<"room">>, Binary_key_map)),
-    {Event, User, Message, RoomId}.
-
--spec binary_to_atom(Binary :: binary()) ->
-    atom().
-
-binary_to_atom(Binary) ->
-    List = binary_to_list(Binary),
-    list_to_atom(List).
+decode_event(<<"send_message">>) ->
+    send_message;
+decode_event(<<"register">>) ->
+    register;
+decode_event(<<"joined">>) ->
+    joined;
+decode_event(<<"error">>) ->
+    error;
+decode_event(<<"left">>) ->
+    left;
+decode_event(<<"success">>) ->
+    success;
+decode_event(_) ->
+    undefined.

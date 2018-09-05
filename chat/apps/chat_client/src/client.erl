@@ -11,7 +11,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([test/0]).
 -export([send/3]).
 -export([join/2]).
 -export([leave/1]).
@@ -50,53 +49,41 @@
 -type connection_port() :: non_neg_integer().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec test() ->
-    message_list().
 
-test() -> % To be deleted
-    Id = client1,
-    Room = room1,
-    connected = connect("localhost", 8080, Id),
-    _ = set_username(Id, <<"Igor">>),
-    join(Id, Room),
-    send(Id, <<"Holla">>, Room),
-    timer:sleep(200), % Give some time to handle sending and receiving messages,
-    get_messages(Id).
-
--spec start_link(Id :: atom()) ->
+-spec start_link(Id :: binary()) ->
     {ok, pid()}.
 
 start_link(Id) ->
-    gen_server:start_link({global, Id}, ?MODULE, "Incognito", []).
+    gen_server:start_link({global, Id}, ?MODULE, <<"Incognito">>, []).
 
--spec connect(Host :: host(), Port :: connection_port(), Id :: atom()) ->
+-spec connect(Host :: host(), Port :: connection_port(), Id :: binary()) ->
     connected.
 
 connect(Host, Port, Id) ->
     gen_server:call({global, Id}, {connect, Host, Port}).
 
--spec send(Id :: atom(), Message :: binary(), RoomId :: atom()) ->
+-spec send(Id :: binary(), Message :: binary(), RoomId :: binary()) ->
     ok.
 
 send(Id, Message, RoomId) ->
     gen_server:cast({global, Id}, {send_message, {Message, RoomId}}).
 
--spec set_username(Id :: atom(), Username :: binary()) ->
+-spec set_username(Id :: binary(), Username :: binary()) ->
     binary().
 
 set_username(Id, Username) ->
     gen_server:call({global, Id}, {set_username, Username}).
 
--spec join(Id :: atom(), RoomId :: atom()) ->
+-spec join(Id :: binary(), RoomId :: binary()) ->
     ok.
 
 join(Id, RoomId) ->
     gen_server:call({global, Id}, {join, RoomId}).
 
-leave(Id) ->
+leave(Id) -> % Might be a really bad idea, to stop like this
     gen_server:call({global, Id}, stop).
 
--spec get_messages(Id :: atom()) ->
+-spec get_messages(Id :: binary()) ->
     message_list().
 
 get_messages(Id) ->
@@ -175,12 +162,12 @@ ws_connect(Host, Port, State) ->
     ok.
 
 format_message(Json) -> % Optional output
-    Decoded = protocol:decode(Json),
-    Username = protocol:user(Decoded),
-    Event = protocol:event(Decoded),
+    SourceMessage = protocol:decode(Json),
+    Username = protocol:user(SourceMessage),
+    Event = protocol:event(SourceMessage),
     case Event of
         send_message ->
-            Message = protocol:message(Decoded),
+            Message = protocol:message(SourceMessage),
             io:fwrite("~p: ~p~n", [binary_to_list(Username), binary_to_list(Message)]);
         success ->
             ok;
@@ -217,7 +204,7 @@ handle_call({set_username, Username}, _From, State) ->
 
 handle_call({join, RoomId}, _From, #{status := connected} = State) ->
     {Username, PID} = connection_info(State),
-    Message = protocol:encode(register, Username, <<"">>, RoomId),
+    Message = protocol:encode({register, Username, <<"">>, RoomId}),
     ok = lager:info("Sending message ~p throught websocket", [Message]),
     gun:ws_send(PID, {text, Message}),
     NewState = update_status(registered, State),
@@ -230,7 +217,7 @@ handle_call(stop, _From, State) -> % Stopping connection will cause leaving the 
     {ok, disconnected, NewState};
 
 handle_call(get_messages, _From, State) ->
-    ok = lager:info("User ~p asked for received messages"),
+    ok = lager:info("User ~p asked for received messages", [username(State)]),
     MessageList = get_messages_(State),
     {reply, MessageList, State};
 
@@ -244,9 +231,9 @@ handle_call(_, _, State) ->
 handle_cast({send_message, {Message, RoomId}}, #{status := registered} = State) ->
         {Username, PID} = connection_info(State),
         Username = username(State),
-        EncodedMessage = protocol:encode(send_message, <<"">>, Message, RoomId),
-        ok = lager:info("Sending message ~p throught websocket", [EncodedMessage]),
-        gun:ws_send(PID, {text, EncodedMessage}),
+        Json = protocol:encode({send_message, <<"">>, Message, RoomId}),
+        ok = lager:info("Sending message ~p throught websocket", [Json]),
+        gun:ws_send(PID, {text, Json}),
     {noreply, State};
 
 handle_cast(_, State) ->

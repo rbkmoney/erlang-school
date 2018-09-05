@@ -38,9 +38,9 @@ init([]) ->
         period => 10
     },
     Client = #{
-        id => client1,
+        id => <<"client1">>,
         type => worker,
-        start => {client, start_link, [client1]}
+        start => {client, start_link, [<<"client1">>]}
     },
     {ok, {SupArgs, [Client]}}.
 

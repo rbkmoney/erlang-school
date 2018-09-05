@@ -42,7 +42,7 @@ register_room(Id, PID) ->
     gen_server:cast({global, ?MODULE}, {create, Id, PID}),
     ok.
 
--spec get_room(Id :: term) ->
+-spec get_room(Id :: binary()) ->
     pid() | not_found.
 
 get_room(Id) ->
