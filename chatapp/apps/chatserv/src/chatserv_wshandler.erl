@@ -63,15 +63,14 @@ websocket_info(_Info, State) ->
 -spec terminate(_, _, state()) ->
     ok.
 terminate(_, _, _State = #{joined_rooms := Rooms}) ->
-    true = maps:fold(
+    ok = maps:fold(
         fun(K, _, _) ->
-            ok = lager:info("User ~p has left and is leaving room ~p", [self(), K]),
+            ok = lager:info("User ~p has disconnected and is leaving room ~p", [self(), K]),
 
-            unsubscribe(K)
+            ok = unsubscribe(K)
         end,
         ok, Rooms
-    ),
-    ok.
+    ).
 
 %%
 %% internal
@@ -139,7 +138,7 @@ do_join_room(RoomId, Rooms) ->
 join_room(RoomId, Rooms) ->
     case room_joined(RoomId, Rooms) of
         false ->
-            true = subscribe(RoomId),
+            ok = subscribe(RoomId),
 
             {ok, room_enlist(RoomId, ?DEFAULT_USERNAME, Rooms)};
 
@@ -169,28 +168,29 @@ do_send_message(RoomId, MessageString, Rooms) ->
             MemberName = get_member_name(RoomId, Rooms),
             Message = { erlang:universaltime(), MemberName, MessageString },
 
-            _ = notify(RoomId, {message_notification, RoomId, [Message]}),
-
-            ok;
+            ok = notify(RoomId, {message_notification, RoomId, [Message]});
 
         false ->
             {error, room_not_joined}
     end.
 
 -spec subscribe(chatlib_proto:room_id()) ->
-    boolean().
+    ok.
 subscribe(RoomId) ->
-    gproc:reg({p, l, {chat_room, RoomId}}).
+    true = gproc:reg({p, l, {chat_room, RoomId}}),
+    ok.
 
 -spec notify(chatlib_proto:room_id(), chatlib_proto:packet()) ->
-    chatlib_proto:room_message().
+    ok.
 notify(RoomId, Message) ->
-    gproc:send({p, l, {chat_room, RoomId}}, Message).
+    Message = gproc:send({p, l, {chat_room, RoomId}}, Message),
+    ok.
 
 -spec unsubscribe(chatlib_proto:room_id()) ->
-    boolean().
+    ok.
 unsubscribe(RoomId) ->
-    gproc:unreg({p, l, {chat_room, RoomId}}).
+    true = gproc:unreg({p, l, {chat_room, RoomId}}),
+    ok.
 
 -spec room_joined(chatlib_proto:room_id(), rooms_map()) ->
     boolean().
