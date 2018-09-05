@@ -51,7 +51,7 @@ solo_happy(_) ->
     ok = chatcli_client:set_name(C1, 1, "Test"),
     ok = chatcli_client:send_message(C1, 1, "Test Message"),
 
-    ok = receive_messages([C1]),
+    ok = receive_messages([C1], "Test", "Test Message"),
 
     stop_client(C1).
 
@@ -87,12 +87,13 @@ duo_exchange(_) ->
     ok = chatcli_client:send_message(C1, 1, "Test Message From User 1"),
     ok = chatcli_client:send_message(C2, 1, "Test Message From User 2"),
 
-    ok = receive_messages([C1, C2]),
+    ok = receive_messages([C1, C2], "TestUser1", "Test Message From User 1"),
+    ok = receive_messages([C1, C2], "TestUser2", "Test Message From User 2"),
 
     ok = chatcli_client:send_message(C2, 2, "A message from User 2 user 1 should not see"),
 
-    ok = receive_messages([C2]),
-    timeout = receive_messages([C1]),
+    ok = receive_messages([C2], "TestUser2", "A message from User 2 user 1 should not see"),
+    timeout = receive_messages([C1], "TestUser2", "A message from User 2 user 1 should not see"),
 
     stop_client(C1),
     stop_client(C2).
@@ -102,12 +103,12 @@ duo_exchange(_) ->
 %%
 
 message_cb(TestPid) ->
-    fun(_, Messages) -> lager:info("~p ~p", [self(), Messages]), TestPid ! {recieve_message, self()} end.
+    fun(_, [{_, Name, Message}]) -> TestPid ! {recieve_message, self(), Name, Message} end.
 
-receive_messages([]) -> ok;
-receive_messages([H|T]) ->
+receive_messages([], _, _) -> ok;
+receive_messages([H|T], Name, Message) ->
     receive
-        {recieve_message, H} -> receive_messages(T)
+        {recieve_message, H, Name, Message} -> receive_messages(T, Name, Message)
         after ?RCV_TIMEOUT -> timeout
     end.
 

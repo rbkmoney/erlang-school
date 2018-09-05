@@ -17,7 +17,7 @@
     websocket_init/1,
     websocket_handle/2,
     websocket_info/2,
-    terminate/2
+    terminate/3
 ]).
 
 %%
@@ -60,16 +60,23 @@ websocket_info(Msg = {message_notification, _, _}, State) ->
 websocket_info(_Info, State) ->
     {ok, State}.
 
--spec terminate(_, state()) ->
+-spec terminate(_, _, state()) ->
     ok.
-terminate(_Reason, _State) ->
+terminate(_, _, _State = #{joined_rooms := Rooms}) ->
+    true = maps:fold(
+        fun(K, _, _) ->
+            ok = lager:info("User ~p has left and is leaving room ~p", [self(), K]),
+
+            unsubscribe(K)
+        end,
+        ok, Rooms
+    ),
     ok.
 
 %%
 %% internal
 %%
 
-%remains unchanged
 -spec handle_message(chatlib_proto:packet(), state()) ->
     {chatlib_proto:packet(), state()}.
 handle_message(get_rooms, State) ->
@@ -78,11 +85,12 @@ handle_message(get_rooms, State) ->
 
     {Response, State};
 
-%means gproc:reg({p, l, {chat_room, RoomId}})
 handle_message({join_room, RoomId}, State = #{joined_rooms := Rooms}) ->
     case chatserv_room_manager:check_room_exists(RoomId) of
         true ->
             {UpdatedRooms, Response} = do_join_room(RoomId, Rooms),
+
+            ok = lager:info("User ~p joined room ~p", [self(), RoomId]),
 
             {Response, State#{joined_rooms := UpdatedRooms}};
 
@@ -90,21 +98,23 @@ handle_message({join_room, RoomId}, State = #{joined_rooms := Rooms}) ->
             {{server_response, RoomId, room_does_not_exist}, State#{joined_rooms := Rooms}}
     end;
 
-%means changing name internally in state
 handle_message({set_name, RoomId, NameString}, State = #{joined_rooms := Rooms}) ->
     case do_change_name(RoomId, NameString, Rooms) of
         {ok, NewRooms} ->
+            ok = lager:info("User ~p has set a new name ~p in room ~p", [self(), NameString, RoomId]),
+
             {{server_response, RoomId, ok}, State#{joined_rooms := NewRooms}};
 
         {error, room_not_joined} ->
             {{server_response, RoomId, room_not_joined}, State}
     end;
 
-%means gproc:msg({p, l, {chat_room, RoomId}}, Message)
 handle_message({send_message, RoomId, MessageString}, State = #{joined_rooms := Rooms}) ->
     Response =
         case do_send_message(RoomId, MessageString, Rooms) of
             ok ->
+                ok = lager:info("User ~p has sent a new message ~p to room ~p", [self(), MessageString, RoomId]),
+
                 {server_response, RoomId, ok};
 
             {error, room_not_joined} ->
@@ -112,11 +122,6 @@ handle_message({send_message, RoomId, MessageString}, State = #{joined_rooms := 
         end,
 
     {Response, State}.
-
--spec room_joined(chatlib_proto:room_id(), rooms_map()) ->
-    boolean().
-room_joined(RoomId, Rooms) ->
-    maps:is_key(RoomId, Rooms).
 
 -spec do_join_room(chatlib_proto:room_id(), rooms_map()) ->
     {rooms_map(), chatlib_proto:packet()}.
@@ -134,18 +139,20 @@ do_join_room(RoomId, Rooms) ->
 join_room(RoomId, Rooms) ->
     case room_joined(RoomId, Rooms) of
         false ->
-            true = gproc:reg({p, l, {chat_room, RoomId}}), %@todo unregister when terminate
+            true = subscribe(RoomId),
 
-            {ok, maps:put(RoomId, ?DEFAULT_USERNAME, Rooms)};
+            {ok, room_enlist(RoomId, ?DEFAULT_USERNAME, Rooms)};
 
         true ->
             {error, room_already_joined}
     end.
 
+-spec do_change_name(chatlib_proto:room_id(), chatlib_proto:member_name(), rooms_map()) ->
+    {ok, rooms_map()} | {error, room_not_joined}.
 do_change_name(RoomId, NameString, Rooms) ->
     case room_joined(RoomId, Rooms) of
         true ->
-            NewRooms = maps:put(RoomId, NameString, Rooms),
+            NewRooms = room_enlist(RoomId, NameString, Rooms),
 
             {ok, NewRooms};
 
@@ -153,16 +160,49 @@ do_change_name(RoomId, NameString, Rooms) ->
             {error, room_not_joined}
     end.
 
+
+-spec do_send_message(chatlib_proto:room_id(), chatlib_proto:message_text(), rooms_map()) ->
+    ok | {error, room_not_joined}.
 do_send_message(RoomId, MessageString, Rooms) ->
     case room_joined(RoomId, Rooms) of
         true ->
-            MemberName = maps:get(RoomId, Rooms),
+            MemberName = get_member_name(RoomId, Rooms),
             Message = { erlang:universaltime(), MemberName, MessageString },
 
-            _ = gproc:send({p, l, {chat_room, RoomId}}, {message_notification, RoomId, [Message]}),
+            _ = notify(RoomId, {message_notification, RoomId, [Message]}),
 
             ok;
 
         false ->
             {error, room_not_joined}
     end.
+
+-spec subscribe(chatlib_proto:room_id()) ->
+    boolean().
+subscribe(RoomId) ->
+    gproc:reg({p, l, {chat_room, RoomId}}).
+
+-spec notify(chatlib_proto:room_id(), chatlib_proto:packet()) ->
+    chatlib_proto:room_message().
+notify(RoomId, Message) ->
+    gproc:send({p, l, {chat_room, RoomId}}, Message).
+
+-spec unsubscribe(chatlib_proto:room_id()) ->
+    boolean().
+unsubscribe(RoomId) ->
+    gproc:unreg({p, l, {chat_room, RoomId}}).
+
+-spec room_joined(chatlib_proto:room_id(), rooms_map()) ->
+    boolean().
+room_joined(RoomId, Rooms) ->
+    maps:is_key(RoomId, Rooms).
+
+-spec room_enlist(chatlib_proto:room_id(), chatlib_proto:member_name(), rooms_map()) ->
+    rooms_map().
+room_enlist(RoomId, MemberName, Rooms) ->
+    maps:put(RoomId, MemberName, Rooms).
+
+-spec get_member_name(chatlib_proto:room_id(), rooms_map()) ->
+    chatlib_proto:member_name().
+get_member_name(RoomId, Rooms) ->
+    maps:get(RoomId, Rooms).
