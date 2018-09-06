@@ -22,19 +22,19 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec create_room(Id :: atom()) ->
-    created | already_exists.
+-spec create_room(Id :: binary()) ->
+    ok | already_exists.
 
 create_room(Id) ->
     case get_room(Id) of
         not_found ->
-            created = room_sup:create_room(Id),
-            created;
+            ok = room_sup:create_room(Id),
+            ok;
         _ ->
             already_exists
     end.
 
--spec register_room(Id :: atom(), PID :: pid()) ->
+-spec register_room(Id :: binary(), PID :: pid()) ->
     ok.
 
 register_room(Id, PID) ->
@@ -54,7 +54,7 @@ get_room(Id) ->
 get_rooms() ->
     gen_server:call({global, ?MODULE}, {get_rooms}).
 
--spec delete_room(Id :: atom) ->
+-spec delete_room(Id :: binary()) ->
     deleted | not_found.
 
 delete_room(Id) ->
@@ -62,7 +62,7 @@ delete_room(Id) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec room_exists(Id :: atom(), State :: state()) ->
+-spec room_exists(Id :: binary(), State :: state()) ->
     boolean().
 
 room_exists(Id, State) ->
@@ -73,19 +73,19 @@ room_exists(Id, State) ->
             true
     end.
 
--spec find_room(Id :: atom(), State :: state()) ->
+-spec find_room(Id :: binary(), State :: state()) ->
     pid() | not_found.
 
 find_room(Id, State) ->
     maps:get(Id, State, not_found).
 
--spec register_room(Id :: atom(), PID :: pid(), State :: state()) ->
+-spec register_room(Id :: binary(), PID :: pid(), State :: state()) ->
     state().
 
 register_room(Id, PID, State) ->
     maps:put(Id, PID, State).
 
--spec delete_room(Id :: atom(), State :: state()) ->
+-spec delete_room(Id :: binary(), State :: state()) ->
     state().
 
 delete_room(Id, State) ->
@@ -113,7 +113,7 @@ init(undefined) ->
     {ok, #{}}.
 
 -spec handle_cast
-    ({create, Id :: atom(), PID :: pid()}, State :: state()) ->
+    ({create, Id :: binary(), PID :: pid()}, State :: state()) ->
         {noreply, state()}.
 
 handle_cast({create, Id, PID}, State) ->
@@ -130,10 +130,10 @@ handle_cast({create, Id, PID}, State) ->
 -spec handle_call
     ({get_rooms}, _From :: {pid(), reference()}, State :: state()) -> %Tag is taken from docs
         {reply, list(), state()};
-    ({get_room_pid, Id :: atom()}, _From :: {pid(), reference()}, State :: state()) ->
-        {reply, pid(), state()};
-    ({delete_room, Id :: atom()}, _From :: {pid(), reference()}, State :: state()) ->
-        {reply, deleted | not_found, state()}.
+    ({get_room_pid, Id :: binary()}, _From :: {pid(), reference()}, State :: state()) ->
+        {reply, pid() | not_found, state()};
+    ({delete_room, Id :: binary()}, _From :: {pid(), reference()}, State :: state()) ->
+        {reply, ok | {error, room_sup:error()} | not_found, state()}.
 
 
 handle_call({get_rooms}, _From, State) ->
@@ -149,8 +149,7 @@ handle_call({delete_room, Id}, _From, State) ->
     NewState = case room_exists(Id, State) of
         true ->
             ok = lager:notice("Deleting room ~p", [Id]),
-            deleted = room_sup:delete_room(Id),
-            Reply = deleted,
+            Reply = room_sup:delete_room(Id),
             delete_room(Id, State);
         false ->
             Reply = not_found,

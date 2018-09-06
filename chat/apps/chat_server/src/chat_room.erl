@@ -15,20 +15,11 @@
 -export([start_link/1]).
 -export([send/2]).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
--export_type([username/0]).
--export_type([message/0]).
--export_type([broadcast_message/0]).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type state() :: map().
--type username() :: message().
--type message() :: binary() | string().
+-type state() :: #{room => binary(), connections => #{pid() => binary()}}.
 -type source_message() :: protocol:source_message().
 -type websocket_down_message() :: {'DOWN', reference(), process, pid(), term()}.
--type broadcast_message() :: jiffy:json_value().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -53,7 +44,7 @@ send(SourceMessage, Source) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec broadcast(Message :: broadcast_message(), State :: map()) ->
+-spec broadcast(Message :: source_message(), State :: state()) ->
     ok.
 
 broadcast(Message, State) ->
@@ -69,7 +60,7 @@ broadcast(Message, State) ->
 this_room(State) ->
     maps:get(room, State).
 
--spec add_user(PID :: pid(), Username :: username(), State :: state()) ->
+-spec add_user(PID :: pid(), Username :: binary(), State :: state()) ->
     state().
 
 add_user(PID, Username, State) ->
@@ -85,7 +76,7 @@ remove_user(PID, State) ->
     NewConnections = maps:remove(PID, Connections),
     maps:put(connections, NewConnections, State).
 
--spec register_user(Username :: username(), PID :: pid(), State :: state()) ->
+-spec register_user(Username :: binary(), PID :: pid(), State :: state()) ->
     state().
 
 register_user(Username, PID, State) ->
@@ -96,15 +87,16 @@ register_user(Username, PID, State) ->
     broadcast(Reply, NewState),
     NewState.
 
--spec get_user(pid(), state()) ->
-    username().
+-spec get_user(PID :: pid(), State :: state()) ->
+    binary().
+
  get_user(PID, State) ->
      Connections = maps:get(connections, State),
      maps:get(PID, Connections, "Incognito").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec init(atom()) ->
+-spec init(Id :: binary()) ->
     {ok, state()}.
 
 init(Id) ->
@@ -113,8 +105,7 @@ init(Id) ->
     room_manager:register_room(Id, self()),
     {ok, #{room => Id, connections => #{}}}.
 
--spec handle_cast
-    ({source_message, source_message(), pid()}, State :: state()) ->
+-spec handle_cast({source_message, source_message(), pid()}, State :: state()) ->
         {noreply, state()}.
 
 handle_cast({source_message, {send_message, _Username, Message, RoomId}, Source}, State) ->
@@ -137,7 +128,7 @@ handle_cast({source_message, {register, Username, _Message, _RoomId}, Source}, S
 handle_call(_, _, State) ->
     {reply, ok, State}.
 
--spec handle_info(websocket_down_message(), state()) ->
+-spec handle_info(websocket_down_message(), State :: state()) ->
     {noreply, state()}.
 
 handle_info({'DOWN', _, process, PID, _}, State) ->
@@ -149,7 +140,7 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
     broadcast(Reply, NewState),
     {noreply, NewState}.
 
--spec terminate(normal, state()) ->
+-spec terminate(normal, State :: state()) ->
     ok.
 
 terminate(_, State) ->

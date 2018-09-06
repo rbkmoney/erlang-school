@@ -24,7 +24,7 @@
 
 -type event() :: register | left | joined | error | send_message | success.
 -type source_message() :: {event(), binary(), binary(), binary()}.
--type binary_key_map() :: #{binary() => binary()}.
+-type binary_key_map() :: #{binary() => binary() | atom()}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -69,10 +69,13 @@ user({_Event, Username, _Message, _Room}) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec raw_to_map(source_message()) ->
-    jiffy:json_value().
+    binary_key_map().
 
 raw_to_map({Event, User, Message, Room}) ->
     #{<<"event">> => Event, <<"user">> => User, <<"message">> => Message, <<"room">> => Room}.
+
+-spec map_to_raw(binary_key_map()) ->
+    source_message().
 
 map_to_raw(#{<<"event">> := Event, <<"user">> := User, <<"message">> := Msg, <<"room">> := Room}) ->
     {decode_event(Event), User, Msg, Room}.

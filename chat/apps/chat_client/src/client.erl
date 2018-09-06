@@ -91,7 +91,7 @@ get_messages(Id) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec add_message(Json :: protocol:json(), State :: state()) ->
+-spec add_message(Json :: jiffy:json_value(), State :: state()) ->
     state().
 
 add_message(Json, State) ->
@@ -158,7 +158,7 @@ ws_connect(Host, Port, State) ->
     NewState = update_status(connected, State),
     maps:put(pid, Pid, NewState).
 
--spec format_message(Json :: protocol:json()) ->
+-spec format_message(Json ::  jiffy:json_value()) ->
     ok.
 
 format_message(Json) -> % Optional output

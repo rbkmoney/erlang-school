@@ -114,7 +114,6 @@ send_message(C) ->
     C.
 
 receive_message(C) ->
-    Message = ?config(message, C),
     Id = ?config(id, C),
     timer:sleep(150), % give server some time to handle and respond
     List = client:get_messages(Id),
