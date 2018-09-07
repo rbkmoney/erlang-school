@@ -28,8 +28,9 @@
 create_room(Id) ->
     case get_room(Id) of
         not_found ->
-            ok = room_sup:create_room(Id),
-            ok;
+            Reply = room_sup:create_room(Id),
+            lager:notice("Create room retured ~p", [Reply]),
+            Reply;
         _ ->
             already_exists
     end.
@@ -39,26 +40,26 @@ create_room(Id) ->
 
 register_room(Id, PID) ->
     ok = lager:notice("Room ~p wants to sign up as ~p", [PID, Id]),
-    gen_server:cast({global, ?MODULE}, {create, Id, PID}),
+    gen_server:cast(?MODULE, {create, Id, PID}),
     ok.
 
 -spec get_room(Id :: binary()) ->
     pid() | not_found.
 
 get_room(Id) ->
-    gen_server:call({global, ?MODULE}, {get_room_pid, Id}).
+    gen_server:call(?MODULE, {get_room_pid, Id}).
 
 -spec get_rooms() ->
     [atom()].
 
 get_rooms() ->
-    gen_server:call({global, ?MODULE}, {get_rooms}).
+    gen_server:call(?MODULE, {get_rooms}).
 
 -spec delete_room(Id :: binary()) ->
     deleted | not_found.
 
 delete_room(Id) ->
-    gen_server:call({global, ?MODULE}, {delete_room, Id}).
+    gen_server:call(?MODULE, {delete_room, Id}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -103,7 +104,7 @@ room_id_list(State) ->
     {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 
 start_link() ->
-    gen_server:start_link({global, ?MODULE}, ?MODULE, undefined, []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, undefined, []).
 
 -spec init(undefined) ->
     {ok, state()}.

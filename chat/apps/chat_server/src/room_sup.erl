@@ -28,7 +28,7 @@
     {ok, pid()}.
 
 start_link() ->
-    supervisor:start_link({global, room_sup}, ?MODULE, []).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 -spec create_room(RoomId :: binary()) ->
     ok | error.
@@ -40,13 +40,14 @@ create_room(RoomId) ->
         type => worker,
         start => {chat_room, start_link, [RoomId]}
     },
-    case supervisor:start_child({global, room_sup}, Child) of
+    case supervisor:start_child(?MODULE, Child) of
         {ok, _} ->
             ok;
         {ok, _, _} ->
             ok;
-        {error, _} ->
-            error
+        {error, Error} ->
+            lager:notice("Supervisor can't start child with ~p", [Error]),
+            {error, Error}
     end.
 
 -spec delete_room(RoomId :: binary()) ->
@@ -54,9 +55,9 @@ create_room(RoomId) ->
 
 delete_room(RoomId) ->
     ok = lager:info("Room supervisor is trying to delete child ~p", [RoomId]),
-    case supervisor:terminate_child({global, room_sup}, RoomId) of
+    case supervisor:terminate_child(?MODULE, RoomId) of
         ok ->
-            supervisor:delete_child({global, room_sup}, RoomId);
+            supervisor:delete_child(?MODULE, RoomId);
         {error, Error} ->
             {error, Error}
     end.
@@ -74,7 +75,8 @@ init([]) ->
         period => 10
     },
     Server = #{  % Single room at the start
-        id => room1,
+        id => <<"room1">>,
+        type => worker,
         start => {chat_room, start_link, [<<"room1">>]}
     },
     {ok, {SupArgs, [Server]}}.
