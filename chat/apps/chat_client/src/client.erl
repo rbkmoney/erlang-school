@@ -204,7 +204,7 @@ handle_call({set_username, Username}, _From, State) ->
 
 handle_call({join, RoomId}, _From, #{status := connected} = State) ->
     {Username, PID} = connection_info(State),
-    Message = protocol:encode({register, Username, <<"">>, RoomId}),
+    Message = protocol:encode({register, Username, <<>>, RoomId}),
     ok = lager:info("Sending message ~p throught websocket", [Message]),
     gun:ws_send(PID, {text, Message}),
     NewState = update_status(registered, State),
@@ -231,7 +231,7 @@ handle_call(_, _, State) ->
 handle_cast({send_message, {Message, RoomId}}, #{status := registered} = State) ->
         {Username, PID} = connection_info(State),
         Username = username(State),
-        Json = protocol:encode({send_message, <<"">>, Message, RoomId}),
+        Json = protocol:encode({send_message, <<>>, Message, RoomId}),
         ok = lager:info("Sending message ~p throught websocket", [Json]),
         gun:ws_send(PID, {text, Json}),
     {noreply, State};

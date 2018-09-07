@@ -37,7 +37,7 @@ send(SourceMessage, Source) ->
     RoomId = protocol:room(SourceMessage),
     case room_manager:get_room(RoomId) of
         not_found ->
-            Reply = {error, <<"">>, <<"NO ROOM">>, <<"">>},
+            Reply = {error, <<>>, <<"NO ROOM">>, <<>>},
             ws_handler:send(Reply, Source);
         _ ->
             gen_server:cast({global, RoomId}, {source_message, SourceMessage, Source})
@@ -84,7 +84,7 @@ register_user(Username, PID, State) ->
     ok = lager:info("Registration of new user ~p", [Username]),
     NewState = add_user(PID, Username, State),
     erlang:monitor(process, PID),
-    Reply = {joined, Username, <<"">>, this_room(State)},
+    Reply = {joined, Username, <<>>, this_room(State)},
     broadcast(Reply, NewState),
     NewState.
 
@@ -117,7 +117,7 @@ handle_cast({source_message, {send_message, _Username, Message, RoomId}, Source}
     {noreply, State};
 
 handle_cast({source_message, {register, Username, _Message, _RoomId}, Source}, State) ->
-    Success = {success, <<"">>, <<"">>, this_room(State)},
+    Success = {success, <<>>, <<>>, this_room(State)},
     ws_handler:send(Success, Source),
     NewState = register_user(Username, Source, State),
     % It actuay works, even if client sends message immediatly after calling for registration, wow!
@@ -137,7 +137,7 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
     ok = lager:info("User ~p disconnected", [Username]),
     NewState = remove_user(PID, State),
     RoomId = this_room(State),
-    Reply = {left, Username, <<"">>, RoomId},
+    Reply = {left, Username, <<>>, RoomId},
     broadcast(Reply, NewState),
     {noreply, NewState}.
 
@@ -145,6 +145,6 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
     ok.
 
 terminate(_, State) ->
-    Reply = {error, <<"">>, <<"Room is terminated">>, this_room(State)},
+    Reply = {error, <<>>, <<"Room is terminated">>, this_room(State)},
     broadcast(Reply, State),
     ok.
