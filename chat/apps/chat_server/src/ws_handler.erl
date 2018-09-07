@@ -12,10 +12,6 @@
 
 -export([send/2]).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%-type state() :: term(). % Doesn't matter
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec send(Message :: protocol:source_message(), Pid :: pid()) ->

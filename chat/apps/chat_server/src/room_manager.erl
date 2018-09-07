@@ -29,7 +29,7 @@ create_room(Id) ->
     case get_room(Id) of
         not_found ->
             Reply = room_sup:create_room(Id),
-            lager:notice("Create room retured ~p", [Reply]),
+            ok = lager:notice("Create room retured ~p", [Reply]),
             Reply;
         _ ->
             already_exists

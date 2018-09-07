@@ -46,7 +46,7 @@ create_room(RoomId) ->
         {ok, _, _} ->
             ok;
         {error, Error} ->
-            lager:notice("Supervisor can't start child with ~p", [Error]),
+            ok = lager:error("Supervisor can't start child with ~p", [Error]),
             {error, Error}
     end.
 

@@ -87,7 +87,6 @@ end_per_group(room_management, C) ->
 get_room_list(C) ->
     Default = ?config(default_room, C),
     [Default] = room_manager:get_rooms(),
-    ct:print("Room manager returned ~p", [Default]),
     C.
 
 -spec create_room(C :: config()) ->

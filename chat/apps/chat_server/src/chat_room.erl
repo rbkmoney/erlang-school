@@ -27,7 +27,7 @@
     {ok, pid()}.
 
 start_link(Id) ->
-    lager:notice("Chat room ~p start_link", [Id]),
+    ok = lager:notice("Chat room ~p start_link", [Id]),
     gen_server:start_link({global, Id}, ?MODULE, Id, []).
 
 -spec send(SourceMessage :: source_message(), Source :: pid()) ->
