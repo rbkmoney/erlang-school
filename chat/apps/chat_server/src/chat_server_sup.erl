@@ -1,22 +1,21 @@
-%%%-------------------------------------------------------------------
-%% @doc chat top level supervisor.
-%% @end
-%%%-------------------------------------------------------------------
-
 -module(chat_server_sup).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% BEHAVIOUR EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -behaviour(supervisor).
 
-%% API.
+-export([init/1]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 -export([start_link/0]).
 
-%% supervisor.
--export([init/1]).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type supervisor_args() :: supervisor:sup_flags().
 -type child_args() :: supervisor:child_spec().
 
-%% API.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec start_link() ->
     {ok, pid()}.
@@ -24,7 +23,8 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-%% supervisor.
+%%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
 -spec init([]) ->
     {ok, {supervisor_args(), [child_args()]}}.
 

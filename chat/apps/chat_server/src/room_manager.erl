@@ -18,9 +18,15 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type state() :: #{atom() => pid()}.
+-type state() :: #{binary() => pid()}. % RoomName => it's pid
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec start_link() ->
+    {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
+
+start_link() ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, undefined, []).
 
 -spec create_room(Id :: binary()) ->
     ok | already_exists.
@@ -50,7 +56,7 @@ get_room(Id) ->
     gen_server:call(?MODULE, {get_room_pid, Id}).
 
 -spec get_rooms() ->
-    [atom()].
+    [binary()].
 
 get_rooms() ->
     gen_server:call(?MODULE, {get_rooms}).
@@ -100,12 +106,6 @@ room_id_list(State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec start_link() ->
-    {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
-
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, undefined, []).
-
 -spec init(undefined) ->
     {ok, state()}.
 
@@ -129,8 +129,8 @@ handle_cast({create, Id, PID}, State) ->
     {noreply, NewState}.
 
 -spec handle_call
-    ({get_rooms}, _From :: {pid(), reference()}, State :: state()) -> %Tag is taken from docs
-        {reply, list(), state()};
+    ({get_rooms}, _From :: {pid(), reference()}, State :: state()) -> % Tag is taken from docs
+        {reply, [binary()], state()};
     ({get_room_pid, Id :: binary()}, _From :: {pid(), reference()}, State :: state()) ->
         {reply, pid() | not_found, state()};
     ({delete_room, Id :: binary()}, _From :: {pid(), reference()}, State :: state()) ->

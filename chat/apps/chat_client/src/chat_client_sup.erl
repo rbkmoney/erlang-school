@@ -1,35 +1,37 @@
-%%%-------------------------------------------------------------------
-%% @doc chat_client top level supervisor.
-%% @end
-%%%-------------------------------------------------------------------
-
 -module(chat_client_sup).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% BEHAVIOUR EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -behaviour(supervisor).
 
-%% API
+-export([init/1]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 -export([start_link/0]).
 
-%% Supervisor callbacks
--export([init/1]).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -define(SERVER, ?MODULE).
 
-%%====================================================================
-%% API functions
-%%====================================================================
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-type supervisor_args() :: supervisor:sup_flags().
+-type child_args() :: supervisor:child_spec().
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec start_link() ->
+    {ok, pid()}.
 
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
-%%====================================================================
-%% Supervisor callbacks
-%%====================================================================
+%%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Child :: #{id => Id, start => {M, F, A}}
-%% Optional keys are restart, shutdown, type, modules.
-%% Before OTP 18 tuples must be used to specify a child. e.g.
-%% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
+-spec init([]) ->
+    {ok, {supervisor_args(), [child_args()]}}.
+
 init([]) ->
     ok = lager:notice("Chat_client supervisor Initialized"),
     SupArgs = #{
@@ -43,7 +45,3 @@ init([]) ->
         start => {client, start_link, [<<"client1">>]}
     },
     {ok, {SupArgs, [Client]}}.
-
-%%====================================================================
-%% Internal functions
-%%====================================================================

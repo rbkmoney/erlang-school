@@ -1,6 +1,5 @@
 -module(protocol).
 
-
 % На вход подаем {atom, binary, binary, binary}
 % На выходе получаем binary
 % На вход подаем binary

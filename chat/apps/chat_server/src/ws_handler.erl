@@ -56,6 +56,8 @@ websocket_info({send, Message}, State) ->
     Json = protocol:encode(Message),
     {reply, {text, Json}, State}.
 
-terminate(_Reason, _Req, _State) ->
-    ok = lager:info("Websocket process ~p is terminated", [self()]),
+-spec terminate(_Reason :: term(), _Req :: map(), State :: term()) ->
     ok.
+
+terminate(_Reason, _Req, _State) ->
+    ok = lager:info("Websocket process ~p is terminated", [self()]).
