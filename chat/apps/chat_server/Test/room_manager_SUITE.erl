@@ -6,42 +6,31 @@
 
 -compile([export_all]).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
--export_type([groupName/0]).
--export_type([proplist/0]).
--export_type([config/0]).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type groupName() :: atom().
--type proplist() :: [{atom(), term()}].
--type config() :: proplist().
+-type config() :: [{atom(), term()}].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-define(DEFAULT_ROOM, <<"room1">>).
+-define(CREATED_ROOM, <<"room2">>).
+-define(REGISTER_MESSAGE, <<"{\"user\":\"Igor\",\"room\":\"room1\",\"message\":\"Hello\",\"event\":\"register\"}">>).
+-define(SEND_MESSAGE, <<"{\"user\":\"Igor\",\"room\":\"room1\",\"message\":\"Hello\",\"event\":\"send_message\"}">>).
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec all() ->
-    [{group, groupName()}].
+    [atom()].
 
 all() ->
     [
-        {group, room_management}
-    ].
-
--spec groups() ->
-    [{groupName(), [sequence], [atom()]}].
-
-groups() ->
-    [
-        {room_management, [sequence], [
-            get_room_list,
-            create_room,
-            find_room,
-            cant_create_existing_room,
-            delete_room,
-            cant_delete_nonexistent_room,
-            cant_find_nonexistent_room
-        ]}
+    get_room_list,
+    create_room,
+    find_room,
+    cant_create_existing_room,
+    delete_room,
+    cant_delete_nonexistent_room,
+    cant_find_nonexistent_room
     ].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% SUITE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -50,89 +39,55 @@ groups() ->
     config().
 
 init_per_suite(C) ->
-    C1 = [{default_room, <<"room1">>},
-          {created_room, <<"room2">>},
-          {register, <<"{\"user\":\"Igor\",\"room\":\"room1\",\"message\":\"Hello\",\"event\":\"register\"}">>},
-          {send_message, <<"{\"user\":\"Igor\",\"room\":\"room1\",\"message\":\"Hello\",\"event\":\"send_message\"}">>}
-         ] ++ C,
-    application:ensure_all_started(chat_server),
-    application:start(chat_server),
-    C1.
+    {ok, Apps} = application:ensure_all_started(chat_server),
+    [{apps, [Apps]} | C].
 
 -spec end_per_suite(C :: config()) ->
-    config().
+    term().
 
 end_per_suite(C) ->
-    C.
+    [application:stop(App) || App <- ?config(apps, C)].
 
-%%%%%%%%%%%%%%%%%%%%%%%%% GROUP INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%
-
--spec init_per_group(groupName(), C :: config()) ->
-    config().
-
-init_per_group(room_management, C) ->
-    C.
-
--spec end_per_group(groupName() ,C :: config()) ->
-    config().
-
-end_per_group(room_management, C) ->
-    C.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%% ROOM MANAGEMENT %%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%% ROOM MANAGEMENT %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec get_room_list(C :: config()) ->
-    config().
+    term().
 
-get_room_list(C) ->
-    Default = ?config(default_room, C),
-    [Default] = room_manager:get_rooms(),
-    C.
+get_room_list(_C) ->
+    [?DEFAULT_ROOM] = room_manager:get_rooms().
 
 -spec create_room(C :: config()) ->
-    config().
+    term().
 
-create_room(C) ->
-    Created = ?config(created_room, C),
-    ok = room_manager:create_room(Created),
-    C.
+create_room(_C) ->
+    ok = room_manager:create_room(?CREATED_ROOM).
 
 -spec find_room(C :: config()) ->
-    config().
+    term().
 
-find_room(C) ->
-    Created = ?config(created_room, C),
-    true = is_pid(room_manager:get_room(Created)),
-    C.
+find_room(_C) ->
+    true = is_pid(room_manager:get_room(?CREATED_ROOM)).
 
 -spec cant_create_existing_room(C :: config()) ->
-    config().
+    term().
 
-cant_create_existing_room(C) ->
-    Created = ?config(created_room, C),
-    already_exists = room_manager:create_room(Created),
-    C.
+cant_create_existing_room(_C) ->
+    already_exists = room_manager:create_room(?CREATED_ROOM).
 
 -spec delete_room(C :: config()) ->
-    config().
+    term().
 
-delete_room(C) ->
-    Created = ?config(created_room, C),
-    ok = room_manager:delete_room(Created),
-    C.
+delete_room(_C) ->
+    ok = room_manager:delete_room(?CREATED_ROOM).
 
 -spec cant_delete_nonexistent_room(C :: config()) ->
-    config().
+    term().
 
-cant_delete_nonexistent_room(C) ->
-    Created = ?config(created_room, C),
-    not_found = room_manager:delete_room(Created),
-    C.
+cant_delete_nonexistent_room(_C) ->
+    not_found = room_manager:delete_room(?CREATED_ROOM).
 
 -spec cant_find_nonexistent_room(C :: config()) ->
-    config().
+    term().
 
-cant_find_nonexistent_room(C) ->
-    Created = ?config(created_room, C),
-    not_found = room_manager:get_room(Created),
-    C.
+cant_find_nonexistent_room(_C) ->
+    not_found = room_manager:get_room(?CREATED_ROOM).

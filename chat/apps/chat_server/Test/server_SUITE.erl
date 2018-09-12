@@ -8,9 +8,25 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type groupName() :: room_manager_SUITE:groupName().
--type proplist() :: room_manager_SUITE:proplist().
--type config() :: room_manager_SUITE:config().
+-type groupName() :: atom().
+-type config() :: [{atom(), term()}].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-define(HOST, "localhost").
+-define(PORT, 8080).
+-define(ID, <<"client1">>).
+-define(USER, <<"Igor">>).
+-define(MESSAGE, <<"Hello">>).
+-define(ROOM, <<"room1">>).
+-define(NONEXISTENT_ROOM_MESSAGE, {register, <<"Igor">>, <<"">>, <<"noroom">>}).
+-define(NO_ROOM_REPLY, {error, <<"">>, <<"NO ROOM">>, <<"">>}).
+-define(EXPECTED_MESSAGES,
+    [
+        {send_message, <<"Incognito">>, <<"Hello">>, <<"room1">>},
+        {joined, <<"Incognito">>, <<>>, <<"room1">>},
+        {success, <<>>, <<>>, <<"room1">>}
+    ]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -44,98 +60,48 @@ groups() ->
     config().
 
 init_per_suite(C) ->
-    application:ensure_all_started(chat_server),
-    application:ensure_all_started(library),
-    application:ensure_all_started(chat_client),
-    C.
+    {ok, Apps1} = application:ensure_all_started(chat_server),
+    {ok, Apps2} = application:ensure_all_started(library),
+    {ok, Apps3} = application:ensure_all_started(chat_client),
+    [{apps, [Apps1, Apps2, Apps3]} | C].
 
 -spec end_per_suite(C :: config()) ->
-    config().
+    term().
 
 end_per_suite(C) ->
-    application:stop(chat_server),
-    C.
-
-%%%%%%%%%%%%%%%%%%%%%%%%% GROUP INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%
-
--spec init_per_group(groupName(), C :: config()) ->
-    config().
-
-init_per_group(basic_interactions, C) ->
-    C1 = [
-    {       host, "localhost"},
-            {port, 8080},
-            {id, <<"client1">>},
-            {user, <<"Igor">>},
-            {message, <<"Hello">>},
-            {room, <<"room1">>}
-         ] ++ C,
-    C1;
-
-init_per_group(impossible_interactions, _C) ->
-    C1 = [
-            {nonexistent_room_message, {register, <<"Igor">>, <<"">>, <<"noroom">>}},
-            {no_room_reply, {error, <<"">>, <<"NO ROOM">>, <<"">>}}
-    ],
-    C1.
-
-
--spec end_per_group(groupName(), C :: config()) ->
-    config().
-
-end_per_group(basic_interactions, C) ->
-    C;
-
-end_per_group(impossible_interactions, C) ->
-    C.
+    [application:stop(App) || App <- ?config(apps, C)].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% BASIC INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec join_room(C :: config()) ->
-    config().
+    term().
 
-join_room(C) ->
-    Host = ?config(host, C),
-    Port = ?config(port, C),
-    Id   = ?config(id, C),
-    connected = client:connect(Host, Port, Id),
-    RoomId = ?config(room, C),
-    ok = client:join(Id, RoomId),
-    C.
+join_room(_C) ->
+    connected = client:connect(?HOST, ?PORT, ?ID),
+    ok = client:join(?ID, ?ROOM).
 
 -spec send_message(C :: config()) ->
-    config().
+    term().
 
-send_message(C) ->
-    Message = ?config(message, C),
-    Id = ?config(id, C),
-    RoomId = ?config(room, C),
-    client:send(Id, Message, RoomId),
-    C.
+send_message(_C) ->
+    client:send(?ID, ?MESSAGE, ?ROOM).
 
-receive_message(C) ->
-    Id = ?config(id, C),
-    timer:sleep(150), % give server some time to handle and respond
-    List = client:get_messages(Id),
-    [
-        {send_message,<<"Incognito">>,<<"Hello">>,<<"room1">>},
-        {joined,<<"Incognito">>,<<>>,<<"room1">>},
-        {success,<<>>,<<>>,<<"room1">>}
-    ] = List,
-    C.
+-spec receive_message(C :: config()) ->
+    term().
 
+receive_message(_C) ->
+    timer:sleep(150), % Give server some time to handle and respond
+    List = client:get_messages(?ID),
+    ?EXPECTED_MESSAGES = List.
 
 %%%%%%%%%%%%%%%%%%%%%%% IMPOSSIBLE INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%
 
 -spec cant_send_to_nonexistent_room(C :: config()) ->
-    config().
+    term().
 
-cant_send_to_nonexistent_room(C) ->
-    SourceMessage = ?config(nonexistent_room_message, C),
-    chat_room:send(SourceMessage, self()),
-    ExpectedReply = ?config(no_room_reply, C),
-    ExpectedReply = receive_reply(),
-    C.
+cant_send_to_nonexistent_room(_C) ->
+    chat_room:send(?NONEXISTENT_ROOM_MESSAGE, self()),
+    ?NO_ROOM_REPLY = receive_reply().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -149,9 +115,3 @@ receive_reply() ->
     after 2500 ->
         nothing
     end.
-
--spec del(Key :: atom(), List :: proplist()) ->
-    proplist().
-
-del(Key, List) ->
-    proplists:delete(Key, List).

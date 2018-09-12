@@ -8,79 +8,54 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type groupName() :: room_manager_SUITE:groupName().
--type config() :: room_manager_SUITE:config().
+-type config() :: [{atom(), term()}].
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec all() ->
-    [{group, groupName()}].
+    [atom()].
 
 all() ->
     [
-        {group, basic_interactions}
-    ].
-
--spec groups() ->
-    [{groupName(), [sequence], [atom()]}].
-
-groups() ->
-    [
-        {basic_interactions, [sequence], [
-            encodeJson,
-            decodeJson,
-            symmetry
-        ]}
+        encodeJson,
+        decodeJson,
+        symmetry
     ].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% SUITE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-define(DECODED_MSG, {left, <<"Igor">>, <<"Hello">>, <<"rm1">>}).
+-define(ENCODED_MSG, <<"{\"user\":\"Igor\",\"room\":\"rm1\",\"message\":\"Hello\",\"event\":\"left\"}">>).
 
 -spec init_per_suite(C :: config()) ->
     config().
 
 init_per_suite(C) ->
-    C1 = [
-            {source, {left, <<"Igor">>, <<"Hello">>, <<"rm1">>}},
-            {
-                encoded,
-                <<"{\"user\":\"Igor\",\"room\":\"rm1\",\"message\":\"Hello\",\"event\":\"left\"}">>
-            }
-         ] ++ C,
-    application:ensure_all_started(library),
-    application:start(library),
-    C1.
+    {ok, Apps} = application:ensure_all_started(library),
+    [{apps, [Apps]}|C].
 
 -spec end_per_suite(C :: config()) ->
-    config().
+    term().
 
 end_per_suite(C) ->
-    application:stop(library),
-    C.
+    [application:stop(App) || App <- ?config(apps, C)].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% BASIC INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec encodeJson(C :: config()) ->
-    config().
+    term().
 
-encodeJson(C) ->
-    SourceMessage = ?config(source, C),
-    Json = ?config(encoded, C),
-    Json = protocol:encode(SourceMessage),
-    C.
+encodeJson(_C) ->
+    ?ENCODED_MSG = protocol:encode(?DECODED_MSG).
 
 -spec decodeJson(C :: config()) ->
-    config().
+    term().
 
-decodeJson(C) ->
-    SourceMessage = ?config(source, C),
-    Json = ?config(encoded, C),
-    SourceMessage = protocol:decode(Json),
-    C.
+decodeJson(_C) ->
+    ?DECODED_MSG = protocol:decode(?ENCODED_MSG).
 
 -spec symmetry(C :: config()) ->
-    config().
+    term().
 
-symmetry(C) ->
-    SourceMessage = ?config(source, C),
-    SourceMessage = protocol:decode(protocol:encode(SourceMessage)),
-    C.
+symmetry(_C) ->
+    ?DECODED_MSG = protocol:decode(protocol:encode(?DECODED_MSG)).

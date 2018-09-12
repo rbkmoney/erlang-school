@@ -23,28 +23,16 @@
 
 -type status() :: connected | not_connected | registered.
 -type message_list() :: [protocol:source_message()].
--type state() :: #{
-    status => status(),
+-type state() :: state(status()).
+-type state(Status) :: #{
+    pid => pid(),
+    status => Status,
     username => binary(),
-    messageList => message_list()}.
--type connected_state() :: #{
-    pid => pid(),
-    status := connected,
-    messageList => message_list(),
-    username => binary()}.
-
--type registered_state() :: #{
-    pid => pid(),
-    status := registered,
-    messageList => message_list(),
-    username => binary()}.
-
--type not_connected_state() :: #{
-    pid => pid(),
-    status := not_connected,
-    messageList => message_list(),
-    username => binary()}.
-
+    messageList => message_list()
+}.
+-type connected_state() :: state(connected).
+-type registered_state() :: state(registered).
+-type not_connected_state() :: state(not_connected).
 -type host() :: string().
 -type connection_port() :: non_neg_integer().
 
@@ -97,9 +85,9 @@ get_messages(Id) ->
 add_message(Json, State) ->
     Message = protocol:decode(Json),
     ok = lager:info("Adding message ~p to mesageList", [Message]),
-    MessageList = maps:get(messageList, State, []),
+    #{messageList := MessageList} = State,
     NewMessageList = [Message | MessageList],
-    maps:put(messageList, NewMessageList, State).
+    State#{messageList => NewMessageList}.
 
 -spec get_messages_(State :: state()) ->
     state().
@@ -117,7 +105,7 @@ connection_info(State) ->
     state().
 
 update_status(NewStatus, State) ->
-    maps:put(status, NewStatus, State).
+    State#{status => NewStatus}.
 
 -spec username(State :: state()) ->
     binary().
@@ -129,7 +117,7 @@ username(State) ->
     state().
 
 set_username_(Username, State) ->
-    maps:put(username, Username, State).
+    State#{username => Username}.
 
 -spec pid(State :: state()) ->
     pid().
@@ -144,7 +132,7 @@ ws_connect(Host, Port, State) ->
     {ok, Pid} = gun:open(Host, Port),
     {ok, _} = gun:await_up(Pid),
     ok = lager:info("Connection to ~p:~p established, perfoming upgrade", [Host, Port]),
-    gun:ws_upgrade(Pid, "/websocket"),
+    _ = gun:ws_upgrade(Pid, "/websocket"),
     receive
         {gun_upgrade, Pid, _, [<<"websocket">>], _} ->
             ok = lager:info("Success");
@@ -156,23 +144,21 @@ ws_connect(Host, Port, State) ->
         exit(timeout)
     end,
     NewState = update_status(connected, State),
-    maps:put(pid, Pid, NewState).
+    NewState#{pid => Pid}.
 
 -spec format_message(Json ::  jiffy:json_value()) ->
     ok.
 
 format_message(Json) -> % Optional output
-    SourceMessage = protocol:decode(Json),
-    Username = protocol:user(SourceMessage),
-    Event = protocol:event(SourceMessage),
+    {Event, Username, Message, _} = protocol:decode(Json),
     case Event of
         send_message ->
-            Message = protocol:message(SourceMessage),
-            io:fwrite("~p: ~p~n", [binary_to_list(Username), binary_to_list(Message)]);
+            % Message = protocol:message(SourceMessage),
+            ok = io:fwrite("~p: ~p~n", [binary_to_list(Username), binary_to_list(Message)]);
         success ->
             ok;
         _ ->
-            io:fwrite("~p ~p this room~n", [binary_to_list(Username), Event])
+            ok = io:fwrite("~p ~p this room~n", [binary_to_list(Username), Event])
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -206,13 +192,13 @@ handle_call({join, RoomId}, _From, #{status := connected} = State) ->
     {Username, PID} = connection_info(State),
     Message = protocol:encode({register, Username, <<>>, RoomId}),
     ok = lager:info("Sending message ~p throught websocket", [Message]),
-    gun:ws_send(PID, {text, Message}),
+    ok = gun:ws_send(PID, {text, Message}),
     NewState = update_status(registered, State),
     {reply, ok, NewState};
 
 handle_call(stop, _From, State) -> % Stopping connection will cause leaving the server.
     PID = pid(State),
-    gun:close(PID),
+    ok = gun:close(PID),
     NewState = update_status(not_connected, State),
     {ok, disconnected, NewState};
 
@@ -233,7 +219,7 @@ handle_cast({send_message, {Message, RoomId}}, #{status := registered} = State) 
         Username = username(State),
         Json = protocol:encode({send_message, <<>>, Message, RoomId}),
         ok = lager:info("Sending message ~p throught websocket", [Json]),
-        gun:ws_send(PID, {text, Json}),
+        ok = gun:ws_send(PID, {text, Json}),
     {noreply, State};
 
 handle_cast(_, State) ->

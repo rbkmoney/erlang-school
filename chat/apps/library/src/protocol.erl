@@ -7,12 +7,8 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([room/1]).
--export([user/1]).
--export([event/1]).
 -export([encode/1]).
 -export([decode/1]).
--export([message/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -41,43 +37,36 @@ decode(Json) ->
     Map = jiffy:decode(Json, [return_maps]),
     map_to_raw(Map).
 
--spec room(source_message()) ->
-    binary().
-
-room({_Event, _Username, _Message, Room}) ->
-    Room.
-
--spec event(source_message()) ->
-    atom().
-
-event({Event, _Username, _Message, _Room}) ->
-    Event.
-
--spec message(source_message()) ->
-    binary().
-
-message({_Event, _Username, Message, _Room}) ->
-    Message.
-
--spec user(source_message()) ->
-    binary().
-
-user({_Event, Username, _Message, _Room}) ->
-    Username.
-
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec raw_to_map(source_message()) ->
     binary_key_map().
 
 raw_to_map({Event, User, Message, Room}) ->
-    #{<<"event">> => Event, <<"user">> => User, <<"message">> => Message, <<"room">> => Room}.
+    #{<<"event">> => encode_event(Event), <<"user">> => User, <<"message">> => Message, <<"room">> => Room}.
 
 -spec map_to_raw(binary_key_map()) ->
     source_message().
 
 map_to_raw(#{<<"event">> := Event, <<"user">> := User, <<"message">> := Msg, <<"room">> := Room}) ->
     {decode_event(Event), User, Msg, Room}.
+
+-spec encode_event(event()) ->
+    binary().
+
+encode_event(send_message) ->
+    <<"send_message">>;
+encode_event(register) ->
+    <<"register">>;
+encode_event(joined) ->
+    <<"joined">>;
+encode_event(error) ->
+    <<"error">>;
+encode_event(left) ->
+    <<"left">>;
+encode_event(success) ->
+    <<"success">>.
+% Может бросать ошибку если аргумент неверный?
 
 -spec decode_event(binary()) ->
     event().
@@ -93,6 +82,5 @@ decode_event(<<"error">>) ->
 decode_event(<<"left">>) ->
     left;
 decode_event(<<"success">>) ->
-    success;
-decode_event(_) ->
-    undefined.
+    success.
+% Может бросать ошибку если аргумент неверный?
