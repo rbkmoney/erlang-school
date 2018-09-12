@@ -9,16 +9,16 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([get_room/1]).
+-export([room_exists/1]).
 -export([get_rooms/0]).
 -export([start_link/0]).
 -export([create_room/1]).
 -export([delete_room/1]).
--export([register_room/2]).
+-export([register_room/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type state() :: #{binary() => pid()}. % RoomName => it's pid
+-type state() :: [binary()]. % RoomName => it's pid
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -31,35 +31,31 @@ start_link() ->
 -spec create_room(Id :: binary()) ->
     ok | already_exists.
 
+
+room_exists(Id) ->
+    gen_server:call(?MODULE, {exists, Id}).
+
 create_room(Id) ->
-    case get_room(Id) of
-        not_found ->
-            Reply = room_sup:create_room(Id),
-            ok = lager:notice("Create room retured ~p", [Reply]),
-            Reply;
-        _ ->
+    case room_exists(Id) of
+        false ->
+            chat_room:start_link(Id),
+            ok;
+        true ->
             already_exists
     end.
 
--spec register_room(Id :: binary(), PID :: pid()) ->
+-spec register_room(Id :: binary()) ->
     ok.
 
-register_room(Id, PID) ->
-    ok = lager:notice("Room ~p wants to sign up as ~p", [PID, Id]),
-    gen_server:cast(?MODULE, {create, Id, PID}),
-    ok.
-
--spec get_room(Id :: binary()) ->
-    pid() | not_found.
-
-get_room(Id) ->
-    gen_server:call(?MODULE, {get_room_pid, Id}).
+register_room(Id) ->
+    ok = lager:notice("Room wants to sign up as ~p", [Id]),
+    gen_server:call(?MODULE, {create, Id}).
 
 -spec get_rooms() ->
     [binary()].
 
 get_rooms() ->
-    gen_server:call(?MODULE, {get_rooms}).
+    gen_server:call(?MODULE, get_rooms).
 
 -spec delete_room(Id :: binary()) ->
     deleted | not_found.
@@ -73,36 +69,19 @@ delete_room(Id) ->
     boolean().
 
 room_exists(Id, State) ->
-    case find_room(Id, State) of
-        not_found ->
-            false;
-        _ ->
-            true
-    end.
+    lists:member(Id, State).
 
--spec find_room(Id :: binary(), State :: state()) ->
-    pid() | not_found.
-
-find_room(Id, State) ->
-    maps:get(Id, State, not_found).
-
--spec register_room(Id :: binary(), PID :: pid(), State :: state()) ->
+-spec register_room(Id :: binary(), State :: state()) ->
     state().
 
-register_room(Id, PID, State) ->
-    maps:put(Id, PID, State).
+register_room(Id, State) ->
+    [Id | State].
 
 -spec delete_room(Id :: binary(), State :: state()) ->
     state().
 
 delete_room(Id, State) ->
-    maps:remove(Id, State).
-
--spec room_id_list(State :: state()) ->
-    [atom()].
-
-room_id_list(State) ->
-    maps:keys(State).
+    lists:delete(Id, State).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -111,49 +90,48 @@ room_id_list(State) ->
 
 init(undefined) ->
     ok = lager:notice("Initialized room manager"),
-    {ok, #{}}.
-
--spec handle_cast
-    ({create, Id :: binary(), PID :: pid()}, State :: state()) ->
-        {noreply, state()}.
-
-handle_cast({create, Id, PID}, State) ->
-    case room_exists(Id, State) of
-        false ->
-            NewState = register_room(Id, PID, State),
-            ok = lager:info("Room ~p succesfully signed up in manager", [Id]);
-        true ->
-            ok = lager:info("Room ~p already exists", [Id]),
-            NewState = State
-    end,
-    {noreply, NewState}.
+    {ok, []}.
 
 -spec handle_call
-    ({get_rooms}, _From :: {pid(), reference()}, State :: state()) -> % Tag is taken from docs
+    (get_rooms, _From :: {pid(), reference()}, State :: state()) -> % Tag is taken from docs
         {reply, [binary()], state()};
-    ({get_room_pid, Id :: binary()}, _From :: {pid(), reference()}, State :: state()) ->
-        {reply, pid() | not_found, state()};
     ({delete_room, Id :: binary()}, _From :: {pid(), reference()}, State :: state()) ->
         {reply, ok | {error, room_sup:error()} | not_found, state()}.
 
+handle_call({create, Id}, _From, State) ->
+    case room_exists(Id, State) of
+        false ->
+            NewState = register_room(Id, State),
+            Reply = ok,
+            ok = lager:info("Room ~p succesfully signed up in manager", [Id]);
+        true ->
+            Reply = already_exists,
+            ok = lager:info("Room ~p already exists", [Id]),
+            NewState = State
+    end,
+    {reply, Reply, NewState};
 
-handle_call({get_rooms}, _From, State) ->
-    Rooms = room_id_list(State),
-    {reply, Rooms, State};
-
-handle_call({get_room_pid, Id}, _From, State) ->
-    ok = lager:info("Searching for room ~p", [Id]),
-    RoomPID = find_room(Id, State),
-    {reply, RoomPID, State};
+handle_call(get_rooms, _From, State) ->
+    {reply, State, State};
 
 handle_call({delete_room, Id}, _From, State) ->
     NewState = case room_exists(Id, State) of
         true ->
             ok = lager:notice("Deleting room ~p", [Id]),
-            Reply = room_sup:delete_room(Id),
+            PID = gproc:lookup_local_name({chat_room, Id}),
+            PID ! {stop, normal},
+            true = gproc:unreg_other({n, l, {chat_room, Id}}, PID),
+            Reply = ok,
             delete_room(Id, State);
         false ->
             Reply = not_found,
             State
     end,
-    {reply, Reply, NewState}.
+    {reply, Reply, NewState};
+
+handle_call({exists, Id}, _From, State) ->
+    Reply = room_exists(Id, State),
+    {reply, Reply, State}.
+
+handle_cast(_, State) ->
+    {noreply, State}.

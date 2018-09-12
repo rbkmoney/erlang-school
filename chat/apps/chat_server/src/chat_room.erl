@@ -34,11 +34,11 @@ start_link(Id) ->
     no_return().
 
 send({_, _, _, RoomId} = SourceMessage, Source) ->
-    case room_manager:get_room(RoomId) of
-        not_found ->
+    case room_manager:room_exists(RoomId) of
+        false ->
             Reply = {error, <<>>, <<"NO ROOM">>, <<>>},
             ws_handler:send(Reply, Source);
-        _ ->
+        true ->
             gen_server:cast({global, RoomId}, {source_message, SourceMessage, Source})
     end.
 
@@ -100,9 +100,10 @@ register_user(Username, PID, State) ->
     {ok, state()}.
 
 init(Id) ->
+    true = gproc:reg({n, l, {chat_room, Id}}),
     process_flag(trap_exit, true),
     ok = lager:notice("Initialized chat room"),
-    ok = room_manager:register_room(Id, self()),
+    ok = room_manager:register_room(Id),
     {ok, #{room => Id, connections => #{}}}.
 
 -spec handle_cast({source_message, source_message(), pid()}, State :: state()) ->
@@ -138,7 +139,11 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
     RoomId = this_room(State),
     Reply = {left, Username, <<>>, RoomId},
     broadcast(Reply, NewState),
-    {noreply, NewState}.
+    {noreply, NewState};
+
+handle_info(Msg, State) ->
+    lager:notice("Chat room caught message ~p", [Msg]),
+    {noreply, State}.
 
 -spec terminate(term(), State :: state()) ->
     ok.

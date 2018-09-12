@@ -8,7 +8,8 @@
     stdlib,
     library,
     lager,
-    cowboy
+    cowboy,
+    gproc
    ]},
   {env,[]},
   {modules, []},
