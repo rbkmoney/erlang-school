@@ -31,14 +31,14 @@ start_link({Id, Manager}) ->
     ok = lager:notice("Chat room ~p start_link", [Id]),
     gen_server:start_link(?MODULE, {Id, Manager}, []).
 
--spec send(SourceMessage :: source_message(), Source :: pid()) ->
-    no_return().
-
 -spec stop(PID :: pid()) ->
     shutdown_ok.
 
 stop(PID) when is_pid(PID) ->
     gen_server:call(PID, stop).
+
+-spec send(SourceMessage :: source_message(), Source :: pid()) ->
+    no_return().
 
 send({_, _, _, RoomId} = SourceMessage, Source) ->
     case room_manager:room_exists(RoomId) of

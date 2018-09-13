@@ -9,6 +9,9 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec start(Type :: term(), Args :: term()) ->
+    {ok , pid()}.
+
 start(_Type, _Args) ->
     Dispatch = cowboy_router:compile([
     {'_', [

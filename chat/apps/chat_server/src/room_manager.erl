@@ -10,9 +10,9 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([start_link/0]).
 -export([rooms/0]).
 -export([room_pid/1]).
+-export([start_link/0]).
 -export([create_room/1]).
 -export([delete_room/1]).
 -export([room_exists/1]).
@@ -22,6 +22,9 @@
 -type match() :: [{n, l, {chat_room, binary()}}].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec start_link() ->
+    {ok, pid()}.
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, undefined, []).
@@ -58,12 +61,34 @@ rooms() ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec init(undefined) ->
+    {ok, stateless}.
+
 init(undefined) ->
     ok = lager:notice("Room manager initialized"),
     {ok, stateless}.
 
+-spec handle_cast(term(), State :: stateless) ->
+    {noreply, stateless}.
+
 handle_cast(_, State) ->
     {noreply, State}.
+
+-spec handle_call
+    ({create_room, Id :: binary}, _From :: {pid(), _}, State :: stateless) ->
+        {reply, ok | {error, room_initialization_timeout} | already_exists, stateless};
+
+    ({room_exists, Id :: binary}, _From :: {pid(), _}, State :: stateless) ->
+        {reply, boolean(), stateless};
+
+    ({room_pid, Id :: binary}, _From :: {pid(), _}, State :: stateless) ->
+        {reply, pid() | not_found, stateless};
+
+    ({delete_room, Id :: binary}, _From :: {pid(), _}, State :: stateless) ->
+        {reply, ok | not_found, stateless};
+
+    (rooms, _From :: {pid(), _}, State :: stateless) ->
+        {reply, [binary()], stateless}.
 
 handle_call({create_room, Id}, _From, State) ->
     Reply = case room_exists_(Id) of
@@ -115,6 +140,10 @@ handle_call(rooms, _From, State) ->
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec room_exists_(Id :: binary()) ->
+    boolean().
+
 room_exists_(Id) ->
     case gproc:lookup_local_name({chat_room, Id}) of
         undefined ->
@@ -130,7 +159,7 @@ raw_room_list() ->
     MatchHead = '_',
     Guard = [],
     Result = ['$$'],
-    gproc:select([{MatchHead, Guard, Result}]). % select *
+    gproc:select([{MatchHead, Guard, Result}]). % same as select *
 
 -spec extract_room(match()) ->
     binary().
