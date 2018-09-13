@@ -63,6 +63,7 @@ init_per_suite(C) ->
     {ok, Apps1} = application:ensure_all_started(chat_server),
     {ok, Apps2} = application:ensure_all_started(library),
     {ok, Apps3} = application:ensure_all_started(chat_client),
+    ok = room_manager:create_room(?ROOM),
     [{apps, [Apps1, Apps2, Apps3]} | C].
 
 -spec end_per_suite(C :: config()) ->

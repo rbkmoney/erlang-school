@@ -24,24 +24,21 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec start_link(Id :: binary()) ->
+-spec start_link({Id :: binary(), Manager :: pid()}) ->
     {ok, pid()}.
 
-start_link(Id) ->
+start_link({Id, Manager}) ->
     ok = lager:notice("Chat room ~p start_link", [Id]),
-    gen_server:start_link(?MODULE, Id, []).
+    gen_server:start_link(?MODULE, {Id, Manager}, []).
 
 -spec send(SourceMessage :: source_message(), Source :: pid()) ->
     no_return().
 
-stop(Id) ->
-    case room_manager:room_pid(Id) of
-        PID ->
-            gen_server:call(PID, stop),
-            ok;
-        not_found ->
-            not_found
-    end.
+-spec stop(PID :: pid()) ->
+    shutdown_ok.
+
+stop(PID) when is_pid(PID) ->
+    gen_server:call(PID, stop).
 
 send({_, _, _, RoomId} = SourceMessage, Source) ->
     case room_manager:room_exists(RoomId) of
@@ -107,11 +104,11 @@ register_user(Username, PID, State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec init(Id :: binary()) ->
+-spec init({Id :: binary(), Manager :: pid()}) ->
     {ok, state()}.
 
-init(Id) ->
-    true = gproc:reg({n, l, {chat_room, Id}}),
+init({Id, Manager}) ->
+    Manager ! {register, Id, self()},
     process_flag(trap_exit, true),
     ok = lager:notice("Initialized chat room"),
     {ok, #{room => Id, connections => #{}}}.
@@ -133,10 +130,12 @@ handle_cast({source_message, {register, Username, _Message, _RoomId}, Source}, S
     % It actuay works, even if client sends message immediatly after calling for registration, wow!
     {noreply, NewState}.
 
--spec handle_call(term(), term(), State :: state()) ->
-    {reply, ok, state()}.
+-spec handle_call(stop, term(), State :: state()) ->
+    {stop, normal, shutdown_ok, state()}.
+
 handle_call(stop, _From, State) ->
     {stop, normal, shutdown_ok, State};
+
 handle_call(_, _, State) ->
     {reply, ok, State}.
 
@@ -153,7 +152,7 @@ handle_info({'DOWN', _, process, PID, _}, State) ->
     {noreply, NewState};
 
 handle_info(Msg, State) ->
-    lager:notice("Chat room caught message ~p", [Msg]),
+    ok = lager:notice("Chat room caught message ~p", [Msg]),
     {noreply, State}.
 
 -spec terminate(term(), State :: state()) ->
@@ -162,5 +161,4 @@ handle_info(Msg, State) ->
 terminate(_, State) ->
     Reply = {error, <<>>, <<"Room is terminated">>, this_room(State)},
     broadcast(Reply, State),
-    true = gproc:unreg({n, l, {chat_room, this_room(State)}}),
     ok.

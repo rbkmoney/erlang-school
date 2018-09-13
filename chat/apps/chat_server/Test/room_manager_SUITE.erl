@@ -12,11 +12,8 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--define(DEFAULT_ROOM, <<"room1">>).
--define(CREATED_ROOM, <<"room2">>).
--define(REGISTER_MESSAGE, <<"{\"user\":\"Igor\",\"room\":\"room1\",\"message\":\"Hello\",\"event\":\"register\"}">>).
--define(SEND_MESSAGE, <<"{\"user\":\"Igor\",\"room\":\"room1\",\"message\":\"Hello\",\"event\":\"send_message\"}">>).
-
+-define(FIRST_ROOM, <<"room1">>).
+-define(SECOND_ROOM, <<"room2">>).
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec all() ->
@@ -24,9 +21,9 @@
 
 all() ->
     [
-    get_room_list,
     create_room,
-    find_room,
+    get_room_list,
+    get_room_pid,
     cant_create_existing_room,
     delete_room,
     cant_delete_nonexistent_room,
@@ -50,44 +47,44 @@ end_per_suite(C) ->
 
 %%%%%%%%%%%%%%%%%%%%%%% ROOM MANAGEMENT %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec get_room_list(C :: config()) ->
-    term().
-
-get_room_list(_C) ->
-    [?DEFAULT_ROOM] = room_manager:get_rooms().
-
 -spec create_room(C :: config()) ->
     term().
 
 create_room(_C) ->
-    ok = room_manager:create_room(?CREATED_ROOM).
+    ok = room_manager:create_room(?FIRST_ROOM).
 
--spec find_room(C :: config()) ->
+-spec get_room_list(C :: config()) ->
     term().
 
-find_room(_C) ->
-    true = is_pid(room_manager:get_room(?CREATED_ROOM)).
+get_room_list(_C) ->
+    [?FIRST_ROOM] = room_manager:rooms().
+
+-spec get_room_pid(C :: config()) ->
+    term().
+
+get_room_pid(_C) ->
+    true = is_pid(room_manager:room_pid(?FIRST_ROOM)).
 
 -spec cant_create_existing_room(C :: config()) ->
     term().
 
 cant_create_existing_room(_C) ->
-    already_exists = room_manager:create_room(?CREATED_ROOM).
+    already_exists = room_manager:create_room(?FIRST_ROOM).
 
 -spec delete_room(C :: config()) ->
     term().
 
 delete_room(_C) ->
-    ok = room_manager:delete_room(?CREATED_ROOM).
+    ok = room_manager:delete_room(?FIRST_ROOM).
 
 -spec cant_delete_nonexistent_room(C :: config()) ->
     term().
 
 cant_delete_nonexistent_room(_C) ->
-    not_found = room_manager:delete_room(?CREATED_ROOM).
+    not_found = room_manager:delete_room(?SECOND_ROOM).
 
 -spec cant_find_nonexistent_room(C :: config()) ->
     term().
 
 cant_find_nonexistent_room(_C) ->
-    not_found = room_manager:get_room(?CREATED_ROOM).
+    false = room_manager:room_exists(?SECOND_ROOM).
