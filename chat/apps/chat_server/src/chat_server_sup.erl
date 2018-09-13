@@ -45,4 +45,4 @@ init([]) ->
         type => supervisor,
         start => {room_sup, start_link, []}
     },
-    {ok, {SupArgs, [RoomManager]}}.
+    {ok, {SupArgs, []}}.

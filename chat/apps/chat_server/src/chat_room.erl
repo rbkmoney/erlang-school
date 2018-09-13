@@ -13,6 +13,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export([start_link/1]).
+-export([stop/1]).
 -export([send/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -28,10 +29,19 @@
 
 start_link(Id) ->
     ok = lager:notice("Chat room ~p start_link", [Id]),
-    gen_server:start_link({global, Id}, ?MODULE, Id, []).
+    gen_server:start_link(?MODULE, Id, []).
 
 -spec send(SourceMessage :: source_message(), Source :: pid()) ->
     no_return().
+
+stop(Id) ->
+    case room_manager:room_pid(Id) of
+        PID ->
+            gen_server:call(PID, stop),
+            ok;
+        not_found ->
+            not_found
+    end.
 
 send({_, _, _, RoomId} = SourceMessage, Source) ->
     case room_manager:room_exists(RoomId) of
@@ -39,7 +49,8 @@ send({_, _, _, RoomId} = SourceMessage, Source) ->
             Reply = {error, <<>>, <<"NO ROOM">>, <<>>},
             ws_handler:send(Reply, Source);
         true ->
-            gen_server:cast({global, RoomId}, {source_message, SourceMessage, Source})
+            PID = room_manager:room_pid(RoomId),
+            gen_server:cast(PID, {source_message, SourceMessage, Source})
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -103,7 +114,6 @@ init(Id) ->
     true = gproc:reg({n, l, {chat_room, Id}}),
     process_flag(trap_exit, true),
     ok = lager:notice("Initialized chat room"),
-    ok = room_manager:register_room(Id),
     {ok, #{room => Id, connections => #{}}}.
 
 -spec handle_cast({source_message, source_message(), pid()}, State :: state()) ->
@@ -125,7 +135,8 @@ handle_cast({source_message, {register, Username, _Message, _RoomId}, Source}, S
 
 -spec handle_call(term(), term(), State :: state()) ->
     {reply, ok, state()}.
-
+handle_call(stop, _From, State) ->
+    {stop, normal, shutdown_ok, State};
 handle_call(_, _, State) ->
     {reply, ok, State}.
 
@@ -151,4 +162,5 @@ handle_info(Msg, State) ->
 terminate(_, State) ->
     Reply = {error, <<>>, <<"Room is terminated">>, this_room(State)},
     broadcast(Reply, State),
+    true = gproc:unreg({n, l, {chat_room, this_room(State)}}),
     ok.
