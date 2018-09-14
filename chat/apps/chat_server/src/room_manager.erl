@@ -97,8 +97,7 @@ handle_call({create_room, Id}, _From, State) ->
             receive
                 {register, Id, PID} ->
                     true = gproc:reg_other({n, l, {chat_room, Id}}, PID),
-                    ok = lager:info("Registered room Id: ~p, pid: ~p", [Id, PID]),
-                    ok
+                    ok = lager:info("Registered room Id: ~p, pid: ~p", [Id, PID])
             after 250 ->
                     {error, room_initialization_timeout}
             end;

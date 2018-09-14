@@ -25,7 +25,7 @@
     {ok, pid()}.
 
 start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+    {ok, _} = supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 

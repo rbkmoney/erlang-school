@@ -42,34 +42,34 @@
     {ok, pid()}.
 
 start_link(Id) ->
-    gen_server:start_link({global, Id}, ?MODULE, <<"Incognito">>, []).
+    {ok, _} = gen_server:start_link({global, Id}, ?MODULE, <<"Incognito">>, []).
 
 -spec connect(Host :: host(), Port :: connection_port(), Id :: binary()) ->
-    connected.
+    ok.
 
 connect(Host, Port, Id) ->
-    gen_server:call({global, Id}, {connect, Host, Port}).
+    ok = gen_server:call({global, Id}, {connect, Host, Port}).
 
 -spec send(Id :: binary(), Message :: binary(), RoomId :: binary()) ->
     ok.
 
 send(Id, Message, RoomId) ->
-    gen_server:cast({global, Id}, {send_message, {Message, RoomId}}).
+    ok = gen_server:cast({global, Id}, {send_message, {Message, RoomId}}).
 
 -spec set_username(Id :: binary(), Username :: binary()) ->
-    binary().
+    ok.
 
 set_username(Id, Username) ->
-    gen_server:call({global, Id}, {set_username, Username}).
+    ok = gen_server:call({global, Id}, {set_username, Username}).
 
 -spec join(Id :: binary(), RoomId :: binary()) ->
     ok.
 
 join(Id, RoomId) ->
-    gen_server:call({global, Id}, {join, RoomId}).
+    ok = gen_server:call({global, Id}, {join, RoomId}).
 
 leave(Id) -> % Might be a really bad idea, to stop like this
-    gen_server:call({global, Id}, stop).
+    ok = gen_server:call({global, Id}, stop).
 
 -spec get_messages(Id :: binary()) ->
     message_list().
@@ -153,10 +153,11 @@ format_message(Json) -> % Optional output
     {Event, Username, Message, _} = protocol:decode(Json),
     case Event of
         send_message ->
-            % Message = protocol:message(SourceMessage),
             ok = io:fwrite("~p: ~p~n", [binary_to_list(Username), binary_to_list(Message)]);
         success ->
             ok;
+        error ->
+            ok = io:fwrite("~p ~p~n", [Event, Message]);
         _ ->
             ok = io:fwrite("~p ~p this room~n", [binary_to_list(Username), Event])
     end.
@@ -172,24 +173,33 @@ init(Username) ->
 -spec handle_call
     ({connect, Host :: host(), Port :: connection_port()},
      _From :: term(), State:: not_connected_state()) ->
-        {reply, connected, connected_state()};
+        {reply, ok, connected_state()};
     ({set_username, Username :: binary()}, _From :: term(), State :: state()) ->
-        {reply, binary(), state()};
+        {reply, ok, state()};
     ({join, RoomId :: atom()}, _From :: term(), State :: connected_state()) ->
         {reply, ok, registered_state()};
     (get_messages, _From :: term(), State :: state()) ->
-        {reply, message_list(), state()}.
+        {reply, message_list(), state()};
+    (stop, _From :: term(), State :: state()) ->
+        {reply, ok, state()}.
 
 handle_call({connect, Host, Port}, _From, #{status := not_connected} = State) ->
     NewState = ws_connect(Host, Port, State),
-    {reply, connected, NewState};
+    {reply, ok, NewState};
+
+handle_call({connect, Host, Port}, _From, State) ->
+    {reply, already_connected, NewState};
 
 handle_call({set_username, Username}, _From, State) ->
     NewState = set_username_(Username, State),
-    {reply, Username, NewState};
+    {reply, ok, NewState};
 
-handle_call({join, RoomId}, _From, #{status := connected} = State) ->
+handle_call({join, RoomId}, _From, #{status := not_connected} = State) ->
+    {reply, denied, State};
+
+handle_call({join, RoomId}, _From, State) ->
     {Username, PID} = connection_info(State),
+    ok = lager:info("User with pid ~p wants to join room ~p", [PID, RoomId]),
     Message = protocol:encode({register, Username, <<>>, RoomId}),
     ok = lager:info("Sending message ~p throught websocket", [Message]),
     ok = gun:ws_send(PID, {text, Message}),
@@ -200,7 +210,7 @@ handle_call(stop, _From, State) -> % Stopping connection will cause leaving the 
     PID = pid(State),
     ok = gun:close(PID),
     NewState = update_status(not_connected, State),
-    {ok, disconnected, NewState};
+    {reply, ok, NewState};
 
 handle_call(get_messages, _From, State) ->
     ok = lager:info("User ~p asked for received messages", [username(State)]),

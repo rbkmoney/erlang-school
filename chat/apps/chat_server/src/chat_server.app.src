@@ -1,21 +1,23 @@
 {application, chat_server,
- [{description, "Simple chat, based on websockets"},
-  {vsn, "0.9.0"},
-  {registered, []},
-  {mod, { chat_server_app, []}},
-  {applications,
-   [kernel,
-    stdlib,
-    library,
-    lager,
-    cowboy,
-    gproc
-   ]},
-  {env,[]},
-  {modules, []},
-
-  {maintainers, []},
-  {licenses, ["Apache 2.0"]},
-  {links, []}
+    [
+        {description, "Simple chat, based on websockets"},
+        {vsn, "1.0.0"},
+        {registered, []},
+        {mod, { chat_server_app, []}},
+        {applications,
+            [
+                kernel,
+                stdlib,
+                library,
+                lager,
+                cowboy,
+                gproc
+           ]
+        },
+        {env,[]},
+        {modules, []},
+        {maintainers, []},
+        {licenses, ["Apache 2.0"]},
+        {links, []}
   ]
 }.

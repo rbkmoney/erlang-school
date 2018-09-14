@@ -21,11 +21,14 @@
 -define(ROOM, <<"room1">>).
 -define(NONEXISTENT_ROOM_MESSAGE, {register, <<"Igor">>, <<"">>, <<"noroom">>}).
 -define(NO_ROOM_REPLY, {error, <<"">>, <<"NO ROOM">>, <<"">>}).
+-define(JOINED_REPLY,
+            {joined, <<"Incognito">>, <<>>, <<"room1">>},
+            {success, <<>>, <<>>, <<"room1">>}
+        ).
 -define(EXPECTED_MESSAGES,
     [
         {send_message, <<"Incognito">>, <<"Hello">>, <<"room1">>},
-        {joined, <<"Incognito">>, <<>>, <<"room1">>},
-        {success, <<>>, <<>>, <<"room1">>}
+        ?JOINED_REPLY
     ]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -78,22 +81,23 @@ end_per_suite(C) ->
     term().
 
 join_room(_C) ->
-    connected = client:connect(?HOST, ?PORT, ?ID),
-    ok = client:join(?ID, ?ROOM).
+    ok = client:connect(?HOST, ?PORT, ?ID),
+    ok = client:join(?ID, ?ROOM),
+    timer:sleep(100), % Give server time to respond
+    [?JOINED_REPLY] = client:get_messages(?ID).
 
 -spec send_message(C :: config()) ->
     term().
 
 send_message(_C) ->
-    client:send(?ID, ?MESSAGE, ?ROOM).
+    ok = client:send(?ID, ?MESSAGE, ?ROOM).
 
 -spec receive_message(C :: config()) ->
     term().
 
 receive_message(_C) ->
     timer:sleep(150), % Give server some time to handle and respond
-    List = client:get_messages(?ID),
-    ?EXPECTED_MESSAGES = List.
+    ?EXPECTED_MESSAGES = client:get_messages(?ID).
 
 %%%%%%%%%%%%%%%%%%%%%%% IMPOSSIBLE INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%
 
@@ -101,7 +105,7 @@ receive_message(_C) ->
     term().
 
 cant_send_to_nonexistent_room(_C) ->
-    chat_room:send(?NONEXISTENT_ROOM_MESSAGE, self()),
+    ok = chat_room:send(?NONEXISTENT_ROOM_MESSAGE, self()),
     ?NO_ROOM_REPLY = receive_reply().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%

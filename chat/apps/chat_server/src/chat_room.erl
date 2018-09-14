@@ -29,7 +29,7 @@
 
 start_link({Id, Manager}) ->
     ok = lager:notice("Chat room ~p start_link", [Id]),
-    gen_server:start_link(?MODULE, {Id, Manager}, []).
+    {ok, _} = gen_server:start_link(?MODULE, {Id, Manager}, []).
 
 -spec stop(PID :: pid()) ->
     shutdown_ok.
@@ -74,6 +74,7 @@ this_room(State) ->
 add_user(PID, Username, State) ->
     #{connections := Connections} = State,
     NewConnections = Connections#{PID => Username},
+    ok = lager:info("Registered user ~p, with pid ~p", [Username, PID]),
     State#{connections => NewConnections}.
 
 -spec remove_user(PID :: pid(), State :: state()) ->

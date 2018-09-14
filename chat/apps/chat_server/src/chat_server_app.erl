@@ -23,7 +23,7 @@ start(_Type, _Args) ->
     {ok, _} = cowboy:start_clear(http, [{port, 8080}], #{
         env => #{dispatch => Dispatch}
     }),
-    chat_server_sup:start_link().
+    {ok, _} = chat_server_sup:start_link().
 
 -spec stop(_State :: term()) ->
     ok.

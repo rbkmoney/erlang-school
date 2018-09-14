@@ -37,7 +37,7 @@ websocket_init(_) ->
     ok = lager:notice("Initializing websocket, PID: ~p", [self()]),
     {ok, connected}.
 
--spec websocket_handle({text, jiffy:json_value()}, State :: term()) ->
+-spec websocket_handle({text, Json :: jiffy:json_value()}, State :: term()) ->
     {ok, term()}.
 
 websocket_handle({text, Json}, State) ->
