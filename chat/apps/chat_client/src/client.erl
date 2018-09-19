@@ -188,7 +188,7 @@ handle_call({connect, Host, Port}, _From, #{status := not_connected} = State) ->
     {reply, ok, NewState};
 
 handle_call({connect, Host, Port}, _From, State) ->
-    {reply, already_connected, NewState};
+    {reply, already_connected, State};
 
 handle_call({set_username, Username}, _From, State) ->
     NewState = set_username_(Username, State),

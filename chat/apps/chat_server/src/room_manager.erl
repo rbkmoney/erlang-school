@@ -11,15 +11,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export([rooms/0]).
--export([room_pid/1]).
 -export([start_link/0]).
 -export([create_room/1]).
 -export([delete_room/1]).
 -export([room_exists/1]).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
--type match() :: [{n, l, {chat_room, binary()}}].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -47,12 +42,6 @@ create_room(Id) ->
 delete_room(Id) ->
     gen_server:call(?MODULE, {delete_room, Id}).
 
--spec room_pid(Id :: binary()) ->
-    not_found | pid().
-
-room_pid(Id) ->
-    gen_server:call(?MODULE, {room_pid, Id}).
-
 -spec rooms() ->
     [binary()].
 
@@ -62,106 +51,59 @@ rooms() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec init(undefined) ->
-    {ok, stateless}.
+    {ok, []}.
 
 init(undefined) ->
     ok = lager:notice("Room manager initialized"),
-    {ok, stateless}.
+    {ok, []}.
 
 -spec handle_cast(term(), State :: stateless) ->
-    {noreply, stateless}.
+    {noreply, list()}.
 
 handle_cast(_, State) ->
     {noreply, State}.
 
--spec handle_call
-    ({create_room, Id :: binary}, _From :: {pid(), _}, State :: stateless) ->
-        {reply, ok | {error, room_initialization_timeout} | already_exists, stateless};
-
-    ({room_exists, Id :: binary}, _From :: {pid(), _}, State :: stateless) ->
-        {reply, boolean(), stateless};
-
-    ({room_pid, Id :: binary}, _From :: {pid(), _}, State :: stateless) ->
-        {reply, pid() | not_found, stateless};
-
-    ({delete_room, Id :: binary}, _From :: {pid(), _}, State :: stateless) ->
-        {reply, ok | not_found, stateless};
-
-    (rooms, _From :: {pid(), _}, State :: stateless) ->
-        {reply, [binary()], stateless}.
-
-handle_call({create_room, Id}, _From, State) ->
-    Reply = case room_exists_(Id) of
+handle_call({create_room, Id}, _From, RoomList) ->
+    Reply = case is_in_list(Id, RoomList) of
         false ->
-            {ok, PID} = chat_room:start_link({Id, self()}),
-            receive
-                {register, Id, PID} ->
-                    true = gproc:reg_other({n, l, {chat_room, Id}}, PID),
-                    ok = lager:info("Registered room Id: ~p, pid: ~p", [Id, PID])
-            after 250 ->
-                    {error, room_initialization_timeout}
-            end;
+            ok = lager:info("Creating room ~p", [Id]),
+            NewRoomList = [Id | RoomList],
+            ok;
         true ->
+            ok = lager:info("Can't create room ~p, already_exists", [Id]),
+            NewRoomList = RoomList,
             already_exists
     end,
-    {reply, Reply, State};
+    {reply, Reply, NewRoomList};
 
-handle_call({room_exists, Id}, _From, State) ->
-    Reply = room_exists_(Id),
-    {reply, Reply, State};
+handle_call({room_exists, Id}, _From, RoomList) ->
+    ok = lager:info("Checking if room ~p exists", [Id]),
+    Reply = is_in_list(Id, RoomList),
+    {reply, Reply, RoomList};
 
-handle_call({room_pid, Id}, _From, State) ->
-    Reply = case gproc:lookup_local_name({chat_room, Id}) of
-        undefined ->
-            not_found;
-        PID ->
-            PID
-    end,
-    {reply, Reply, State};
-
-handle_call({delete_room, Id}, _From, State) ->
-    Reply = case room_exists_(Id) of
-        false ->
-            not_found;
+handle_call({delete_room, Id}, _From, RoomList) ->
+    Reply = case is_in_list(Id, RoomList) of
         true ->
-            PID = gproc:lookup_local_name({chat_room, Id}),
-            ok = lager:info("Room manager deletes room ~p", [Id]),
-            true = gproc:unreg_other({n, l, {chat_room, Id}}, PID),
-            shutdown_ok = chat_room:stop(PID),
-            ok
+            ok = lager:info("Deleting room ~p", [Id]),
+            NewRoomList = lists:delete(Id, RoomList),
+            ok;
+        false ->
+            ok = lager:info("Can't delete room ~p, not_found", [Id]),
+            NewRoomList = RoomList,
+            not_found
     end,
-    {reply, Reply, State};
+    {reply, Reply, NewRoomList};
 
-handle_call(rooms, _From, State) ->
-    RawRes = raw_room_list(),
-    Reply = [extract_room(Room) || Room <- RawRes],
-    {reply, Reply, State}.
-
+handle_call(rooms, _From, RoomList) ->
+    {reply, RoomList, RoomList}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec room_exists_(Id :: binary()) ->
-    boolean().
-
-room_exists_(Id) ->
-    case gproc:lookup_local_name({chat_room, Id}) of
-        undefined ->
+is_in_list(Item, List) -> % Возможно вынести в library
+    ok = lager:info("Room manager searching for ~p in ~p", [Item, List]),
+    case [Elem || Elem <- List, Elem == Item] of
+        [] ->
             false;
         _ ->
             true
     end.
-
--spec raw_room_list() ->
-    [match()].
-
-raw_room_list() ->
-    MatchHead = '_',
-    Guard = [],
-    Result = ['$$'],
-    gproc:select([{MatchHead, Guard, Result}]). % same as select *
-
--spec extract_room(match()) ->
-    binary().
-
-extract_room([{_, _, {chat_room, Id}}, _, _]) ->
-    Id.

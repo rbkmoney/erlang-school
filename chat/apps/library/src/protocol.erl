@@ -17,7 +17,8 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type event() :: register | left | joined | error | send_message | success.
+% -type event() :: join | left | joined | error | send_message | success.
+-type event() :: create | join | error | send_message | leave | delete | success.
 -type source_message() :: {event(), binary(), binary(), binary()}.
 -type binary_key_map() :: #{binary() => binary() | atom()}.
 
@@ -56,14 +57,16 @@ map_to_raw(#{<<"event">> := Event, <<"user">> := User, <<"message">> := Msg, <<"
 
 encode_event(send_message) ->
     <<"send_message">>;
-encode_event(register) ->
-    <<"register">>;
-encode_event(joined) ->
-    <<"joined">>;
+encode_event(create) ->
+    <<"create">>;
+encode_event(delete) ->
+    <<"delete">>;
+encode_event(join) ->
+    <<"join">>;
 encode_event(error) ->
     <<"error">>;
-encode_event(left) ->
-    <<"left">>;
+encode_event(leave) ->
+    <<"leave">>;
 encode_event(success) ->
     <<"success">>.
 % Может бросать ошибку если аргумент неверный?
@@ -71,16 +74,18 @@ encode_event(success) ->
 -spec decode_event(binary()) ->
     event().
 
+decode_event(<<"create">>) ->
+    create;
 decode_event(<<"send_message">>) ->
     send_message;
-decode_event(<<"register">>) ->
-    register;
-decode_event(<<"joined">>) ->
-    joined;
+decode_event(<<"join">>) ->
+    join;
 decode_event(<<"error">>) ->
     error;
-decode_event(<<"left">>) ->
-    left;
+decode_event(<<"leave">>) ->
+    leace;
 decode_event(<<"success">>) ->
-    success.
+    success;
+decode_event(<<"delete">>) ->
+    delete.
 % Может бросать ошибку если аргумент неверный?

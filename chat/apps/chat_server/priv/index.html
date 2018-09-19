@@ -17,6 +17,7 @@
               $('#status').append('<p><span style="color: green;">websockets are supported </span></p>');
               connect();
           };
+              $("#UsernameInput").hide();
               $("#registration").hide();
               $("#connected").hide();
               //$("#content").hide();
@@ -35,6 +36,7 @@
       function disconnect() {
           websocket.close();
       };
+
       function toggle_connection(){
           if(websocket.readyState == websocket.OPEN){
               disconnect();
@@ -42,10 +44,11 @@
               connect();
           };
       };
+
       function sendTxt() {
           if ($("#send_txt").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "send_message", "user": $("#username"), "message": $("#send_txt").val(), "room": $("#roomId").val()};
+                  txt = {"event" : "send_message", "user": $("#username").val(), "message": $("#send_txt").val(), "room": $("#send_to_room").val()};
                   websocket.send(JSON.stringify(txt));
                   $("#send_txt").val('');
               } else {
@@ -54,10 +57,35 @@
         };
       };
 
+      function createRoom() {
+          if ($("#create_room").val() != ""){
+              if(websocket.readyState == websocket.OPEN){
+                  txt = {"event" : "create", "user": $("#username").val(), "message": "", "room": $("#create_room").val()};
+                  websocket.send(JSON.stringify(txt));
+                  $("#create_room").val('');
+              } else {
+                   showScreen('websocket is not connected');
+              };
+        };
+      };
+
+      function deleteRoom() {
+          if ($("#delete_room").val() != ""){
+              if(websocket.readyState == websocket.OPEN){
+                  txt = {"event" : "delete", "user": $("#username").val(), "message": "", "room": $("#delete_room").val()};
+                  websocket.send(JSON.stringify(txt));
+                  $("#delete_room").val('');
+              } else {
+                   showScreen('websocket is not connected');
+              };
+        };
+      };
+
+
       function register() {
           if ($("#username").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "register", "user": $("#username").val(), "message": "",
+                  txt = {"event" : "join", "user": $("#username").val(), "message": "",
                     "room": $("#roomId").val()};
                   websocket.send(JSON.stringify(txt));
               } else {
@@ -69,6 +97,7 @@
       function onOpen(evt) {
           showScreen('<span style="color: green;">CONNECTED </span>');
           $("#registration").fadeIn('slow');
+          $("#UsernameInput").fadeIn('slow');
       };
       function onClose(evt) {
           $("#connected").hide();
@@ -83,17 +112,29 @@
                    showScreen('<span style="color: red;">ERROR: ' + Result.message +'</span>');
                    break;
                 case 'success':
-                    showScreen('<span style="color: green;">Registred</span>');
-                    $("#registration").hide();
+                    showScreen('<span style="color: green;">Success</span>');
                     $("#connected").fadeIn('slow');
                     break;
                 case 'send_message':
-                    text = Result.user + ": " + Result.message;
+                    text = "[" + Result.room + "] " + Result.user + ": " + Result.message;
                     showScreen('<span style="color: blue;">' + text + '</span>');
                     break;
-                default:
-                     text = Result.user + " " + event_ + " this room";
+                case 'create':
+                    text = Result.user + " created room " + Result.room;
+                    showScreen('<span style="color: blue;">' + text + '</span>');
+                    break;
+                case 'delete':
+                    text = Result.user + " deleted room " + Result.room;
+                    showScreen('<span style="color: blue;">' + text + '</span>');
+                    break;
+                case 'join':
+                     text = "[" + Result.room + "] " + Result.user + " " + "joined" + " this room";
                      showScreen('<span style="color: blue;">' + text + '</span>');
+                     break;
+                case 'leave':
+                     text = "[" + Result.room + "] " + Result.user + " " + "left" + " this room";
+                     showScreen('<span style="color: blue;">' + text + '</span>');
+                     break;
            }
       };
       function onError(evt) {
@@ -123,17 +164,41 @@
 	<button type="button" onclick="toggle_connection()">connection</button>
       </p>
 
+    <div id="UsernameInput">
+        <p id="UsernameInputP">
+            <b> Username </b>
+            <input type='text' id="username" value=""></input>
+        </p>
+    </div>
+
     <div id="registration">
       <p id="login">
-          <b> RoomId </b>
+          <b> Join room </b>
           <input type='text' id="roomId" value=""></input>
-          <input type='text' id="username" value=""></input>
-          <button type="button" onclick="register()">login</button>
+          <button type="button" onclick="register()">Join</button>
+      </p>
+  </div>
+
+  <div id="creatingRoom">
+      <p>
+          <b> Create room </b>
+          <input type='text' id="create_room" value=></input>
+          <button type="button" onclick="createRoom();">create room</button>
+      </p>
+  </div>
+  <div id="deletingRoom">
+      <p>
+          <b> Delete room </b>
+          <input type='text' id="delete_room" value=></input>
+          <button type="button" onclick="deleteRoom();">delete room</button>
       </p>
   </div>
 
       <div id="connected">
 	<p>
+      <b> Room </b>
+      <input type='text' id="send_to_room" value=></input>
+      <b> Message </b>
 	  <input type='text' id="send_txt" value=></input>
 	  <button type="button" onclick="sendTxt();">send</button>
 	</p>
