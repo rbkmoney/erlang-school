@@ -83,7 +83,7 @@ decode_event(<<"join">>) ->
 decode_event(<<"error">>) ->
     error;
 decode_event(<<"leave">>) ->
-    leace;
+    leave;
 decode_event(<<"success">>) ->
     success;
 decode_event(<<"delete">>) ->
