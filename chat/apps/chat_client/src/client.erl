@@ -187,20 +187,20 @@ handle_call({connect, Host, Port}, _From, #{status := not_connected} = State) ->
     NewState = ws_connect(Host, Port, State),
     {reply, ok, NewState};
 
-handle_call({connect, Host, Port}, _From, State) ->
+handle_call({connect, _Host, _Port}, _From, State) ->
     {reply, already_connected, State};
 
 handle_call({set_username, Username}, _From, State) ->
     NewState = set_username_(Username, State),
     {reply, ok, NewState};
 
-handle_call({join, RoomId}, _From, #{status := not_connected} = State) ->
+handle_call({join, _RoomId}, _From, #{status := not_connected} = State) ->
     {reply, denied, State};
 
 handle_call({join, RoomId}, _From, State) ->
     {Username, PID} = connection_info(State),
     ok = lager:info("User with pid ~p wants to join room ~p", [PID, RoomId]),
-    Message = protocol:encode({register, Username, <<>>, RoomId}),
+    Message = protocol:encode({join, Username, <<>>, RoomId}),
     ok = lager:info("Sending message ~p throught websocket", [Message]),
     ok = gun:ws_send(PID, {text, Message}),
     NewState = update_status(registered, State),

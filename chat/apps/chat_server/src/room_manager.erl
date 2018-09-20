@@ -63,8 +63,19 @@ init(undefined) ->
 handle_cast(_, State) ->
     {noreply, State}.
 
+-spec handle_call
+    ({create_room, Id :: binary}, _From :: term(), RoomList :: [binary()]) ->
+        {reply, ok | already_exists, stateless};
+    ({room_exists, Id :: binary}, _From :: term(), RoomList :: [binary()]) ->
+        {reply, boolean(), stateless};
+    ({delete_room, Id :: binary}, _From :: term(), RoomList :: [binary()]) ->
+        {reply, ok | not_found, stateless};
+    (rooms, _From :: term(), RoomList :: [binary()]) ->
+        {reply, [binary()], stateless}.
+
+
 handle_call({create_room, Id}, _From, RoomList) ->
-    Reply = case is_in_list(Id, RoomList) of
+    Reply = case chatlib:is_in_list(Id, RoomList) of
         false ->
             ok = lager:info("Creating room ~p", [Id]),
             NewRoomList = [Id | RoomList],
@@ -78,11 +89,11 @@ handle_call({create_room, Id}, _From, RoomList) ->
 
 handle_call({room_exists, Id}, _From, RoomList) ->
     ok = lager:info("Checking if room ~p exists", [Id]),
-    Reply = is_in_list(Id, RoomList),
+    Reply = chatlib:is_in_list(Id, RoomList),
     {reply, Reply, RoomList};
 
 handle_call({delete_room, Id}, _From, RoomList) ->
-    Reply = case is_in_list(Id, RoomList) of
+    Reply = case chatlib:is_in_list(Id, RoomList) of
         true ->
             ok = lager:info("Deleting room ~p", [Id]),
             NewRoomList = lists:delete(Id, RoomList),
@@ -96,14 +107,3 @@ handle_call({delete_room, Id}, _From, RoomList) ->
 
 handle_call(rooms, _From, RoomList) ->
     {reply, RoomList, RoomList}.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
-
-is_in_list(Item, List) -> % Возможно вынести в library
-    ok = lager:info("Room manager searching for ~p in ~p", [Item, List]),
-    case [Elem || Elem <- List, Elem == Item] of
-        [] ->
-            false;
-        _ ->
-            true
-    end.

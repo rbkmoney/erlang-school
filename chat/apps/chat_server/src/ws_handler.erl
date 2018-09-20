@@ -12,6 +12,14 @@
 
 -export([send/2]).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-export_type([state/0]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-type state() :: #{subscriptions => [binary()]}.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec send(Message :: protocol:source_message(), Recipient :: pid()) ->
@@ -31,36 +39,41 @@ init(Req, Opts) ->
     {cowboy_websocket, Req, Opts}.
 
 -spec websocket_init(term()) ->
-    {ok, connected}.
+    {ok, state()}.
 
 websocket_init(_) ->
     ok = lager:notice("Initializing websocket, PID: ~p", [self()]),
-    PID = spawn_link(client_code, init, [self()]),
-    {ok, PID}.
+    {ok, #{subscriptions => []}}.
 
--spec websocket_handle({text, Json :: jiffy:json_value()}, PID :: term()) ->
+-spec websocket_handle({text, Json :: jiffy:json_value()}, State :: state()) ->
     {ok, term()}.
 
-websocket_handle({text, Json}, PID) ->
+websocket_handle({text, Json}, State) ->
     Message = protocol:decode(Json),
-    %chat_room:send(Message, self()),
-    PID ! {websocket, Message},
-    {ok, PID};
+    NewSubs = message_handler:handle_websocket_message(Message, State),
+    {ok, State#{subscriptions => NewSubs}};
 
-websocket_handle(_Data, PID) ->
-    {ok, PID}.
+websocket_handle(_Data, State) ->
+    {ok, State}.
 
--spec websocket_info({send, protocol:source_message()}, PID :: term()) ->
-    {reply, {text, jiffy:json_value()}, term()}.
+-spec websocket_info
+    ({send, protocol:source_message()}, State :: state()) ->
+        {reply, {text, jiffy:json_value()}, term()};
+    ({gproc_ps_event, Event :: binary(), Message :: protocol:source_message()}, State :: state()) ->
+        {reply, {text, jiffy:json_value()}, term()}.
 
-websocket_info({send, Message}, PID) ->
+websocket_info({gproc_ps_event, _, Message}, State) ->
     ok = lager:info("Websocket info: ~p", [Message]),
     Json = protocol:encode(Message),
-    {reply, {text, Json}, PID}.
+    {reply, {text, Json}, State};
 
--spec terminate(_Reason :: term(), _Req :: map(), PID :: term()) ->
+websocket_info({send, Message}, State) ->
+    ok = lager:info("Websocket info: ~p", [Message]),
+    Json = protocol:encode(Message),
+    {reply, {text, Json}, State}.
+
+-spec terminate(_Reason :: term(), _Req :: map(), State :: state()) ->
     ok.
 
-terminate(_Reason, _Req, PID) ->
-    PID ! stop,
+terminate(_Reason, _Req, _State) ->
     ok = lager:info("Websocket process ~p is terminated", [self()]).
