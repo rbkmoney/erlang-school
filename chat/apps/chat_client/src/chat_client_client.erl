@@ -12,27 +12,28 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export([send/3]).
+-export([create/2]).
+-export([delete/2]).
 -export([join/2]).
--export([leave/1]).
--export([connect/3]).
+-export([leave/2]).
 -export([start_link/1]).
 -export([get_messages/1]).
 -export([set_username/2]).
 
+
+-define(CALL_EVENT_LIST, [join, create, delete, leave]).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type status() :: connected | not_connected | joined.
 -type message_list() :: [library_protocol:source_message()].
--type state() :: state(status()).
--type state(Status) :: #{
+-type state() :: #{
     pid => pid(),
-    status => Status,
+    connected => boolean(),
     username => binary(),
-    messageList => message_list()
+    message_list => message_list(),
+    host => host(),
+    port => connection_port()
 }.
--type connected_state() :: state(connected).
--type joined_state() :: state(joined).
--type not_connected_state() :: state(not_connected).
 -type host() :: string().
 -type connection_port() :: non_neg_integer().
 
@@ -44,17 +45,11 @@
 start_link(Id) ->
     {ok, _} = gen_server:start_link({global, Id}, ?MODULE, <<"Incognito">>, []).
 
--spec connect(Host :: host(), Port :: connection_port(), Id :: binary()) ->
-    ok.
-
-connect(Host, Port, Id) ->
-    ok = gen_server:call({global, Id}, {connect, Host, Port}).
-
 -spec send(Id :: binary(), Message :: binary(), RoomId :: binary()) ->
     ok.
 
 send(Id, Message, RoomId) ->
-    ok = gen_server:cast({global, Id}, {send_message, {Message, RoomId}}).
+    ok = gen_server:cast({global, Id}, {send_message, Message, RoomId}).
 
 -spec set_username(Id :: binary(), Username :: binary()) ->
     ok.
@@ -68,8 +63,14 @@ set_username(Id, Username) ->
 join(Id, RoomId) ->
     ok = gen_server:call({global, Id}, {join, RoomId}).
 
-leave(Id) -> % Might be a really bad idea, to stop like this
-    ok = gen_server:call({global, Id}, stop).
+leave(Id, RoomId) ->
+    ok = gen_server:call({global, Id}, {leave, RoomId}).
+
+create(Id, RoomId) ->
+    ok = gen_server:call({global, Id}, {create, RoomId}).
+
+delete(Id, RoomId) ->
+    ok = gen_server:call({global, Id}, {delete, RoomId}).
 
 -spec get_messages(Id :: binary()) ->
     message_list().
@@ -83,62 +84,39 @@ get_messages(Id) ->
     {ok, state()}.
 
 init(Username) ->
-    {ok, #{status => not_connected, username => Username, messageList => []}}.
+    {ok, #{connected => false, host => "localhost", port => 8080, username => Username, message_list => []}}.
 
--spec handle_call
-    ({connect, Host :: host(), Port :: connection_port()},
-     _From :: term(), State:: not_connected_state()) ->
-        {reply, ok, connected_state()};
-    ({set_username, Username :: binary()}, _From :: term(), State :: state()) ->
-        {reply, ok, state()};
-    ({join, RoomId :: atom()}, _From :: term(), State :: connected_state()) ->
-        {reply, ok, joined_state()};
-    (get_messages, _From :: term(), State :: state()) ->
-        {reply, message_list(), state()};
-    (stop, _From :: term(), State :: state()) ->
-        {reply, ok, state()}.
-
-handle_call({connect, Host, Port}, _From, #{status := not_connected} = State) ->
-    NewState = ws_connect(Host, Port, State),
+handle_call({create, RoomId}, _From, State) ->
+    NewState = handle_request(create, RoomId, State),
     {reply, ok, NewState};
 
-handle_call({connect, _Host, _Port}, _From, State) ->
-    {reply, already_connected, State};
+handle_call({join, RoomId}, _From, State) ->
+    NewState = handle_request(join, RoomId, State),
+    {reply, ok, NewState};
 
-handle_call({set_username, Username}, _From, State) ->
-    {reply, ok, State#{username => Username}};
+handle_call({leave, RoomId}, _From, State) ->
+    NewState = handle_request(leave, RoomId, State),
+    {reply, ok, NewState};
 
-handle_call({join, _RoomId}, _From, #{status := not_connected} = State) ->
-    {reply, denied, State};
+handle_call({delete, RoomId}, _From, State) ->
+    NewState = handle_request(delete, RoomId, State),
+    {reply, ok, NewState};
 
-handle_call({join, RoomId}, _From, #{username := Username, pid := PID} = State) ->
-    ok = lager:info("User with pid ~p wants to join room ~p", [PID, RoomId]),
-    Message = library_protocol:encode({join, Username, <<>>, RoomId}),
-    ok = lager:info("Sending message ~p throught websocket", [Message]),
-    ok = gun:ws_send(PID, {text, Message}),
-    {reply, ok, State#{status => joined}};
-
-handle_call(stop, _From, #{pid := PID} = State) -> % Closing connection will cause leaving the server.
-    ok = gun:close(PID),
-    {reply, ok, State#{status => not_connected}};
-
-handle_call(get_messages, _From, #{username := Username} = State) ->
+handle_call(get_messages, _From, #{username := Username, message_list := MessageList} = State) ->
+    % TO DO pop message
     ok = lager:info("User ~p asked for received messages", [Username]),
-    MessageList = get_messages_(State),
     {reply, MessageList, State};
 
 handle_call(_, _, State) ->
     {reply, ok, State}.
 
--spec handle_cast({send_message, {Message :: binary(),
-    RoomId :: atom()}}, State ::joined_state()) ->
-        {noreply, joined_state()}.
+-spec handle_cast({send_message, Message :: binary(),
+    RoomId :: atom()}, State :: state()) ->
+        {noreply, state()}.
 
-handle_cast({send_message, {Message, RoomId}}, #{status := joined, pid := PID} = State) ->
-        Json = library_protocol:encode({send_message, <<>>, Message, RoomId}),
-        ok = lager:info("Sending message ~p throught websocket", [Json]),
-        ok = gun:ws_send(PID, {text, Json}),
-    {noreply, State};
+handle_cast({send_message, Message, RoomId}, State) ->
+    NewState = handle_request(send_message, Message, RoomId, State),
+    {noreply, NewState};
 
 handle_cast(_, State) ->
     {noreply, State}.
@@ -157,26 +135,49 @@ handle_info(_, State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
+handle_request(Event, RoomId, #{username := Username} = State) ->
+    NewState = ensure_connected(State),
+    ok = lager:info("User ~p wants to ~p room ~p", [Username, Event, RoomId]),
+    Message = {Event, Username, <<>>, RoomId},
+    #{pid := PID} = NewState,
+    ok = send_message(Message, PID),
+    NewState.
+
+handle_request(send_message, Text, RoomId, #{username := Username} = State) ->
+    NewState = ensure_connected(State),
+    ok = lager:info("User ~p wants to send message to room ~p", [Username, RoomId]),
+    Message = {send_message, Username, Text, RoomId},
+    #{pid := PID} = NewState,
+    ok = send_message(Message, PID),
+    NewState.
+
+ensure_connected(#{connected := Connected} = State) ->
+    case Connected of
+        true ->
+            State;
+        false ->
+            ws_connect(State)
+    end.
+
+send_message(Message, PID) ->
+    Json = library_protocol:encode(Message),
+    ok = lager:info("Sending message ~p throught websocket", [Json]),
+    ok = gun:ws_send(PID, {text, Json}).
+
 -spec add_message(Json :: jiffy:json_value(), State :: state()) ->
     state().
 
 add_message(Json, State) ->
     Message = library_protocol:decode(Json),
     ok = lager:info("Adding message ~p to mesageList", [Message]),
-    #{messageList := MessageList} = State,
+    #{message_list := MessageList} = State,
     NewMessageList = [Message | MessageList],
-    State#{messageList => NewMessageList}.
+    State#{message_list => NewMessageList}.
 
--spec get_messages_(State :: state()) ->
+-spec ws_connect(State :: state()) ->
     state().
 
-get_messages_(State) ->
-    maps:get(messageList, State).
-
--spec ws_connect(Host :: host(), Port :: connection_port(), State :: state()) ->
-    connected_state().
-
-ws_connect(Host, Port, State) ->
+ws_connect(#{connected := false, host := Host, port := Port} = State) ->
     {ok, Pid} = gun:open(Host, Port),
     {ok, _} = gun:await_up(Pid),
     ok = lager:info("Connection to ~p:~p established, perfoming upgrade", [Host, Port]),
@@ -191,7 +192,7 @@ ws_connect(Host, Port, State) ->
     after 1000 ->
         exit(timeout)
     end,
-    State#{pid => Pid, status => connected}.
+    State#{pid => Pid, connected => true}.
 
 -spec format_message(Json ::  jiffy:json_value()) ->
     ok.
