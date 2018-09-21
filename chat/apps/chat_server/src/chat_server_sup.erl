@@ -38,6 +38,6 @@ init([]) ->
     Room_manager = #{
         id => manager,
         type => worker,
-        start => {room_manager, start_link, []}
+        start => {chat_server_room_manager, start_link, []}
     },
     {ok, {SupArgs, [Room_manager]}}.

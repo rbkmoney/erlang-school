@@ -1,4 +1,4 @@
--module(chatlib).
+-module(library_chatlib).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

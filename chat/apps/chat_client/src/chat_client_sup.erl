@@ -42,6 +42,6 @@ init([]) ->
     Client = #{
         id => <<"client1">>,
         type => worker,
-        start => {client, start_link, [<<"client1">>]}
+        start => {chat_client_client, start_link, [<<"client1">>]}
     },
     {ok, {SupArgs, [Client]}}.

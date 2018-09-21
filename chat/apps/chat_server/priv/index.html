@@ -19,7 +19,7 @@
           };
               $("#UsernameInput").hide();
               $("#registration").hide();
-              $("#connected").hide();
+              //$("#connected").hide();
               //$("#content").hide();
       };
 
@@ -100,7 +100,7 @@
           $("#UsernameInput").fadeIn('slow');
       };
       function onClose(evt) {
-          $("#connected").hide();
+          //$("#connected").hide();
           $("#registration").fadeIn('slow');
           showScreen('<span style="color: red;">DISCONNECTED </span>');
       };
@@ -111,10 +111,6 @@
                 case 'error':
                    showScreen('<span style="color: red;">ERROR: ' + Result.message +'</span>');
                    break;
-                case 'success':
-                    showScreen('<span style="color: green;">Success</span>');
-                    $("#connected").fadeIn('slow');
-                    break;
                 case 'send_message':
                     text = "[" + Result.room + "] " + Result.user + ": " + Result.message;
                     showScreen('<span style="color: blue;">' + text + '</span>');

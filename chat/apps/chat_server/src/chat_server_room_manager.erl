@@ -1,4 +1,4 @@
--module(room_manager).
+-module(chat_server_room_manager).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% BEHAVIOUR EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -75,33 +75,29 @@ handle_cast(_, State) ->
 
 
 handle_call({create_room, Id}, _From, RoomList) ->
-    Reply = case chatlib:is_in_list(Id, RoomList) of
+    {Reply, NewRoomList} = case library_chatlib:is_in_list(Id, RoomList) of
         false ->
             ok = lager:info("Creating room ~p", [Id]),
-            NewRoomList = [Id | RoomList],
-            ok;
+            {ok, [Id | RoomList]};
         true ->
             ok = lager:info("Can't create room ~p, already_exists", [Id]),
-            NewRoomList = RoomList,
-            already_exists
+            {already_exists, RoomList}
     end,
     {reply, Reply, NewRoomList};
 
 handle_call({room_exists, Id}, _From, RoomList) ->
     ok = lager:info("Checking if room ~p exists", [Id]),
-    Reply = chatlib:is_in_list(Id, RoomList),
+    Reply = library_chatlib:is_in_list(Id, RoomList),
     {reply, Reply, RoomList};
 
 handle_call({delete_room, Id}, _From, RoomList) ->
-    Reply = case chatlib:is_in_list(Id, RoomList) of
+    {Reply, NewRoomList} = case library_chatlib:is_in_list(Id, RoomList) of
         true ->
             ok = lager:info("Deleting room ~p", [Id]),
-            NewRoomList = lists:delete(Id, RoomList),
-            ok;
+            {ok, lists:delete(Id, RoomList)};
         false ->
             ok = lager:info("Can't delete room ~p, not_found", [Id]),
-            NewRoomList = RoomList,
-            not_found
+            {not_found, RoomList}
     end,
     {reply, Reply, NewRoomList};
 

@@ -1,6 +1,6 @@
 {application, library,
     [
-        {description, "A protocol library for client and server"},
+        {description, "A library for client and server"},
         {vsn, "1.5"},
         {applications,
             [

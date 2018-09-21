@@ -1,4 +1,4 @@
--module(protocol).
+-module(library_protocol).
 
 % На вход подаем {atom, binary, binary, binary}
 % На выходе получаем binary
@@ -17,8 +17,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% -type event() :: join | left | joined | error | send_message | success.
--type event() :: create | join | error | send_message | leave | delete | success.
+-type event() :: create | join | error | send_message | leave | delete.
 -type source_message() :: {event(), binary(), binary(), binary()}.
 -type binary_key_map() :: #{binary() => binary() | atom()}.
 
@@ -66,9 +65,7 @@ encode_event(join) ->
 encode_event(error) ->
     <<"error">>;
 encode_event(leave) ->
-    <<"leave">>;
-encode_event(success) ->
-    <<"success">>.
+    <<"leave">>.
 % Может бросать ошибку если аргумент неверный?
 
 -spec decode_event(binary()) ->
@@ -84,8 +81,6 @@ decode_event(<<"error">>) ->
     error;
 decode_event(<<"leave">>) ->
     leave;
-decode_event(<<"success">>) ->
-    success;
 decode_event(<<"delete">>) ->
     delete.
 % Может бросать ошибку если аргумент неверный?
