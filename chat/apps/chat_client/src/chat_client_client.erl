@@ -63,11 +63,20 @@ set_username(PID, Username) ->
 join(PID, RoomId) ->
     ok = gen_server:call(PID, {join, RoomId}).
 
+-spec leave(PID :: pid(), RoomId :: binary()) ->
+    ok.
+
 leave(PID, RoomId) ->
     ok = gen_server:call(PID, {leave, RoomId}).
 
+-spec create(PID :: pid(), RoomId :: binary()) ->
+    ok.
+
 create(PID, RoomId) ->
     ok = gen_server:call(PID, {create, RoomId}).
+
+-spec delete(PID :: pid(), RoomId :: binary()) ->
+    ok.
 
 delete(PID, RoomId) ->
     ok = gen_server:call(PID, {delete, RoomId}).
@@ -86,6 +95,12 @@ get_last_message(PID) ->
 
 init(undefined) ->
     {ok, #{connected => false, host => "localhost", port => 8080, username => ?DEFAULT_USERNAME, message_list => []}}.
+
+-spec handle_call
+    ({library_protocol:event(), RoomId :: binary()}, _From :: term(), State :: state()) ->
+        {reply, ok, state()};
+    (pop_message, _From :: term(), State :: state()) ->
+        {reply, library_protocol:source_message(), state()}.
 
 handle_call({create, RoomId}, _From, State) ->
     NewState = handle_request(create, RoomId, State),
@@ -139,6 +154,9 @@ handle_info(_, State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec handle_request(Event :: library_protocol:event(), RoomId :: binary(), State :: state()) ->
+        state().
+
 handle_request(Event, RoomId, #{username := Username} = State) ->
     NewState = ensure_connected(State),
     ok = lager:info("User ~p wants to ~p room ~p", [Username, Event, RoomId]),
@@ -146,6 +164,9 @@ handle_request(Event, RoomId, #{username := Username} = State) ->
     #{pid := PID} = NewState,
     ok = send_message(Message, PID),
     NewState.
+
+-spec handle_request(send_message, Text :: binary(), RoomId :: binary(), State :: state()) ->
+    state().
 
 handle_request(send_message, Text, RoomId, #{username := Username} = State) ->
     NewState = ensure_connected(State),
@@ -155,6 +176,9 @@ handle_request(send_message, Text, RoomId, #{username := Username} = State) ->
     ok = send_message(Message, PID),
     NewState.
 
+-spec ensure_connected(State :: state()) ->
+    state().
+
 ensure_connected(#{connected := Connected} = State) ->
     case Connected of
         true ->
@@ -163,18 +187,24 @@ ensure_connected(#{connected := Connected} = State) ->
             ws_connect(State)
     end.
 
+-spec send_message(Message :: library_protocol:source_message(), PID :: pid()) ->
+    ok.
+
 send_message(Message, PID) ->
     Json = library_protocol:encode(Message),
     ok = lager:info("Sending message ~p throught websocket", [Json]),
     ok = gun:ws_send(PID, {text, Json}).
 
--spec push_message(Json :: jiffy:json_value(), State :: state()) ->
+-spec push_message(Message :: library_protocol:source_message(), State :: state()) ->
     state().
 
 push_message(Message, #{message_list := MessageList} = State) ->
     ok = lager:info("Adding message ~p to message list", [Message]),
     NewMessageList = [Message | MessageList],
     State#{message_list => NewMessageList}.
+
+-spec pop_message([library_protocol:source_message()]) ->
+        {library_protocol:source_message(), list()}.
 
 pop_message([]) ->
     {[], []};
