@@ -13,23 +13,27 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--define(HOST, "localhost").
--define(PORT, 8080).
--define(ID, <<"client1">>).
--define(USER, <<"Igor">>).
+% General
+
+-define(USER,     <<"Igor">>).
 -define(MESSAGE, <<"Hello">>).
--define(ROOM, <<"room1">>).
--define(NONEXISTENT_ROOM_MESSAGE, {register, <<"Igor">>, <<"">>, <<"noroom">>}).
--define(NO_ROOM_REPLY, {error, <<"">>, <<"NO ROOM">>, <<"">>}).
--define(JOINED_REPLY,
-            {joined, <<"Incognito">>, <<>>, <<"room1">>},
-            {success, <<>>, <<>>, <<"room1">>}
-        ).
--define(EXPECTED_MESSAGES,
-    [
-        {send_message, <<"Incognito">>, <<"Hello">>, <<"room1">>},
-        ?JOINED_REPLY
-    ]).
+-define(ROOM,    <<"room1">>).
+-define(DEFAULT_SLEEP,    20).
+
+% Commands
+
+-define(CREATE_ROOM,          {create, <<"Igor">>, <<"">>, ?ROOM}).
+-define(NO_ROOM,               {error, <<>>, <<"NO ROOM">>, <<>>}).
+-define(SEND_MESSAGE, {send_message, <<"Igor">>, ?MESSAGE, ?ROOM}).
+-define(DELETE_ROOM,          {delete, <<"Igor">>, <<"">>, ?ROOM}).
+-define(JOIN_ROOM,                {join, <<"Igor">>, <<>>, ?ROOM}).
+
+% Errors
+
+-define(ALREADY_IN_ROOM, {error, <<>>, <<"ALREADY IN THE ROOM">>, <<>>}).
+-define(NOT_IN_ROOM,  {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
+-define(ALREADY_EXISTS,  {error, <<>>, <<"ROOM ALREADY EXISTS">>, <<>>}).
+-define(NO_ROOM_REPLY,             {error, <<"">>, <<"NO ROOM">>, <<>>}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -37,25 +41,7 @@
     [{group, groupName()}].
 
 all() ->
-     [
-        {group, impossible_interactions},
-        {group, basic_interactions}
-     ].
-
--spec groups() ->
-    [{groupName(), [sequence], [atom()]}].
-
-groups() ->
-    [
-        {basic_interactions, [sequence], [
-            join_room,
-            send_message,
-            receive_message
-        ]},
-        {impossible_interactions, [sequence], [
-            cant_send_to_nonexistent_room
-        ]}
-    ].
+     [mega_test].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% SUITE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -66,7 +52,6 @@ init_per_suite(C) ->
     {ok, Apps1} = application:ensure_all_started(chat_server),
     {ok, Apps2} = application:ensure_all_started(library),
     {ok, Apps3} = application:ensure_all_started(chat_client),
-    ok = room_manager:create_room(?ROOM),
     [{apps, [Apps1, Apps2, Apps3]} | C].
 
 -spec end_per_suite(C :: config()) ->
@@ -75,48 +60,33 @@ init_per_suite(C) ->
 end_per_suite(C) ->
     [application:stop(App) || App <- ?config(apps, C)].
 
-%%%%%%%%%%%%%%%%%%%%%%%%%% BASIC INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
+mega_test(_C) ->
+    % Have to test everything in one place to be able to use pid
+    {ok, PID} = chat_client_client:start_link(),
+    ok = chat_client_client:set_username(PID, ?USER),
 
--spec join_room(C :: config()) ->
-    term().
+    ok = chat_client_client:join(PID, ?ROOM),
+    await_and_check_responce(?NO_ROOM, PID),
 
-join_room(_C) ->
-    ok = client:connect(?HOST, ?PORT, ?ID),
-    ok = client:join(?ID, ?ROOM),
-    timer:sleep(100), % Give server time to respond
-    [?JOINED_REPLY] = client:get_messages(?ID).
+    ok = chat_client_client:create(PID, ?ROOM),
+    await_and_check_responce(?CREATE_ROOM, PID),
 
--spec send_message(C :: config()) ->
-    term().
+    ok = chat_client_client:create(PID, ?ROOM),
+    await_and_check_responce(?ALREADY_EXISTS, PID),
 
-send_message(_C) ->
-    ok = client:send(?ID, ?MESSAGE, ?ROOM).
+    ok = chat_client_client:join(PID, ?ROOM),
+    await_and_check_responce(?ALREADY_IN_ROOM, PID),
 
--spec receive_message(C :: config()) ->
-    term().
+    ok = chat_client_client:send(PID, ?MESSAGE, ?ROOM),
+    await_and_check_responce(?SEND_MESSAGE, PID),
 
-receive_message(_C) ->
-    timer:sleep(150), % Give server some time to handle and respond
-    ?EXPECTED_MESSAGES = client:get_messages(?ID).
+    ok = chat_client_client:delete(PID, ?ROOM),
+    await_and_check_responce(?DELETE_ROOM, PID),
 
-%%%%%%%%%%%%%%%%%%%%%%% IMPOSSIBLE INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%
+    ok = chat_client_client:send(PID, ?MESSAGE, ?ROOM),
+    await_and_check_responce(?NOT_IN_ROOM, PID).
 
--spec cant_send_to_nonexistent_room(C :: config()) ->
-    term().
 
-cant_send_to_nonexistent_room(_C) ->
-    ok = chat_room:send(?NONEXISTENT_ROOM_MESSAGE, self()),
-    ?NO_ROOM_REPLY = receive_reply().
-
-%%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
-
--spec receive_reply() ->
-    protocol:source_message() | nothing.
-
-receive_reply() ->
-    receive
-        {send, Reply} ->
-            Reply
-    after 2500 ->
-        nothing
-    end.
+await_and_check_responce(ExpectedResponce, PID) ->
+    timer:sleep(?DEFAULT_SLEEP), % Give server time to respond
+    ExpectedResponce = chat_client_client:get_last_message(PID).

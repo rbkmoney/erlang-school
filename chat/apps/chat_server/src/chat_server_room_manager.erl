@@ -57,11 +57,11 @@ init(undefined) ->
     ok = lager:notice("Room manager initialized"),
     {ok, []}.
 
--spec handle_cast(term(), State :: stateless) ->
+-spec handle_cast(term(), RoomList :: list()) ->
     {noreply, list()}.
 
-handle_cast(_, State) ->
-    {noreply, State}.
+handle_cast(_, RoomList) ->
+    {noreply, RoomList}.
 
 -spec handle_call
     ({create_room, Id :: binary}, _From :: term(), RoomList :: [binary()]) ->
@@ -75,7 +75,7 @@ handle_cast(_, State) ->
 
 
 handle_call({create_room, Id}, _From, RoomList) ->
-    {Reply, NewRoomList} = case library_chatlib:is_in_list(Id, RoomList) of
+    {Reply, NewRoomList} = case lists:member(Id, RoomList) of
         false ->
             ok = lager:info("Creating room ~p", [Id]),
             {ok, [Id | RoomList]};
@@ -87,11 +87,11 @@ handle_call({create_room, Id}, _From, RoomList) ->
 
 handle_call({room_exists, Id}, _From, RoomList) ->
     ok = lager:info("Checking if room ~p exists", [Id]),
-    Reply = library_chatlib:is_in_list(Id, RoomList),
+    Reply = lists:member(Id, RoomList),
     {reply, Reply, RoomList};
 
 handle_call({delete_room, Id}, _From, RoomList) ->
-    {Reply, NewRoomList} = case library_chatlib:is_in_list(Id, RoomList) of
+    {Reply, NewRoomList} = case lists:member(Id, RoomList) of
         true ->
             ok = lager:info("Deleting room ~p", [Id]),
             {ok, lists:delete(Id, RoomList)};

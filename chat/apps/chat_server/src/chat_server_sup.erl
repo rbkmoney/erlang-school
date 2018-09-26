@@ -32,8 +32,8 @@ init([]) ->
     ok = lager:notice("Chat_server supervisor Initialized"),
     SupArgs = #{
         strategy => one_for_one,
-        intensity => 10,
-        period => 10
+        intensity => 1,
+        period => 5
     },
     Room_manager = #{
         id => manager,

@@ -17,15 +17,15 @@
 
 all() ->
     [
-        encodeJson,
-        decodeJson,
+        encode_json,
+        decode_json,
         symmetry
     ].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% SUITE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--define(DECODED_MSG, {left, <<"Igor">>, <<"Hello">>, <<"rm1">>}).
--define(ENCODED_MSG, <<"{\"user\":\"Igor\",\"room\":\"rm1\",\"message\":\"Hello\",\"event\":\"left\"}">>).
+-define(DECODED_MSG, {leave, <<"Igor">>, <<"Hello">>, <<"rm1">>}).
+-define(ENCODED_MSG, <<"{\"user\":\"Igor\",\"room\":\"rm1\",\"message\":\"Hello\",\"event\":\"leave\"}">>).
 
 -spec init_per_suite(C :: config()) ->
     config().
@@ -42,20 +42,20 @@ end_per_suite(C) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% BASIC INTERACTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec encodeJson(C :: config()) ->
+-spec encode_json(C :: config()) ->
     term().
 
-encodeJson(_C) ->
-    ?ENCODED_MSG = protocol:encode(?DECODED_MSG).
+encode_json(_C) ->
+    ?ENCODED_MSG = library_protocol:encode(?DECODED_MSG).
 
--spec decodeJson(C :: config()) ->
+-spec decode_json(C :: config()) ->
     term().
 
-decodeJson(_C) ->
-    ?DECODED_MSG = protocol:decode(?ENCODED_MSG).
+decode_json(_C) ->
+    ?DECODED_MSG = library_protocol:decode(?ENCODED_MSG).
 
 -spec symmetry(C :: config()) ->
     term().
 
 symmetry(_C) ->
-    ?DECODED_MSG = protocol:decode(protocol:encode(?DECODED_MSG)).
+    ?DECODED_MSG = library_protocol:decode(library_protocol:encode(?DECODED_MSG)).

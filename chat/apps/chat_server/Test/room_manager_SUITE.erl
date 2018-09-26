@@ -22,13 +22,12 @@
 
 all() ->
     [
-    create_room,
-    get_room_list,
-    get_room_pid,
-    cant_create_existing_room,
-    delete_room,
-    cant_delete_nonexistent_room,
-    cant_find_nonexistent_room
+        create_room,
+        get_room_list,
+        cant_create_existing_room,
+        delete_room,
+        cant_delete_nonexistent_room,
+        cant_find_nonexistent_room
     ].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% SUITE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -52,40 +51,34 @@ end_per_suite(C) ->
     term().
 
 create_room(_C) ->
-    ok = room_manager:create_room(?FIRST_ROOM).
+    ok = chat_server_room_manager:create_room(?FIRST_ROOM).
 
 -spec get_room_list(C :: config()) ->
     term().
 
 get_room_list(_C) ->
-    [?FIRST_ROOM] = room_manager:rooms().
-
--spec get_room_pid(C :: config()) ->
-    term().
-
-get_room_pid(_C) ->
-    true = is_pid(room_manager:room_pid(?FIRST_ROOM)).
+    [?FIRST_ROOM] = chat_server_room_manager:rooms().
 
 -spec cant_create_existing_room(C :: config()) ->
     term().
 
 cant_create_existing_room(_C) ->
-    already_exists = room_manager:create_room(?FIRST_ROOM).
+    already_exists = chat_server_room_manager:create_room(?FIRST_ROOM).
 
 -spec delete_room(C :: config()) ->
     term().
 
 delete_room(_C) ->
-    ok = room_manager:delete_room(?FIRST_ROOM).
+    ok = chat_server_room_manager:delete_room(?FIRST_ROOM).
 
 -spec cant_delete_nonexistent_room(C :: config()) ->
     term().
 
 cant_delete_nonexistent_room(_C) ->
-    not_found = room_manager:delete_room(?SECOND_ROOM).
+    not_found = chat_server_room_manager:delete_room(?SECOND_ROOM).
 
 -spec cant_find_nonexistent_room(C :: config()) ->
     term().
 
 cant_find_nonexistent_room(_C) ->
-    false = room_manager:room_exists(?SECOND_ROOM).
+    false = chat_server_room_manager:room_exists(?SECOND_ROOM).

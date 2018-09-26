@@ -4,87 +4,88 @@
 
 -behaviour(gen_server).
 
--export([init/1]).
+-export([init       /1]).
 -export([handle_cast/2]).
 -export([handle_info/2]).
 -export([handle_call/3]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([send/3]).
--export([create/2]).
--export([delete/2]).
--export([join/2]).
--export([leave/2]).
--export([start_link/1]).
--export([get_messages/1]).
--export([set_username/2]).
+-export([send            /3]).
+-export([join            /2]).
+-export([leave           /2]).
+-export([create          /2]).
+-export([delete          /2]).
+-export([start_link      /0]).
+-export([set_username    /2]).
+-export([get_last_message/1]).
 
 
--define(CALL_EVENT_LIST, [join, create, delete, leave]).
+-define(DEFAULT_USERNAME, <<"Incognito">>).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type message_list() :: [library_protocol:source_message()].
 -type state() :: #{
-    pid => pid(),
-    connected => boolean(),
-    username => binary(),
-    message_list => message_list(),
-    host => host(),
-    port => connection_port()
+    pid := pid(),
+    connected := boolean(),
+    username := binary(),
+    message_list := message_list(),
+    host := host(),
+    port := connection_port()
 }.
 -type host() :: string().
 -type connection_port() :: non_neg_integer().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec start_link(Id :: binary()) ->
+-spec start_link() ->
     {ok, pid()}.
 
-start_link(Id) ->
-    {ok, _} = gen_server:start_link({global, Id}, ?MODULE, <<"Incognito">>, []).
+start_link() ->
+    {ok, _} = gen_server:start_link(?MODULE, undefined, []).
 
--spec send(Id :: binary(), Message :: binary(), RoomId :: binary()) ->
+-spec send(PID :: pid(), Message :: binary(), RoomId :: binary()) ->
     ok.
 
-send(Id, Message, RoomId) ->
-    ok = gen_server:cast({global, Id}, {send_message, Message, RoomId}).
+send(PID, Message, RoomId) ->
+    ok = gen_server:cast(PID, {send_message, Message, RoomId}).
 
--spec set_username(Id :: binary(), Username :: binary()) ->
+-spec set_username(PID :: pid(), Username :: binary()) ->
     ok.
 
-set_username(Id, Username) ->
-    ok = gen_server:call({global, Id}, {set_username, Username}).
+set_username(PID, Username) ->
+    ok = gen_server:call(PID, {set_username, Username}).
 
--spec join(Id :: binary(), RoomId :: binary()) ->
+-spec join(PID :: pid(), RoomId :: binary()) ->
     ok.
 
-join(Id, RoomId) ->
-    ok = gen_server:call({global, Id}, {join, RoomId}).
+join(PID, RoomId) ->
+    ok = gen_server:call(PID, {join, RoomId}).
 
-leave(Id, RoomId) ->
-    ok = gen_server:call({global, Id}, {leave, RoomId}).
+leave(PID, RoomId) ->
+    ok = gen_server:call(PID, {leave, RoomId}).
 
-create(Id, RoomId) ->
-    ok = gen_server:call({global, Id}, {create, RoomId}).
+create(PID, RoomId) ->
+    ok = gen_server:call(PID, {create, RoomId}).
 
-delete(Id, RoomId) ->
-    ok = gen_server:call({global, Id}, {delete, RoomId}).
+delete(PID, RoomId) ->
+    ok = gen_server:call(PID, {delete, RoomId}).
 
--spec get_messages(Id :: binary()) ->
-    message_list().
+-spec get_last_message(PID :: pid()) ->
+    library_protocol:source_message().
 
-get_messages(Id) ->
-    gen_server:call({global, Id}, get_messages).
+get_last_message(PID) ->
+    ok = lager:debug("User ~p called get_last_message", [PID]),
+    gen_server:call(PID, pop_message).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec init(Username :: string()) ->
+-spec init(undefined) ->
     {ok, state()}.
 
-init(Username) ->
-    {ok, #{connected => false, host => "localhost", port => 8080, username => Username, message_list => []}}.
+init(undefined) ->
+    {ok, #{connected => false, host => "localhost", port => 8080, username => ?DEFAULT_USERNAME, message_list => []}}.
 
 handle_call({create, RoomId}, _From, State) ->
     NewState = handle_request(create, RoomId, State),
@@ -102,10 +103,13 @@ handle_call({delete, RoomId}, _From, State) ->
     NewState = handle_request(delete, RoomId, State),
     {reply, ok, NewState};
 
-handle_call(get_messages, _From, #{username := Username, message_list := MessageList} = State) ->
-    % TO DO pop message
+handle_call({set_username, Username}, _From, State) ->
+    {reply, ok, State#{username => Username}};
+
+handle_call(pop_message, _From, #{username := Username, message_list := MessageList} = State) ->
     ok = lager:info("User ~p asked for received messages", [Username]),
-    {reply, MessageList, State};
+    {Message, Tail} = pop_message(MessageList),
+    {reply, Message, State#{message_list => Tail}};
 
 handle_call(_, _, State) ->
     {reply, ok, State}.
@@ -124,10 +128,10 @@ handle_cast(_, State) ->
 -spec handle_info({gun_ws, _, _, {text, Message :: binary()}}, state()) ->
     {noreply, state()}.
 
-handle_info({gun_ws, _, _, {text, Message}}, State) ->
+handle_info({gun_ws, _, _, {text, Json}}, State) ->
+    Message = library_protocol:decode(Json),
     ok = lager:info("Caught a message: ~p", [Message]),
-    NewState = add_message(Message, State),
-    format_message(Message),
+    NewState = push_message(Message, State),
     {noreply, NewState};
 
 handle_info(_, State) ->
@@ -164,15 +168,19 @@ send_message(Message, PID) ->
     ok = lager:info("Sending message ~p throught websocket", [Json]),
     ok = gun:ws_send(PID, {text, Json}).
 
--spec add_message(Json :: jiffy:json_value(), State :: state()) ->
+-spec push_message(Json :: jiffy:json_value(), State :: state()) ->
     state().
 
-add_message(Json, State) ->
-    Message = library_protocol:decode(Json),
-    ok = lager:info("Adding message ~p to mesageList", [Message]),
-    #{message_list := MessageList} = State,
+push_message(Message, #{message_list := MessageList} = State) ->
+    ok = lager:info("Adding message ~p to message list", [Message]),
     NewMessageList = [Message | MessageList],
     State#{message_list => NewMessageList}.
+
+pop_message([]) ->
+    {[], []};
+
+pop_message([Head | Tail]) ->
+    {Head, Tail}.
 
 -spec ws_connect(State :: state()) ->
     state().
@@ -184,7 +192,7 @@ ws_connect(#{connected := false, host := Host, port := Port} = State) ->
     _ = gun:ws_upgrade(Pid, "/websocket"),
     receive
         {gun_upgrade, Pid, _, [<<"websocket">>], _} ->
-            ok = lager:info("Success");
+            ok = lager:info("Upgrade success");
         {gun_response, Pid, _, _, Status, Headers} ->
             exit({ws_upgrade_failed, Status, Headers});
         {gun_error, Pid, _, Reason} ->
@@ -193,17 +201,3 @@ ws_connect(#{connected := false, host := Host, port := Port} = State) ->
         exit(timeout)
     end,
     State#{pid => Pid, connected => true}.
-
--spec format_message(Json ::  jiffy:json_value()) ->
-    ok.
-
-format_message(Json) -> % Optional output
-    {Event, Username, Message, _} = library_protocol:decode(Json),
-    case Event of
-        send_message ->
-            ok = io:fwrite("~p: ~p~n", [binary_to_list(Username), binary_to_list(Message)]);
-        error ->
-            ok = io:fwrite("~p ~p~n", [Event, Message]);
-        _ ->
-            ok = io:fwrite("~p ~p this room~n", [binary_to_list(Username), Event])
-    end.

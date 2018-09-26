@@ -1,9 +1,7 @@
 {application, chat_client,
     [
-        {description, "An OTP application"},
-        {vsn, "0.1.0"},
-        {registered, []},
-        {mod, { chat_client_app, []}},
+        {description, "Simplest erlang chat client"},
+        {vsn, "0.5"},
         {applications,
             [
                 kernel,

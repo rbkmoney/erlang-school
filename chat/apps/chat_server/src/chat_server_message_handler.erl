@@ -36,7 +36,7 @@ handle_message(Message = {join, Username, _, Room}, #{subscriptions := Subs}) ->
 
 handle_message(Message = {send_message, Username, _, Room}, #{subscriptions := Subs}) ->
     ok = lager:info("User ~p wants to send ~p to room ~p", [Username, Message, Room]),
-    case library_chatlib:is_in_list(Room, Subs) of
+    case lists:member(Room, Subs) of
         true ->
             gproc_ps:publish(l, Room, Message),
             ok = lager:info("User ~p sent message ~p to room ~p",[Username, Message, Room]);
@@ -48,7 +48,7 @@ handle_message(Message = {send_message, Username, _, Room}, #{subscriptions := S
 
 handle_message(Message = {leave, Username, _, Room}, #{subscriptions := Subs}) ->
     ok = lager:info("User ~p wants to leave room ~p", [Username, Room]),
-    case library_chatlib:is_in_list(Room, Subs) of
+    case lists:member(Room, Subs) of
         true ->
             gproc_ps:unsubscribe(l, Room),
             gproc_ps:publish(l, Room, Message),
@@ -77,7 +77,7 @@ handle_message({create, Username, _, Room}, #{subscriptions := Subs}) ->
 
 handle_message(Message = {delete, Username, _, Room}, #{subscriptions := Subs}) ->
     ok = lager:info("User ~p wants to delete room ~p", [Username, Room]),
-    case library_chatlib:is_in_list(Room, Subs) of
+    case lists:member(Room, Subs) of
         true ->
             gproc_ps:publish(l, Room, Message),
             gproc_ps:unsubscribe(l, Room),
@@ -112,7 +112,7 @@ send_error_message(already_exists) ->
     ok | no_room | already_subscribed.
 
 resolve_join_room(Room, Subscriptions) ->
-    case library_chatlib:is_in_list(Room, Subscriptions) of % If not already subscribed
+    case lists:member(Room, Subscriptions) of % If not already subscribed
         false ->
             case chat_server_room_manager:room_exists(Room) of
                 true ->
