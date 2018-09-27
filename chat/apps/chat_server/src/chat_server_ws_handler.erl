@@ -18,7 +18,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type state() :: #{subscriptions => [binary()]}.
+-type state() :: [binary()].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -39,41 +39,41 @@ init(Req, Opts) ->
     {cowboy_websocket, Req, Opts}.
 
 -spec websocket_init(term()) ->
-    {ok, state()}.
+    {ok, []}.
 
 websocket_init(_) ->
     ok = lager:notice("Initializing websocket, PID: ~p", [self()]),
-    {ok, #{subscriptions => []}}.
+    {ok, []}.
 
--spec websocket_handle({text, Json :: jiffy:json_value()}, State :: state()) ->
+-spec websocket_handle({text, Json :: jiffy:json_value()}, Subs :: state()) ->
     {ok, term()}.
 
-websocket_handle({text, Json}, State) ->
+websocket_handle({text, Json}, Subs) ->
     Message = library_protocol:decode(Json),
-    NewSubs = chat_server_message_handler:handle_message(Message, State),
-    {ok, State#{subscriptions => NewSubs}};
+    NewSubs = chat_server_message_handler:handle_message(Message, Subs),
+    {ok, NewSubs};
 
-websocket_handle(_Data, State) ->
-    {ok, State}.
+websocket_handle(_Data, Subs) ->
+    {ok, Subs}.
 
 -spec websocket_info
-    ({send, library_protocol:source_message()}, State :: state()) ->
+    ({send, library_protocol:source_message()}, Subs :: state()) ->
         {reply, {text, jiffy:json_value()}, term()};
-    ({gproc_ps_event, Event :: binary(), Message :: library_protocol:source_message()}, State :: state()) ->
+    ({gproc_ps_event, Event :: binary(), Message :: library_protocol:source_message()}, Subs :: state()) ->
         {reply, {text, jiffy:json_value()}, term()}.
 
-websocket_info({gproc_ps_event, _, Message}, State) ->
+websocket_info({gproc_ps_event, _, Message}, Subs) ->
     ok = lager:info("Websocket info: ~p", [Message]),
     Json = library_protocol:encode(Message),
-    {reply, {text, Json}, State};
+    {reply, {text, Json}, Subs};
 
-websocket_info({send, Message}, State) ->
+websocket_info({send, Message}, Subs) ->
     ok = lager:info("Websocket info: ~p", [Message]),
     Json = library_protocol:encode(Message),
-    {reply, {text, Json}, State}.
+    {reply, {text, Json}, Subs}.
 
--spec terminate(_Reason :: term(), _Req :: map(), State :: state()) ->
+-spec terminate(_Reason :: term(), _Req :: map(), Subs :: state()) ->
     ok.
 
-terminate(_Reason, _Req, _State) ->
+terminate(_Reason, _Req, _Subs) ->
     ok = lager:info("Websocket process ~p is terminated", [self()]).

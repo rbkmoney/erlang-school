@@ -6,10 +6,10 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--define(NO_ROOM_REPLY, {error, <<>>, <<"NO ROOM">>, <<>>}).
+-define(NOT_SUBSCRIBED_REPLY,  {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
+-define(ALREADY_EXISTS_REPLY,     {error, <<>>, <<"ROOM ALREADY EXISTS">>, <<>>}).
 -define(ALREADY_SUBSCRIBED_REPLY, {error, <<>>, <<"ALREADY IN THE ROOM">>, <<>>}).
--define(NOT_SUBSCRIBED_REPLY, {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
--define(ALREADY_EXISTS_REPLY, {error, <<>>, <<"ROOM ALREADY EXISTS">>, <<>>}).
+-define(NO_ROOM_REPLY,                        {error, <<>>, <<"NO ROOM">>, <<>>}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -17,10 +17,10 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec handle_message(library_protocol:source_message(), State :: chat_server_ws_handler:state()) ->
-    [binary()].
+-spec handle_message(library_protocol:source_message(), Subs :: chat_server_ws_handler:state()) ->
+    chat_server_ws_handler:state().
 
-handle_message(Message = {join, Username, _, Room}, #{subscriptions := Subs}) ->
+handle_message(Message = {join, Username, _, Room}, Subs) ->
     ok = lager:info("User ~p wants to join room ~p", [Username, Room]),
     case resolve_join_room(Room, Subs) of
         ok ->
@@ -34,7 +34,7 @@ handle_message(Message = {join, Username, _, Room}, #{subscriptions := Subs}) ->
             Subs
     end;
 
-handle_message(Message = {send_message, Username, _, Room}, #{subscriptions := Subs}) ->
+handle_message(Message = {send_message, Username, _, Room}, Subs) ->
     ok = lager:info("User ~p wants to send ~p to room ~p", [Username, Message, Room]),
     case lists:member(Room, Subs) of
         true ->
@@ -46,7 +46,7 @@ handle_message(Message = {send_message, Username, _, Room}, #{subscriptions := S
     Subs;
 
 
-handle_message(Message = {leave, Username, _, Room}, #{subscriptions := Subs}) ->
+handle_message(Message = {leave, Username, _, Room}, Subs) ->
     ok = lager:info("User ~p wants to leave room ~p", [Username, Room]),
     case lists:member(Room, Subs) of
         true ->
@@ -60,7 +60,7 @@ handle_message(Message = {leave, Username, _, Room}, #{subscriptions := Subs}) -
             Subs
     end;
 
-handle_message({create, Username, _, Room}, #{subscriptions := Subs}) ->
+handle_message({create, Username, _, Room}, Subs) ->
     ok = lager:info("User ~p wants to create room ~p", [Username, Room]),
     case chat_server_room_manager:create_room(Room) of
         ok ->
@@ -75,7 +75,7 @@ handle_message({create, Username, _, Room}, #{subscriptions := Subs}) ->
             Subs
     end;
 
-handle_message(Message = {delete, Username, _, Room}, #{subscriptions := Subs}) ->
+handle_message(Message = {delete, Username, _, Room}, Subs) ->
     ok = lager:info("User ~p wants to delete room ~p", [Username, Room]),
     case lists:member(Room, Subs) of
         true ->
@@ -88,7 +88,7 @@ handle_message(Message = {delete, Username, _, Room}, #{subscriptions := Subs}) 
             Subs
     end;
 
-handle_message(_, #{subscriptions := Subs}) ->
+handle_message(_, Subs) ->
     Subs.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%

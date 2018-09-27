@@ -22,14 +22,17 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% General
+
 -define(DEFAULT_USERNAME, <<"Incognito">>).
--define(DEFAULT_TIMEOUT, 1000).
+-define(DEFAULT_TIMEOUT,             1000).
+
 % Errors
 
--define(NO_ROOM_REPLY,                        {error, <<>>, <<"NO ROOM">>, <<>>}).
+-define(NOT_SUBSCRIBED_REPLY,  {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
 -define(ALREADY_EXISTS_REPLY,     {error, <<>>, <<"ROOM ALREADY EXISTS">>, <<>>}).
 -define(ALREADY_SUBSCRIBED_REPLY, {error, <<>>, <<"ALREADY IN THE ROOM">>, <<>>}).
--define(NOT_SUBSCRIBED_REPLY,  {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
+-define(NO_ROOM_REPLY,                        {error, <<>>, <<"NO ROOM">>, <<>>}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -107,13 +110,22 @@ get_last_message(PID) ->
     {ok, state()}.
 
 init({Host, Port}) ->
-    {ok, #{connected => false, host => Host, port => Port, username => ?DEFAULT_USERNAME, message_list => [], pending => empty}}.
+    {ok,
+        #{
+            connected => false,
+            host => Host,
+            port => Port,
+            username => ?DEFAULT_USERNAME,
+            message_list => [],
+            pending => empty
+        }
+    }.
 
 -spec handle_call
     ({active_event() | set_username, RoomId :: binary()}, _From :: from(), State :: state()) ->
         {reply, ok, state()};
     (pop_message, _From :: from(), State :: state()) ->
-        {reply, library_protocol:source_message(), state()}.
+        {reply, library_protocol:source_message() | empty, state()}.
 
 handle_call({create, RoomId}, From, State) ->
     NewState = handle_request(create, RoomId, From, State),
@@ -160,6 +172,7 @@ handle_info({gun_ws, _, _, {text, Json}}, #{pending := Pending} = State) ->
     ok = lager:info("Caught a message: ~p", [Message]),
     case Pending of
         {From, ExpectedMessage} ->
+            ok = lager:info("Message ~p is currently pending", [ExpectedMessage]),
             case Message of
                 ExpectedMessage ->
                     NewState = push_message(Message, State),
@@ -194,7 +207,8 @@ match_error(Message) ->
     end.
 
 
--spec handle_request(Event :: library_protocol:event(), RoomId :: binary(), From :: from(), State :: state()) ->
+-spec handle_request
+    (Event :: active_event(), RoomId :: binary(), From :: from(), State :: state()) ->
         state().
 
 handle_request(Event, RoomId, From, #{username := Username} = State) ->
