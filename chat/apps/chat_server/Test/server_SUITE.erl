@@ -15,17 +15,17 @@
 
 % General
 
--define(USER,     <<"Igor">>).
--define(MESSAGE, <<"Hello">>).
--define(ROOM,    <<"room1">>).
--define(DEFAULT_SLEEP,    20).
+-define(USER,      <<"Igor">>).
+-define(MESSAGE,  <<"Hello">>).
+-define(ROOM,     <<"room1">>).
+-define(HOST,     "localhost").
+-define(PORT,            8080).
 
 % Commands
 
--define(CREATE_ROOM,          {create, <<"Igor">>, <<"">>, ?ROOM}).
--define(NO_ROOM,               {error, <<>>, <<"NO ROOM">>, <<>>}).
+-define(CREATE_ROOM,            {create, <<"Igor">>, <<>>, ?ROOM}).
 -define(SEND_MESSAGE, {send_message, <<"Igor">>, ?MESSAGE, ?ROOM}).
--define(DELETE_ROOM,          {delete, <<"Igor">>, <<"">>, ?ROOM}).
+-define(DELETE_ROOM,            {delete, <<"Igor">>, <<>>, ?ROOM}).
 -define(JOIN_ROOM,                {join, <<"Igor">>, <<>>, ?ROOM}).
 
 % Errors
@@ -33,7 +33,7 @@
 -define(ALREADY_IN_ROOM, {error, <<>>, <<"ALREADY IN THE ROOM">>, <<>>}).
 -define(NOT_IN_ROOM,  {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
 -define(ALREADY_EXISTS,  {error, <<>>, <<"ROOM ALREADY EXISTS">>, <<>>}).
--define(NO_ROOM_REPLY,             {error, <<"">>, <<"NO ROOM">>, <<>>}).
+-define(NO_ROOM,                     {error, <<>>, <<"NO ROOM">>, <<>>}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -60,33 +60,17 @@ init_per_suite(C) ->
 end_per_suite(C) ->
     [application:stop(App) || App <- ?config(apps, C)].
 
+-spec mega_test(C :: config()) ->
+    term().
+
 mega_test(_C) ->
     % Have to test everything in one place to be able to use pid
-    {ok, PID} = chat_client_client:start_link(),
+    {ok, PID} = chat_client_client:start_link(?HOST, ?PORT),
     ok = chat_client_client:set_username(PID, ?USER),
-
-    ok = chat_client_client:join(PID, ?ROOM),
-    await_and_check_responce(?NO_ROOM, PID),
-
+    no_room = chat_client_client:join(PID, ?ROOM),
     ok = chat_client_client:create(PID, ?ROOM),
-    await_and_check_responce(?CREATE_ROOM, PID),
-
-    ok = chat_client_client:create(PID, ?ROOM),
-    await_and_check_responce(?ALREADY_EXISTS, PID),
-
-    ok = chat_client_client:join(PID, ?ROOM),
-    await_and_check_responce(?ALREADY_IN_ROOM, PID),
-
+    already_exists = chat_client_client:create(PID, ?ROOM),
+    already_joined = chat_client_client:join(PID, ?ROOM),
     ok = chat_client_client:send(PID, ?MESSAGE, ?ROOM),
-    await_and_check_responce(?SEND_MESSAGE, PID),
-
     ok = chat_client_client:delete(PID, ?ROOM),
-    await_and_check_responce(?DELETE_ROOM, PID),
-
-    ok = chat_client_client:send(PID, ?MESSAGE, ?ROOM),
-    await_and_check_responce(?NOT_IN_ROOM, PID).
-
-
-await_and_check_responce(ExpectedResponce, PID) ->
-    timer:sleep(?DEFAULT_SLEEP), % Give server time to respond
-    ExpectedResponce = chat_client_client:get_last_message(PID).
+    not_joined = chat_client_client:send(PID, ?MESSAGE, ?ROOM).

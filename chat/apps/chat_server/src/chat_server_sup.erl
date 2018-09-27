@@ -30,14 +30,9 @@ start_link() ->
 
 init([]) ->
     ok = lager:notice("Chat_server supervisor Initialized"),
-    SupArgs = #{
-        strategy => one_for_one,
-        intensity => 1,
-        period => 5
-    },
     Room_manager = #{
         id => manager,
         type => worker,
         start => {chat_server_room_manager, start_link, []}
     },
-    {ok, {SupArgs, [Room_manager]}}.
+    {ok, {#{}, [Room_manager]}}.

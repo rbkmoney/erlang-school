@@ -16,12 +16,20 @@
 -export([leave           /2]).
 -export([create          /2]).
 -export([delete          /2]).
--export([start_link      /0]).
+-export([start_link      /2]).
 -export([set_username    /2]).
 -export([get_last_message/1]).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -define(DEFAULT_USERNAME, <<"Incognito">>).
+-define(DEFAULT_TIMEOUT, 1000).
+% Errors
+
+-define(NO_ROOM_REPLY,                        {error, <<>>, <<"NO ROOM">>, <<>>}).
+-define(ALREADY_EXISTS_REPLY,     {error, <<>>, <<"ROOM ALREADY EXISTS">>, <<>>}).
+-define(ALREADY_SUBSCRIBED_REPLY, {error, <<>>, <<"ALREADY IN THE ROOM">>, <<>>}).
+-define(NOT_SUBSCRIBED_REPLY,  {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -32,24 +40,29 @@
     username := binary(),
     message_list := message_list(),
     host := host(),
-    port := connection_port()
+    port := connection_port(),
+    pending := pending() % 'From' to send reply to and Message that is expected
 }.
+-type active_event() :: join | leave | delete | create.
+-type from() :: {pid(), term()}.
 -type host() :: string().
 -type connection_port() :: non_neg_integer().
+-type pending() :: {from(), library_protocol:source_message()} | empty.
+-type error() :: already_exists | already_joined | no_room | not_joined.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec start_link() ->
+-spec start_link(Host :: host(), Port :: connection_port()) ->
     {ok, pid()}.
 
-start_link() ->
-    {ok, _} = gen_server:start_link(?MODULE, undefined, []).
+start_link(Host, Port) ->
+    {ok, _} = gen_server:start_link(?MODULE, {Host, Port}, []).
 
 -spec send(PID :: pid(), Message :: binary(), RoomId :: binary()) ->
     ok.
 
 send(PID, Message, RoomId) ->
-    ok = gen_server:cast(PID, {send_message, Message, RoomId}).
+    gen_server:call(PID, {send_message, Message, RoomId}).
 
 -spec set_username(PID :: pid(), Username :: binary()) ->
     ok.
@@ -61,62 +74,66 @@ set_username(PID, Username) ->
     ok.
 
 join(PID, RoomId) ->
-    ok = gen_server:call(PID, {join, RoomId}).
+    gen_server:call(PID, {join, RoomId}).
 
 -spec leave(PID :: pid(), RoomId :: binary()) ->
     ok.
 
 leave(PID, RoomId) ->
-    ok = gen_server:call(PID, {leave, RoomId}).
+    gen_server:call(PID, {leave, RoomId}).
 
 -spec create(PID :: pid(), RoomId :: binary()) ->
     ok.
 
 create(PID, RoomId) ->
-    ok = gen_server:call(PID, {create, RoomId}).
+    gen_server:call(PID, {create, RoomId}).
 
 -spec delete(PID :: pid(), RoomId :: binary()) ->
     ok.
 
 delete(PID, RoomId) ->
-    ok = gen_server:call(PID, {delete, RoomId}).
+    gen_server:call(PID, {delete, RoomId}).
 
 -spec get_last_message(PID :: pid()) ->
     library_protocol:source_message().
 
 get_last_message(PID) ->
-    ok = lager:debug("User ~p called get_last_message", [PID]),
+    ok = lager:debug("Process ~p called get_last_message", [PID]),
     gen_server:call(PID, pop_message).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec init(undefined) ->
+-spec init({Host :: host(), Port :: connection_port()}) ->
     {ok, state()}.
 
-init(undefined) ->
-    {ok, #{connected => false, host => "localhost", port => 8080, username => ?DEFAULT_USERNAME, message_list => []}}.
+init({Host, Port}) ->
+    {ok, #{connected => false, host => Host, port => Port, username => ?DEFAULT_USERNAME, message_list => [], pending => empty}}.
 
 -spec handle_call
-    ({library_protocol:event(), RoomId :: binary()}, _From :: term(), State :: state()) ->
+    ({active_event() | set_username, RoomId :: binary()}, _From :: from(), State :: state()) ->
         {reply, ok, state()};
-    (pop_message, _From :: term(), State :: state()) ->
+    (pop_message, _From :: from(), State :: state()) ->
         {reply, library_protocol:source_message(), state()}.
 
-handle_call({create, RoomId}, _From, State) ->
-    NewState = handle_request(create, RoomId, State),
-    {reply, ok, NewState};
+handle_call({create, RoomId}, From, State) ->
+    NewState = handle_request(create, RoomId, From, State),
+    {noreply, NewState, ?DEFAULT_TIMEOUT};
 
-handle_call({join, RoomId}, _From, State) ->
-    NewState = handle_request(join, RoomId, State),
-    {reply, ok, NewState};
+handle_call({join, RoomId}, From, State) ->
+    NewState = handle_request(join, RoomId, From, State),
+    {noreply, NewState, ?DEFAULT_TIMEOUT};
 
-handle_call({leave, RoomId}, _From, State) ->
-    NewState = handle_request(leave, RoomId, State),
-    {reply, ok, NewState};
+handle_call({leave, RoomId}, From, State) ->
+    NewState = handle_request(leave, RoomId, From, State),
+    {noreply, NewState, ?DEFAULT_TIMEOUT};
 
-handle_call({delete, RoomId}, _From, State) ->
-    NewState = handle_request(delete, RoomId, State),
-    {reply, ok, NewState};
+handle_call({delete, RoomId}, From, State) ->
+    NewState = handle_request(delete, RoomId, From, State),
+    {noreply, NewState, ?DEFAULT_TIMEOUT};
+
+handle_call({send_message, Message, RoomId}, From, State) ->
+    NewState = handle_request(send_message, Message, RoomId, From, State),
+    {noreply, NewState, ?DEFAULT_TIMEOUT};
 
 handle_call({set_username, Username}, _From, State) ->
     {reply, ok, State#{username => Username}};
@@ -129,24 +146,31 @@ handle_call(pop_message, _From, #{username := Username, message_list := MessageL
 handle_call(_, _, State) ->
     {reply, ok, State}.
 
--spec handle_cast({send_message, Message :: binary(),
-    RoomId :: atom()}, State :: state()) ->
-        {noreply, state()}.
-
-handle_cast({send_message, Message, RoomId}, State) ->
-    NewState = handle_request(send_message, Message, RoomId, State),
-    {noreply, NewState};
+-spec handle_cast(term(), State :: state()) ->
+    {noreply, state()}.
 
 handle_cast(_, State) ->
     {noreply, State}.
 
--spec handle_info({gun_ws, _, _, {text, Message :: binary()}}, state()) ->
+-spec handle_info({gun_ws, _, _, {text, Message :: jiffy:json_value()}}, state()) ->
     {noreply, state()}.
 
-handle_info({gun_ws, _, _, {text, Json}}, State) ->
+handle_info({gun_ws, _, _, {text, Json}}, #{pending := Pending} = State) ->
     Message = library_protocol:decode(Json),
     ok = lager:info("Caught a message: ~p", [Message]),
-    NewState = push_message(Message, State),
+    case Pending of
+        {From, ExpectedMessage} ->
+            case Message of
+                ExpectedMessage ->
+                    NewState = push_message(Message, State),
+                    gen_server:reply(From, ok);
+                _ ->
+                    NewState = State#{pending => empty},
+                    gen_server:reply(From, match_error(Message))
+            end;
+        empty ->
+            NewState = push_message(Message, State)
+    end,
     {noreply, NewState};
 
 handle_info(_, State) ->
@@ -154,27 +178,43 @@ handle_info(_, State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec handle_request(Event :: library_protocol:event(), RoomId :: binary(), State :: state()) ->
+-spec match_error(Message :: library_protocol:source_message()) ->
+    error().
+
+match_error(Message) ->
+    case Message of
+        ?NO_ROOM_REPLY ->
+            no_room;
+        ?ALREADY_EXISTS_REPLY ->
+            already_exists;
+        ?ALREADY_SUBSCRIBED_REPLY ->
+            already_joined;
+        ?NOT_SUBSCRIBED_REPLY ->
+            not_joined
+    end.
+
+
+-spec handle_request(Event :: library_protocol:event(), RoomId :: binary(), From :: from(), State :: state()) ->
         state().
 
-handle_request(Event, RoomId, #{username := Username} = State) ->
+handle_request(Event, RoomId, From, #{username := Username} = State) ->
     NewState = ensure_connected(State),
     ok = lager:info("User ~p wants to ~p room ~p", [Username, Event, RoomId]),
     Message = {Event, Username, <<>>, RoomId},
     #{pid := PID} = NewState,
     ok = send_message(Message, PID),
-    NewState.
+    NewState#{pending => {From, Message}}.
 
--spec handle_request(send_message, Text :: binary(), RoomId :: binary(), State :: state()) ->
+-spec handle_request(send_message, Text :: binary(), RoomId :: binary(), From :: from(), State :: state()) ->
     state().
 
-handle_request(send_message, Text, RoomId, #{username := Username} = State) ->
+handle_request(send_message, Text, RoomId, From, #{username := Username} = State) ->
     NewState = ensure_connected(State),
     ok = lager:info("User ~p wants to send message to room ~p", [Username, RoomId]),
     Message = {send_message, Username, Text, RoomId},
     #{pid := PID} = NewState,
     ok = send_message(Message, PID),
-    NewState.
+    NewState#{pending => {From, Message}}.
 
 -spec ensure_connected(State :: state()) ->
     state().
@@ -199,15 +239,14 @@ send_message(Message, PID) ->
     state().
 
 push_message(Message, #{message_list := MessageList} = State) ->
-    ok = lager:info("Adding message ~p to message list", [Message]),
     NewMessageList = [Message | MessageList],
     State#{message_list => NewMessageList}.
 
 -spec pop_message([library_protocol:source_message()]) ->
-        {library_protocol:source_message(), list()}.
+        {library_protocol:source_message() | empty, list()}.
 
 pop_message([]) ->
-    {[], []};
+    {empty, []};
 
 pop_message([Head | Tail]) ->
     {Head, Tail}.

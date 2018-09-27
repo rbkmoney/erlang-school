@@ -27,7 +27,7 @@ handle_message(Message = {join, Username, _, Room}, #{subscriptions := Subs}) ->
             gproc_ps:subscribe(l, Room),
             gproc_ps:publish(l, Room, Message),
             NewSubs = [Room | Subs],
-            ok = lager:info("User ~p joined room ~p, he is in rooms ~p now", [Username, Room, NewSubs]),
+            ok = lager:debug("User ~p joined room ~p, he is in rooms ~p now", [Username, Room, NewSubs]),
             NewSubs;
         Else ->
             send_error_message(Else),

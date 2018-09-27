@@ -16,6 +16,10 @@
 -export([delete_room/1]).
 -export([room_exists/1]).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-type room_list() :: [binary()].
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec start_link() ->
@@ -43,7 +47,7 @@ delete_room(Id) ->
     gen_server:call(?MODULE, {delete_room, Id}).
 
 -spec rooms() ->
-    [binary()].
+    room_list().
 
 rooms() ->
     gen_server:call(?MODULE, rooms).
@@ -57,21 +61,21 @@ init(undefined) ->
     ok = lager:notice("Room manager initialized"),
     {ok, []}.
 
--spec handle_cast(term(), RoomList :: list()) ->
-    {noreply, list()}.
+-spec handle_cast(term(), RoomList :: room_list()) ->
+    {noreply, room_list()}.
 
 handle_cast(_, RoomList) ->
     {noreply, RoomList}.
 
 -spec handle_call
-    ({create_room, Id :: binary}, _From :: term(), RoomList :: [binary()]) ->
-        {reply, ok | already_exists, stateless};
-    ({room_exists, Id :: binary}, _From :: term(), RoomList :: [binary()]) ->
-        {reply, boolean(), stateless};
-    ({delete_room, Id :: binary}, _From :: term(), RoomList :: [binary()]) ->
-        {reply, ok | not_found, stateless};
-    (rooms, _From :: term(), RoomList :: [binary()]) ->
-        {reply, [binary()], stateless}.
+    ({create_room, Id :: binary}, _From :: term(), RoomList :: room_list()) ->
+        {reply, ok | already_exists, room_list()};
+    ({room_exists, Id :: binary}, _From :: term(), RoomList :: room_list()) ->
+        {reply, boolean(), room_list()};
+    ({delete_room, Id :: binary}, _From :: term(), RoomList :: room_list()) ->
+        {reply, ok | not_found, room_list()};
+    (rooms, _From :: term(), RoomList :: room_list()) ->
+        {reply, room_list(), room_list()}.
 
 
 handle_call({create_room, Id}, _From, RoomList) ->
