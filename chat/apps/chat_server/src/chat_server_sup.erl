@@ -8,7 +8,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([start_link/0]).
 -export([start_link/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -17,12 +16,6 @@
 -type child_args() :: supervisor:child_spec().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
--spec start_link() ->
-    {ok, pid()}.
-
-start_link() ->
-    start_link('_', 8080).
 
 -spec start_link(Host :: term(), Port :: non_neg_integer()) ->
     {ok, pid()}.
@@ -45,6 +38,7 @@ init(#{host := Host, port := Port}) ->
         ]}
     ]),
     Connection = ranch:child_spec(http, ranch_tcp, [{port, Port}], cowboy_clear, #{env => #{dispatch => Dispatch}}),
+    ok = lager:notice("Launched cowboy on ~p:~p", [Host, Port]),
     RoomManager = #{
         id => manager,
         type => worker,

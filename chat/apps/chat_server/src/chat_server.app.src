@@ -3,7 +3,7 @@
         {description, "Simple chat, based on websockets"},
         {vsn, "2.0.0"},
         {registered, []},
-        {mod, {chat_server_app, ["localhost", 8080]}},
+        {mod, {chat_server_app, [#{host => "localhost", port => 8080}]}},
         {applications,
             [
                 kernel,
