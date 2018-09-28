@@ -18,7 +18,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type room_list() :: [binary()].
+-type room_list() :: [library_protocol:room()].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -28,23 +28,23 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, undefined, []).
 
--spec room_exists(Id :: binary()) ->
+-spec room_exists(RoomRoomId :: library_protocol:room()) ->
     boolean().
 
-room_exists(Id) ->
-    gen_server:call(?MODULE, {room_exists, Id}).
+room_exists(RoomId) ->
+    gen_server:call(?MODULE, {room_exists, RoomId}).
 
--spec create_room(Id :: binary()) ->
+-spec create_room(RoomRoomId :: library_protocol:room()) ->
     ok | already_exists.
 
-create_room(Id) ->
-    gen_server:call(?MODULE, {create_room, Id}).
+create_room(RoomId) ->
+    gen_server:call(?MODULE, {create_room, RoomId}).
 
--spec delete_room(Id :: binary()) ->
+-spec delete_room(RoomRoomId :: library_protocol:room()) ->
     ok | not_found.
 
-delete_room(Id) ->
-    gen_server:call(?MODULE, {delete_room, Id}).
+delete_room(RoomId) ->
+    gen_server:call(?MODULE, {delete_room, RoomId}).
 
 -spec rooms() ->
     room_list().
@@ -68,39 +68,39 @@ handle_cast(_, RoomList) ->
     {noreply, RoomList}.
 
 -spec handle_call
-    ({create_room, Id :: binary}, _From :: term(), RoomList :: room_list()) ->
+    ({create_room, RoomId :: library_protocol:room()}, _From :: term(), RoomList :: room_list()) ->
         {reply, ok | already_exists, room_list()};
-    ({room_exists, Id :: binary}, _From :: term(), RoomList :: room_list()) ->
+    ({room_exists, RoomId :: library_protocol:room()}, _From :: term(), RoomList :: room_list()) ->
         {reply, boolean(), room_list()};
-    ({delete_room, Id :: binary}, _From :: term(), RoomList :: room_list()) ->
+    ({delete_room, RoomId :: library_protocol:room()}, _From :: term(), RoomList :: room_list()) ->
         {reply, ok | not_found, room_list()};
     (rooms, _From :: term(), RoomList :: room_list()) ->
         {reply, room_list(), room_list()}.
 
 
-handle_call({create_room, Id}, _From, RoomList) ->
-    {Reply, NewRoomList} = case lists:member(Id, RoomList) of
+handle_call({create_room, RoomId}, _From, RoomList) ->
+    {Reply, NewRoomList} = case lists:member(RoomId, RoomList) of
         false ->
-            ok = lager:info("Creating room ~p", [Id]),
-            {ok, [Id | RoomList]};
+            ok = lager:info("Creating room ~p", [RoomId]),
+            {ok, [RoomId | RoomList]};
         true ->
-            ok = lager:info("Can't create room ~p, already_exists", [Id]),
+            ok = lager:info("Can't create room ~p, already_exists", [RoomId]),
             {already_exists, RoomList}
     end,
     {reply, Reply, NewRoomList};
 
-handle_call({room_exists, Id}, _From, RoomList) ->
-    ok = lager:info("Checking if room ~p exists", [Id]),
-    Reply = lists:member(Id, RoomList),
+handle_call({room_exists, RoomId}, _From, RoomList) ->
+    ok = lager:info("Checking if room ~p exists", [RoomId]),
+    Reply = lists:member(RoomId, RoomList),
     {reply, Reply, RoomList};
 
-handle_call({delete_room, Id}, _From, RoomList) ->
-    {Reply, NewRoomList} = case lists:member(Id, RoomList) of
+handle_call({delete_room, RoomId}, _From, RoomList) ->
+    {Reply, NewRoomList} = case lists:member(RoomId, RoomList) of
         true ->
-            ok = lager:info("Deleting room ~p", [Id]),
-            {ok, lists:delete(Id, RoomList)};
+            ok = lager:info("Deleting room ~p", [RoomId]),
+            {ok, lists:delete(RoomId, RoomList)};
         false ->
-            ok = lager:info("Can't delete room ~p, not_found", [Id]),
+            ok = lager:info("Can't delete room ~p, not_found", [RoomId]),
             {not_found, RoomList}
     end,
     {reply, Reply, NewRoomList};

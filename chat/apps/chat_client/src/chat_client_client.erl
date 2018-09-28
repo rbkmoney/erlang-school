@@ -27,13 +27,6 @@
 -define(DEFAULT_USERNAME, <<"Incognito">>).
 -define(DEFAULT_TIMEOUT,             1000).
 
-% Errors
-
--define(NOT_SUBSCRIBED_REPLY,  {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
--define(ALREADY_EXISTS_REPLY,     {error, <<>>, <<"ROOM ALREADY EXISTS">>, <<>>}).
--define(ALREADY_SUBSCRIBED_REPLY, {error, <<>>, <<"ALREADY IN THE ROOM">>, <<>>}).
--define(NO_ROOM_REPLY,                        {error, <<>>, <<"NO ROOM">>, <<>>}).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type message_list() :: [library_protocol:source_message()].
@@ -46,12 +39,11 @@
     port := connection_port(),
     pending := pending() % 'From' to send reply to and Message that is expected
 }.
--type active_event() :: join | leave | delete | create.
+
 -type from() :: {pid(), term()}.
 -type host() :: string().
 -type connection_port() :: non_neg_integer().
 -type pending() :: {from(), library_protocol:source_message()} | empty.
--type error() :: already_exists | already_joined | no_room | not_joined.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -61,7 +53,7 @@
 start_link(Host, Port) ->
     {ok, _} = gen_server:start_link(?MODULE, {Host, Port}, []).
 
--spec send(PID :: pid(), Message :: binary(), RoomId :: binary()) ->
+-spec send(PID :: pid(), Message :: binary(), RoomId :: library_protocol:room()) ->
     ok.
 
 send(PID, Message, RoomId) ->
@@ -73,25 +65,25 @@ send(PID, Message, RoomId) ->
 set_username(PID, Username) ->
     ok = gen_server:call(PID, {set_username, Username}).
 
--spec join(PID :: pid(), RoomId :: binary()) ->
+-spec join(PID :: pid(), RoomId :: library_protocol:room()) ->
     ok.
 
 join(PID, RoomId) ->
     gen_server:call(PID, {join, RoomId}).
 
--spec leave(PID :: pid(), RoomId :: binary()) ->
+-spec leave(PID :: pid(), RoomId :: library_protocol:room()) ->
     ok.
 
 leave(PID, RoomId) ->
     gen_server:call(PID, {leave, RoomId}).
 
--spec create(PID :: pid(), RoomId :: binary()) ->
+-spec create(PID :: pid(), RoomId :: library_protocol:room()) ->
     ok.
 
 create(PID, RoomId) ->
     gen_server:call(PID, {create, RoomId}).
 
--spec delete(PID :: pid(), RoomId :: binary()) ->
+-spec delete(PID :: pid(), RoomId :: library_protocol:room()) ->
     ok.
 
 delete(PID, RoomId) ->
@@ -122,10 +114,10 @@ init({Host, Port}) ->
     }.
 
 -spec handle_call
-    ({active_event() | set_username, RoomId :: binary()}, _From :: from(), State :: state()) ->
+    ({library_protocol:active_event() | set_username, RoomId :: library_protocol:room()}, From :: from(), State :: state()) ->
         {reply, ok, state()};
-    (pop_message, _From :: from(), State :: state()) ->
-        {reply, library_protocol:source_message() | empty, state()}.
+    (pop_message, From :: from(), State :: state()) ->
+        {reply, library_protocol:source_message() | undefined, state()}.
 
 handle_call({create, RoomId}, From, State) ->
     NewState = handle_request(create, RoomId, From, State),
@@ -167,23 +159,25 @@ handle_cast(_, State) ->
 -spec handle_info({gun_ws, _, _, {text, Message :: jiffy:json_value()}}, state()) ->
     {noreply, state()}.
 
-handle_info({gun_ws, _, _, {text, Json}}, #{pending := Pending} = State) ->
+handle_info({gun_ws, _, _, {text, Json}}, #{pending := {From, ExpectedMessage}} = State) ->
     Message = library_protocol:decode(Json),
     ok = lager:info("Caught a message: ~p", [Message]),
-    case Pending of
-        {From, ExpectedMessage} ->
-            ok = lager:info("Message ~p is currently pending", [ExpectedMessage]),
-            case Message of
-                ExpectedMessage ->
-                    NewState = push_message(Message, State),
-                    gen_server:reply(From, ok);
-                _ ->
-                    NewState = State#{pending => empty},
-                    gen_server:reply(From, match_error(Message))
-            end;
-        empty ->
-            NewState = push_message(Message, State)
+    ok = lager:info("Message ~p is currently pending", [ExpectedMessage]),
+    case Message of
+        ExpectedMessage ->
+            NewState0 = push_message(Message, State),
+            NewState = NewState0#{pending => empty},
+            gen_server:reply(From, ok);
+        _ ->
+            NewState = State#{pending => empty},
+            gen_server:reply(From, library_protocol:match_error(Message))
     end,
+    {noreply, NewState};
+
+handle_info({gun_ws, _, _, {text, Json}}, State) ->
+    Message = library_protocol:decode(Json),
+    ok = lager:info("Caught a message: ~p", [Message]),
+    NewState = push_message(Message, State),
     {noreply, NewState};
 
 handle_info(_, State) ->
@@ -191,24 +185,8 @@ handle_info(_, State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec match_error(Message :: library_protocol:source_message()) ->
-    error().
-
-match_error(Message) ->
-    case Message of
-        ?NO_ROOM_REPLY ->
-            no_room;
-        ?ALREADY_EXISTS_REPLY ->
-            already_exists;
-        ?ALREADY_SUBSCRIBED_REPLY ->
-            already_joined;
-        ?NOT_SUBSCRIBED_REPLY ->
-            not_joined
-    end.
-
-
 -spec handle_request
-    (Event :: active_event(), RoomId :: binary(), From :: from(), State :: state()) ->
+    (Event :: library_protocol:active_event(), RoomId :: library_protocol:room(), From :: from(), State :: state()) ->
         state().
 
 handle_request(Event, RoomId, From, #{username := Username} = State) ->
@@ -219,7 +197,7 @@ handle_request(Event, RoomId, From, #{username := Username} = State) ->
     ok = send_message(Message, PID),
     NewState#{pending => {From, Message}}.
 
--spec handle_request(send_message, Text :: binary(), RoomId :: binary(), From :: from(), State :: state()) ->
+-spec handle_request(send_message, Text :: binary(), RoomId :: library_protocol:room(), From :: from(), State :: state()) ->
     state().
 
 handle_request(send_message, Text, RoomId, From, #{username := Username} = State) ->
@@ -260,7 +238,7 @@ push_message(Message, #{message_list := MessageList} = State) ->
         {library_protocol:source_message() | empty, list()}.
 
 pop_message([]) ->
-    {empty, []};
+    {undefined, []};
 
 pop_message([Head | Tail]) ->
     {Head, Tail}.
