@@ -43,7 +43,7 @@
 -type from() :: {pid(), term()}.
 -type host() :: string().
 -type connection_port() :: non_neg_integer().
--type pending() :: {from(), library_protocol:source_message()} | empty.
+-type pending() :: {from(), library_protocol:source_message()} | undefined.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -109,7 +109,7 @@ init({Host, Port}) ->
             port => Port,
             username => ?DEFAULT_USERNAME,
             message_list => [],
-            pending => empty
+            pending => undefined
         }
     }.
 
@@ -119,28 +119,17 @@ init({Host, Port}) ->
     (pop_message, From :: from(), State :: state()) ->
         {reply, library_protocol:source_message() | undefined, state()}.
 
-handle_call({create, RoomId}, From, State) ->
-    NewState = handle_request(create, RoomId, From, State),
-    {noreply, NewState, ?DEFAULT_TIMEOUT};
 
-handle_call({join, RoomId}, From, State) ->
-    NewState = handle_request(join, RoomId, From, State),
-    {noreply, NewState, ?DEFAULT_TIMEOUT};
+handle_call({set_username, Username}, _From, State) ->
+    {reply, ok, State#{username => Username}};
 
-handle_call({leave, RoomId}, From, State) ->
-    NewState = handle_request(leave, RoomId, From, State),
-    {noreply, NewState, ?DEFAULT_TIMEOUT};
-
-handle_call({delete, RoomId}, From, State) ->
-    NewState = handle_request(delete, RoomId, From, State),
+handle_call({Event, RoomId}, From, State) ->
+    NewState = handle_request(Event, <<>>, RoomId, From, State),
     {noreply, NewState, ?DEFAULT_TIMEOUT};
 
 handle_call({send_message, Message, RoomId}, From, State) ->
     NewState = handle_request(send_message, Message, RoomId, From, State),
     {noreply, NewState, ?DEFAULT_TIMEOUT};
-
-handle_call({set_username, Username}, _From, State) ->
-    {reply, ok, State#{username => Username}};
 
 handle_call(pop_message, _From, #{username := Username, message_list := MessageList} = State) ->
     ok = lager:info("User ~p asked for received messages", [Username]),
@@ -166,10 +155,10 @@ handle_info({gun_ws, _, _, {text, Json}}, #{pending := {From, ExpectedMessage}} 
     case Message of
         ExpectedMessage ->
             NewState0 = push_message(Message, State),
-            NewState = NewState0#{pending => empty},
+            NewState = NewState0#{pending => undefined},
             gen_server:reply(From, ok);
         _ ->
-            NewState = State#{pending => empty},
+            NewState = State#{pending => undefined},
             gen_server:reply(From, library_protocol:match_error(Message))
     end,
     {noreply, NewState};
@@ -185,25 +174,10 @@ handle_info(_, State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec handle_request
-    (Event :: library_protocol:active_event(), RoomId :: library_protocol:room(), From :: from(), State :: state()) ->
-        state().
-
-handle_request(Event, RoomId, From, #{username := Username} = State) ->
-    NewState = ensure_connected(State),
-    ok = lager:info("User ~p wants to ~p room ~p", [Username, Event, RoomId]),
-    Message = {Event, Username, <<>>, RoomId},
-    #{pid := PID} = NewState,
-    ok = send_message(Message, PID),
-    NewState#{pending => {From, Message}}.
-
--spec handle_request(send_message, Text :: binary(), RoomId :: library_protocol:room(), From :: from(), State :: state()) ->
-    state().
-
-handle_request(send_message, Text, RoomId, From, #{username := Username} = State) ->
+handle_request(Event, Text, RoomId, From, #{username := Username} = State) ->
     NewState = ensure_connected(State),
     ok = lager:info("User ~p wants to send message to room ~p", [Username, RoomId]),
-    Message = {send_message, Username, Text, RoomId},
+    Message = {Event, Username, Text, RoomId},
     #{pid := PID} = NewState,
     ok = send_message(Message, PID),
     NewState#{pending => {From, Message}}.
@@ -235,7 +209,7 @@ push_message(Message, #{message_list := MessageList} = State) ->
     State#{message_list => NewMessageList}.
 
 -spec pop_message([library_protocol:source_message()]) ->
-        {library_protocol:source_message() | empty, list()}.
+        {library_protocol:source_message() | undefined, list()}.
 
 pop_message([]) ->
     {undefined, []};
