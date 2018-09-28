@@ -1,9 +1,9 @@
 {application, chat_server,
     [
         {description, "Simple chat, based on websockets"},
-        {vsn, "1.0.0"},
+        {vsn, "2.0.0"},
         {registered, []},
-        {mod, { chat_server_app, []}},
+        {mod, {chat_server_app, ["localhost", 8080]}},
         {applications,
             [
                 kernel,

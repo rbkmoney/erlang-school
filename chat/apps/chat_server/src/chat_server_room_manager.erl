@@ -28,19 +28,19 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, undefined, []).
 
--spec room_exists(RoomRoomId :: library_protocol:room()) ->
+-spec room_exists(RoomId :: library_protocol:room()) ->
     boolean().
 
 room_exists(RoomId) ->
     gen_server:call(?MODULE, {room_exists, RoomId}).
 
--spec create_room(RoomRoomId :: library_protocol:room()) ->
+-spec create_room(RoomId :: library_protocol:room()) ->
     ok | already_exists.
 
 create_room(RoomId) ->
     gen_server:call(?MODULE, {create_room, RoomId}).
 
--spec delete_room(RoomRoomId :: library_protocol:room()) ->
+-spec delete_room(RoomId :: library_protocol:room()) ->
     ok | not_found.
 
 delete_room(RoomId) ->

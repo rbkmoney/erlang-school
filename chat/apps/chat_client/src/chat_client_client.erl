@@ -23,7 +23,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -define(DEFAULT_USERNAME, <<"Incognito">>).
--define(DEFAULT_TIMEOUT,             1000).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -123,11 +122,11 @@ handle_call({set_username, Username}, _From, State) ->
 
 handle_call({Event, RoomId}, From, State) ->
     NewState = handle_request(Event, <<>>, RoomId, From, State),
-    {noreply, NewState, ?DEFAULT_TIMEOUT};
+    {noreply, NewState};
 
 handle_call({send_message, Message, RoomId}, From, State) ->
     NewState = handle_request(send_message, Message, RoomId, From, State),
-    {noreply, NewState, ?DEFAULT_TIMEOUT};
+    {noreply, NewState};
 
 handle_call(pop_message, _From, #{username := Username, message_list := MessageList} = State) ->
     ok = lager:info("User ~p asked for received messages", [Username]),
