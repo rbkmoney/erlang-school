@@ -22,8 +22,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% General
-
 -define(DEFAULT_USERNAME, <<"Incognito">>).
 -define(DEFAULT_TIMEOUT,             1000).
 
@@ -37,13 +35,13 @@
     message_list := message_list(),
     host := host(),
     port := connection_port(),
-    pending := pending() % 'From' to send reply to and Message that is expected
+    pending => pending() % 'From' to send reply to and Message that is expected
 }.
 
 -type from() :: {pid(), term()}.
 -type host() :: string().
 -type connection_port() :: non_neg_integer().
--type pending() :: {from(), library_protocol:source_message()} | undefined.
+-type pending() :: {from(), library_protocol:source_message()}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -155,10 +153,10 @@ handle_info({gun_ws, _, _, {text, Json}}, #{pending := {From, ExpectedMessage}} 
     case Message of
         ExpectedMessage ->
             NewState0 = push_message(Message, State),
-            NewState = NewState0#{pending => undefined},
+            NewState = maps:remove(pending, NewState0),
             gen_server:reply(From, ok);
         _ ->
-            NewState = State#{pending => undefined},
+            NewState = maps:remove(pending, State),
             gen_server:reply(From, library_protocol:match_error(Message))
     end,
     {noreply, NewState};
