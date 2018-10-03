@@ -2,8 +2,7 @@
     [
         {description, "Simple chat, based on websockets"},
         {vsn, "2.0.0"},
-        {registered, []},
-        {mod, {chat_server_app, [#{host => "localhost", port => 8080}]}},
+        {mod, {chat_server_app, []}},
         {applications,
             [
                 kernel,
@@ -14,7 +13,7 @@
                 gproc
            ]
         },
-        {env,[]},
+        {env,[{host, "localhost"}, {port, 8080}]},
         {modules, []},
         {maintainers, []},
         {licenses, ["Apache 2.0"]},

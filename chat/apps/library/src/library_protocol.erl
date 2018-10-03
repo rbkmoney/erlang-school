@@ -90,7 +90,6 @@ encode_event(error) ->
     <<"error">>;
 encode_event(leave) ->
     <<"leave">>.
-% Может бросать ошибку если аргумент неверный?
 
 -spec decode_event(binary()) ->
     event().
@@ -107,4 +106,3 @@ decode_event(<<"leave">>) ->
     leave;
 decode_event(<<"delete">>) ->
     delete.
-% Может бросать ошибку если аргумент неверный?

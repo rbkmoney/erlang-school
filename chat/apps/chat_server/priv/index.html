@@ -19,8 +19,6 @@
           };
               $("#UsernameInput").hide();
               $("#registration").hide();
-              //$("#connected").hide();
-              //$("#content").hide();
       };
 
       function connect(){
@@ -58,11 +56,11 @@
       };
 
       function createRoom() {
-          if ($("#create_room").val() != ""){
+          if ($("#CreateDeleteRoom").val() != "" && $("#username").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "create", "user": $("#username").val(), "message": "", "room": $("#create_room").val()};
+                  txt = {"event" : "create", "user": $("#username").val(), "message": "", "room": $("#CreateDeleteRoom").val()};
                   websocket.send(JSON.stringify(txt));
-                  $("#create_room").val('');
+                  $("#CreateDeleteRoom").val('');
               } else {
                    showScreen('websocket is not connected');
               };
@@ -70,11 +68,11 @@
       };
 
       function deleteRoom() {
-          if ($("#delete_room").val() != ""){
+          if ($("#CreateDeleteRoom").val() != "" && $("#username").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "delete", "user": $("#username").val(), "message": "", "room": $("#delete_room").val()};
+                  txt = {"event" : "delete", "user": $("#username").val(), "message": "", "room": $("#CreateDeleteRoom").val()};
                   websocket.send(JSON.stringify(txt));
-                  $("#delete_room").val('');
+                  $("#CreateDeleteRoom").val('');
               } else {
                    showScreen('websocket is not connected');
               };
@@ -82,8 +80,8 @@
       };
 
 
-      function register() {
-          if ($("#username").val() != ""){
+      function joinRoom() {
+          if ($("#roomId").val() != "" && $("#username").val() != ""){
               if(websocket.readyState == websocket.OPEN){
                   txt = {"event" : "join", "user": $("#username").val(), "message": "",
                     "room": $("#roomId").val()};
@@ -93,6 +91,18 @@
               };
           };
       };
+
+      function leaveRoom() {
+          if ($("#roomId").val() != "" && $("#username").val() != ""){
+              if(websocket.readyState == websocket.OPEN){
+                  txt = {"event" : "leave", "user": $("#username").val(), "message": "",
+                    "room": $("#roomId").val()};
+                  websocket.send(JSON.stringify(txt));
+              } else {
+                  showScreen('websocket is not connected');
+              };
+          };
+      }
 
       function onOpen(evt) {
           showScreen('<span style="color: green;">CONNECTED </span>');
@@ -169,27 +179,21 @@
 
     <div id="registration">
       <p id="login">
-          <b> Join room </b>
+          <b>Join/Leave room</b>
           <input type='text' id="roomId" value=""></input>
-          <button type="button" onclick="register()">Join</button>
+          <button type="button" onclick="joinRoom()">Join</button>
+          <button type="button" onclick="leaveRoom()">Leave</button>
       </p>
   </div>
 
   <div id="creatingRoom">
       <p>
-          <b> Create room </b>
-          <input type='text' id="create_room" value=></input>
-          <button type="button" onclick="createRoom();">create room</button>
+          <b>Create/Delete room</b>
+          <input type='text' id="CreateDeleteRoom" value=></input>
+          <button type="button" onclick="createRoom();">Create</button>
+           <button type="button" onclick="deleteRoom();">Delete</button>
       </p>
   </div>
-  <div id="deletingRoom">
-      <p>
-          <b> Delete room </b>
-          <input type='text' id="delete_room" value=></input>
-          <button type="button" onclick="deleteRoom();">delete room</button>
-      </p>
-  </div>
-
       <div id="connected">
 	<p>
       <b> Room </b>

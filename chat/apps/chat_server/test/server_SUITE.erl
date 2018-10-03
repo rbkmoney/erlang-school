@@ -64,7 +64,7 @@ end_per_suite(C) ->
     term().
 
 mega_test(_C) ->
-    % Have to test everything in one place to be able to use pid
+    % Have to test everything in one place to be able to use the same pid
     {ok, PID} = chat_client_client:start_link(?HOST, ?PORT),
     ok = chat_client_client:set_username(PID, ?USER),
     no_room = chat_client_client:join(PID, ?ROOM),
