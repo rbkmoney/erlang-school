@@ -8,7 +8,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([start_link/2]).
+-export([start_link/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -17,19 +17,22 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec start_link(Host :: term(), Port :: non_neg_integer()) ->
+-spec start_link() ->
     {ok, pid()}.
 
-start_link(Host, Port) ->
-    {ok, _} = supervisor:start_link({local, ?MODULE}, ?MODULE, #{host => Host, port => Port}).
+start_link() ->
+    {ok, _} = supervisor:start_link({local, ?MODULE}, ?MODULE, undefined).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec init(map()) ->
+-spec init(undefined) ->
     {ok, {supervisor_args(), [child_args()]}}.
 
-init(#{host := Host, port := Port}) ->
+init(undefined) ->
     ok = lager:notice("Chat_server supervisor Initialized"),
+    {ok, Host} = application:get_env(chat_server, host),
+    {ok, Port} = application:get_env(chat_server, port),
+    ok = lager:debug("Application will run on ~p:~p", [Host, Port]),
     Dispatch = cowboy_router:compile([
     {Host, [
             {"/", cowboy_static, {priv_file, chat_server, "index.html"}},

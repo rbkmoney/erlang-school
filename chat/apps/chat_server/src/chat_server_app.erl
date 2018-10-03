@@ -13,10 +13,8 @@
     {ok , pid()}.
 
 start(_Type, _Args) ->
-    {ok, Host} = application:get_env(chat_server, host),
-    {ok, Port} = application:get_env(chat_server, port),
-    ok = lager:debug("Application will run on ~p:~p", [Host, Port]),
-    {ok, _} = chat_server_sup:start_link(Host, Port).
+    ok = lager:notice("Application start"),
+    {ok, _} = chat_server_sup:start_link().
 
 -spec stop(_State :: term()) ->
     ok.
