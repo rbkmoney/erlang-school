@@ -1,5 +1,5 @@
 -module(chat_server_sup).
-
+-include_lib("kernel/include/inet.hrl").
 %%%%%%%%%%%%%%%%%%%%%%%%%% BEHAVIOUR EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -behaviour(supervisor).
@@ -9,6 +9,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export([start_link/0]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-define(DEFAULT_IP, {127, 0, 0, 1}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -32,15 +36,21 @@ init(undefined) ->
     ok = lager:notice("Chat_server supervisor Initialized"),
     {ok, Host} = application:get_env(chat_server, host),
     {ok, Port} = application:get_env(chat_server, port),
-    ok = lager:debug("Application will run on ~p:~p", [Host, Port]),
+    case inet:gethostbyname(Host) of
+        {ok, HostMap} ->
+            [Ip] = HostMap#hostent.h_addr_list;
+        {error, _} ->
+            Ip = ?DEFAULT_IP
+    end,
+    ok = lager:debug("Application will run on ~p:~p", [Ip, Port]),
     Dispatch = cowboy_router:compile([
-    {Host, [
+    {'_', [
             {"/", cowboy_static, {priv_file, chat_server, "index.html"}},
             {"/websocket", chat_server_ws_handler, []},
             {"/static/[...]", cowboy_static, {priv_dir, chat_server, "static"}}
         ]}
     ]),
-    Connection = ranch:child_spec(http, ranch_tcp, [{port, Port}], cowboy_clear, #{env => #{dispatch => Dispatch}}),
+    Connection = ranch:child_spec(http, ranch_tcp, [{port, Port}, {ip, Ip}], cowboy_clear, #{env => #{dispatch => Dispatch}}),
     ok = lager:notice("Launched cowboy on ~p:~p", [Host, Port]),
     RoomManager = #{
         id => manager,

@@ -13,7 +13,7 @@
                 gproc
            ]
         },
-        {env,[{host, '_'}, {port, 8080}]},
+        {env,[{host, "localhost"}, {port, 8080}]},
         {modules, []},
         {maintainers, []},
         {licenses, ["Apache 2.0"]},
