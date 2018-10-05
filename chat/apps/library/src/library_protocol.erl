@@ -65,7 +65,7 @@ from_map(#{<<"event">> := <<"error">>, <<"text">> := Reason}) ->
 from_map(#{<<"event">> := <<"message">>, <<"user">> := User, <<"text">> := Text, <<"room">> := Room}) ->
     {{message, Text}, User, Room};
 
-from_map(#{<<"event">> := Event, <<"user">> := User, <<"text">> := Text, <<"room">> := Room}) ->
+from_map(#{<<"event">> := Event, <<"user">> := User, <<"text">> := _, <<"room">> := Room}) ->
     {decode_event(Event), User, Room}.
 
 -spec encode_event(event() | error | message) ->

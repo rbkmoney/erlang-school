@@ -46,7 +46,7 @@
       function sendTxt() {
           if ($("#send_txt").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "send_message", "user": $("#username").val(), "message": $("#send_txt").val(), "room": $("#send_to_room").val()};
+                  txt = {"event" : "message", "user": $("#username").val(), "text": $("#send_txt").val(), "room": $("#send_to_room").val()};
                   websocket.send(JSON.stringify(txt));
                   $("#send_txt").val('');
               } else {
@@ -58,7 +58,7 @@
       function createRoom() {
           if ($("#CreateDeleteRoom").val() != "" && $("#username").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "create", "user": $("#username").val(), "message": "", "room": $("#CreateDeleteRoom").val()};
+                  txt = {"event" : "create", "user": $("#username").val(), "text": "", "room": $("#CreateDeleteRoom").val()};
                   websocket.send(JSON.stringify(txt));
                   $("#CreateDeleteRoom").val('');
               } else {
@@ -70,7 +70,7 @@
       function deleteRoom() {
           if ($("#CreateDeleteRoom").val() != "" && $("#username").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "delete", "user": $("#username").val(), "message": "", "room": $("#CreateDeleteRoom").val()};
+                  txt = {"event" : "delete", "user": $("#username").val(), "text": "", "room": $("#CreateDeleteRoom").val()};
                   websocket.send(JSON.stringify(txt));
                   $("#CreateDeleteRoom").val('');
               } else {
@@ -83,7 +83,7 @@
       function joinRoom() {
           if ($("#roomId").val() != "" && $("#username").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "join", "user": $("#username").val(), "message": "",
+                  txt = {"event" : "join", "user": $("#username").val(), "text": "",
                     "room": $("#roomId").val()};
                   websocket.send(JSON.stringify(txt));
               } else {
@@ -95,7 +95,7 @@
       function leaveRoom() {
           if ($("#roomId").val() != "" && $("#username").val() != ""){
               if(websocket.readyState == websocket.OPEN){
-                  txt = {"event" : "leave", "user": $("#username").val(), "message": "",
+                  txt = {"event" : "leave", "user": $("#username").val(), "text": "",
                     "room": $("#roomId").val()};
                   websocket.send(JSON.stringify(txt));
               } else {
@@ -119,10 +119,10 @@
            event_ = Result.event;
            switch (event_) {
                 case 'error':
-                   showScreen('<span style="color: red;">ERROR: ' + Result.message +'</span>');
+                   showScreen('<span style="color: red;">ERROR: ' + Result.text +'</span>');
                    break;
-                case 'send_message':
-                    text = "[" + Result.room + "] " + Result.user + ": " + Result.message;
+                case 'message':
+                    text = "[" + Result.room + "] " + Result.user + ": " + Result.text;
                     showScreen('<span style="color: blue;">' + text + '</span>');
                     break;
                 case 'create':

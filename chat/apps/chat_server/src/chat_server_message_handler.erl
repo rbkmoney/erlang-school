@@ -4,13 +4,6 @@
 
 -export([handle_message/2]).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
--define(NOT_SUBSCRIBED_REPLY,  {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
--define(ALREADY_EXISTS_REPLY,     {error, <<>>, <<"ROOM ALREADY EXISTS">>, <<>>}).
--define(ALREADY_SUBSCRIBED_REPLY, {error, <<>>, <<"ALREADY IN THE ROOM">>, <<>>}).
--define(NO_ROOM_REPLY,                        {error, <<>>, <<"NO ROOM">>, <<>>}).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type error() :: not_exists | not_subscribed | already_joined | already_exists.
@@ -50,8 +43,8 @@ handle_message(Message = {leave, Username, Room}, Subs) ->
     ok = lager:info("User ~p wants to leave room ~p", [Username, Room]),
     case lists:member(Room, Subs) of
         true ->
-            gproc_ps:unsubscribe(l, Room),
             gproc_ps:publish(l, Room, Message),
+            gproc_ps:unsubscribe(l, Room),
             NewSubs = lists:delete(Room, Subs),
             ok = lager:info("User ~p left room ~p, he is in rooms ~p now", [Username, Room, NewSubs]),
             NewSubs;
