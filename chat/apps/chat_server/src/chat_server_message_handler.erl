@@ -13,14 +13,14 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type error() :: no_room | not_subscribed | already_subscribed | already_exists.
+-type error() :: not_exists | not_subscribed | already_joined | already_exists.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec handle_message(library_protocol:source_message(), Subs :: chat_server_ws_handler:state()) ->
+-spec handle_message(library_protocol:decoded(), Subs :: chat_server_ws_handler:state()) ->
     chat_server_ws_handler:state().
 
-handle_message(Message = {join, Username, _, Room}, Subs) ->
+handle_message(Message = {join, Username, Room}, Subs) ->
     ok = lager:info("User ~p wants to join room ~p", [Username, Room]),
     case resolve_join_room(Room, Subs) of
         ok ->
@@ -34,7 +34,7 @@ handle_message(Message = {join, Username, _, Room}, Subs) ->
             Subs
     end;
 
-handle_message(Message = {send_message, Username, _, Room}, Subs) ->
+handle_message(Message = {{message, _}, Username, Room}, Subs) ->
     ok = lager:info("User ~p wants to send ~p to room ~p", [Username, Message, Room]),
     case lists:member(Room, Subs) of
         true ->
@@ -46,7 +46,7 @@ handle_message(Message = {send_message, Username, _, Room}, Subs) ->
     Subs;
 
 
-handle_message(Message = {leave, Username, _, Room}, Subs) ->
+handle_message(Message = {leave, Username, Room}, Subs) ->
     ok = lager:info("User ~p wants to leave room ~p", [Username, Room]),
     case lists:member(Room, Subs) of
         true ->
@@ -60,13 +60,12 @@ handle_message(Message = {leave, Username, _, Room}, Subs) ->
             Subs
     end;
 
-handle_message({create, Username, _, Room}, Subs) ->
+handle_message(Message = {create, Username, Room}, Subs) ->
     ok = lager:info("User ~p wants to create room ~p", [Username, Room]),
     case chat_server_room_manager:create_room(Room) of
         ok ->
             gproc_ps:subscribe(l, Room),
-            CreateMessage = {create, Username, <<>>, Room},
-            gproc_ps:publish(l, Room, CreateMessage),
+            gproc_ps:publish(l, Room, Message),
             NewSubs = [Room | Subs],
             ok = lager:info("User ~p joined room ~p, he is in rooms ~p now", [Username, Room, NewSubs]),
             NewSubs;
@@ -75,7 +74,7 @@ handle_message({create, Username, _, Room}, Subs) ->
             Subs
     end;
 
-handle_message(Message = {delete, Username, _, Room}, Subs) ->
+handle_message(Message = {delete, Username, Room}, Subs) ->
     ok = lager:info("User ~p wants to delete room ~p", [Username, Room]),
     case lists:member(Room, Subs) of
         true ->
@@ -96,20 +95,20 @@ handle_message(_, Subs) ->
 -spec send_error_message(error()) ->
     ok.
 
-send_error_message(no_room) ->
-    chat_server_ws_handler:send(?NO_ROOM_REPLY, self());
+send_error_message(not_exists) ->
+    chat_server_ws_handler:send({error, not_exists}, self());
 
-send_error_message(already_subscribed) ->
-    chat_server_ws_handler:send(?ALREADY_SUBSCRIBED_REPLY, self());
+send_error_message(already_joined) ->
+    chat_server_ws_handler:send({error, already_joined}, self());
 
 send_error_message(not_subscribed) ->
-    chat_server_ws_handler:send(?NOT_SUBSCRIBED_REPLY, self());
+    chat_server_ws_handler:send({error, not_joined}, self());
 
 send_error_message(already_exists) ->
-    chat_server_ws_handler:send(?ALREADY_EXISTS_REPLY, self()).
+    chat_server_ws_handler:send({error, already_exists}, self()).
 
 -spec resolve_join_room(Room :: binary(), Subscriptions :: [binary()]) ->
-    ok | no_room | already_subscribed.
+    ok | not_exists | already_joined.
 
 resolve_join_room(Room, Subscriptions) ->
     case lists:member(Room, Subscriptions) of % If not already subscribed
@@ -118,8 +117,8 @@ resolve_join_room(Room, Subscriptions) ->
                 true ->
                     ok;
                 false ->
-                    no_room
+                    not_exists
             end;
         true ->
-            already_subscribed
+            already_joined
     end.

@@ -23,17 +23,17 @@
 
 % Commands
 
--define(CREATE_ROOM,            {create, <<"Igor">>, <<>>, ?ROOM}).
--define(SEND_MESSAGE, {send_message, <<"Igor">>, ?MESSAGE, ?ROOM}).
--define(DELETE_ROOM,            {delete, <<"Igor">>, <<>>, ?ROOM}).
--define(JOIN_ROOM,                {join, <<"Igor">>, <<>>, ?ROOM}).
+-define(SEND_MESSAGE,    {{message, ?MESSAGE}, ?USER, ?ROOM}).
+-define(CREATE_ROOM,                  {create, ?USER, ?ROOM}).
+-define(DELETE_ROOM,                  {delete, ?USER, ?ROOM}).
+-define(JOIN_ROOM,                      {join, ?USER, ?ROOM}).
 
 % Errors
 
--define(ALREADY_IN_ROOM, {error, <<>>, <<"ALREADY IN THE ROOM">>, <<>>}).
--define(NOT_IN_ROOM,  {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
--define(ALREADY_EXISTS,  {error, <<>>, <<"ROOM ALREADY EXISTS">>, <<>>}).
--define(NO_ROOM,                     {error, <<>>, <<"NO ROOM">>, <<>>}).
+-define(ALREADY_IN_ROOM, {error, already_joined}).
+-define(NOT_IN_ROOM,  {error, not_joined}).
+-define(ALREADY_EXISTS,  {error, already_exists}).
+-define(NO_ROOM,    {error, no_room}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -67,10 +67,10 @@ mega_test(_C) ->
     % Have to test everything in one place to be able to use the same pid
     {ok, PID} = chat_client_client:start_link(?HOST, ?PORT),
     ok = chat_client_client:set_username(PID, ?USER),
-    no_room = chat_client_client:join(PID, ?ROOM),
+    {error, not_exists} = chat_client_client:join(PID, ?ROOM),
     ok = chat_client_client:create(PID, ?ROOM),
-    already_exists = chat_client_client:create(PID, ?ROOM),
-    already_joined = chat_client_client:join(PID, ?ROOM),
+    {error, already_exists} = chat_client_client:create(PID, ?ROOM),
+    {error, already_joined} = chat_client_client:join(PID, ?ROOM),
     ok = chat_client_client:send(PID, ?MESSAGE, ?ROOM),
     ok = chat_client_client:delete(PID, ?ROOM),
-    not_joined = chat_client_client:send(PID, ?MESSAGE, ?ROOM).
+    {error, not_joined} = chat_client_client:send(PID, ?MESSAGE, ?ROOM).

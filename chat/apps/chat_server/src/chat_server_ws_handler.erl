@@ -22,11 +22,11 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec send(Message :: library_protocol:source_message(), Recipient :: pid()) ->
+-spec send(Message :: library_protocol:decoded(), Recipient :: pid()) ->
     ok.
 
 send(Message, Recipient) -> % Very bad piece of code
-    ok = lager:info("Sending erlang message to process ~p", [Recipient]),
+    ok = lager:info("Sending ~p to process ~p", [Message, Recipient]),
     Recipient ! {send, Message},
     ok.
 
@@ -57,18 +57,18 @@ websocket_handle(_Data, Subs) ->
     {ok, Subs}.
 
 -spec websocket_info
-    ({send, library_protocol:source_message()}, Subs :: state()) ->
+    ({send, library_protocol:decoded()}, Subs :: state()) ->
         {reply, {text, jiffy:json_value()}, term()};
-    ({gproc_ps_event, Event :: binary(), Message :: library_protocol:source_message()}, Subs :: state()) ->
+    ({gproc_ps_event, Event :: binary(), Message :: library_protocol:decoded()}, Subs :: state()) ->
         {reply, {text, jiffy:json_value()}, term()}.
 
 websocket_info({gproc_ps_event, _, Message}, Subs) ->
-    ok = lager:info("Websocket info: ~p", [Message]),
+    ok = lager:debug("gproc_ps_event, Websocket info: ~p", [Message]),
     Json = library_protocol:encode(Message),
     {reply, {text, Json}, Subs};
 
 websocket_info({send, Message}, Subs) ->
-    ok = lager:info("Websocket info: ~p", [Message]),
+    ok = lager:debug("send, Websocket info: ~p", [Message]),
     Json = library_protocol:encode(Message),
     {reply, {text, Json}, Subs}.
 

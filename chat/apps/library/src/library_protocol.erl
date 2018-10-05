@@ -2,84 +2,77 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([encode     /1]).
--export([decode     /1]).
--export([match_error/1]).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
--define(NOT_SUBSCRIBED_ERROR,  {error, <<>>, <<"NOT JOINED TO THE ROOM">>, <<>>}).
--define(ALREADY_SUBSCRIBED_ERROR, {error, <<>>, <<"ALREADY IN THE ROOM">>, <<>>}).
--define(ALREADY_EXISTS_ERROR,     {error, <<>>, <<"ROOM ALREADY EXISTS">>, <<>>}).
--define(NO_ROOM_ERROR,                        {error, <<>>, <<"NO ROOM">>, <<>>}).
+-export([encode/1]).
+-export([decode/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export_type([room          /0]).
--export_type([event         /0]).
--export_type([error         /0]).
--export_type([active_event  /0]).
--export_type([source_message/0]).
+-export_type([decoded/0]).
+-export_type([event  /0]).
+-export_type([error  /0]).
+-export_type([text   /0]).
+-export_type([room   /0]).
+-export_type([user   /0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type error() :: already_exists | already_joined | no_room | not_joined.
--type source_message() :: {event(), binary(), binary(), room()}.
--type event() :: active_event() | error | send_message.
--type active_event() :: join | leave | delete | create.
--type binary_key_map() :: #{binary() => binary() | atom()}.
+-type text() :: binary().
 -type room() :: binary().
+-type user() :: binary().
+-type event() :: join | leave | create | delete | {message, text()}.
+-type succ_message() :: {event(), user(), room()}.
+-type error_reason() :: already_exists | not_exists | already_joined | not_joined.
+-type error() :: {error, error_reason()}.
+-type decoded() :: succ_message() | error().
+-type mapped_json() :: #{binary() => binary()}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec encode(source_message()) ->
+-spec encode(Message :: decoded()) ->
     jiffy:json_value().
 
-encode(SourceMessage) ->
-    Map = raw_to_map(SourceMessage),
+encode(Message) ->
+    Map = to_map(Message),
     jiffy:encode(Map).
 
--spec decode(jiffy:json_value()) ->
-    source_message().
+-spec decode(Json :: jiffy:json_value()) ->
+    decoded().
 
 decode(Json) ->
     Map = jiffy:decode(Json, [return_maps]),
-    map_to_raw(Map).
-
--spec match_error(Message :: source_message()) ->
-    error().
-
-match_error({error, _, _, _} = Message) ->
-    case Message of
-        ?NO_ROOM_ERROR ->
-            no_room;
-        ?ALREADY_EXISTS_ERROR ->
-            already_exists;
-        ?ALREADY_SUBSCRIBED_ERROR ->
-            already_joined;
-        ?NOT_SUBSCRIBED_ERROR ->
-            not_joined
-    end.
+    from_map(Map).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec raw_to_map(source_message()) ->
-    binary_key_map().
+-spec to_map(decoded()) ->
+    mapped_json().
 
-raw_to_map({Event, User, Message, Room}) ->
-    #{<<"event">> => encode_event(Event), <<"user">> => User, <<"message">> => Message, <<"room">> => Room}.
+to_map({{message, Text}, User, Room}) ->
+    #{<<"event">> => encode_event(message), <<"text">> => Text, <<"user">> => User, <<"room">> => Room};
 
--spec map_to_raw(binary_key_map()) ->
-    source_message().
+to_map({error, Reason}) ->
+    #{<<"event">> => encode_event(error), <<"text">> => encode_reason(Reason), <<"user">> => <<>>, <<"room">> => <<>>};
 
-map_to_raw(#{<<"event">> := Event, <<"user">> := User, <<"message">> := Msg, <<"room">> := Room}) ->
-    {decode_event(Event), User, Msg, Room}.
+to_map({Event, User, Room}) ->
+    #{<<"event">> => encode_event(Event), <<"text">> => <<>>, <<"user">> => User, <<"room">> => Room}.
 
--spec encode_event(event()) ->
+-spec from_map(mapped_json()) ->
+    decoded().
+
+from_map(#{<<"event">> := <<"error">>, <<"text">> := Reason}) ->
+    {error, decode_reason(Reason)};
+
+from_map(#{<<"event">> := <<"message">>, <<"user">> := User, <<"text">> := Text, <<"room">> := Room}) ->
+    {{message, Text}, User, Room};
+
+from_map(#{<<"event">> := Event, <<"user">> := User, <<"text">> := Text, <<"room">> := Room}) ->
+    {decode_event(Event), User, Room}.
+
+-spec encode_event(event() | error | message) ->
     binary().
 
-encode_event(send_message) ->
-    <<"send_message">>;
+encode_event(message) ->
+    <<"message">>;
 encode_event(create) ->
     <<"create">>;
 encode_event(delete) ->
@@ -92,12 +85,12 @@ encode_event(leave) ->
     <<"leave">>.
 
 -spec decode_event(binary()) ->
-    event().
+    event() | error | message.
 
 decode_event(<<"create">>) ->
     create;
-decode_event(<<"send_message">>) ->
-    send_message;
+decode_event(<<"message">>) ->
+    message;
 decode_event(<<"join">>) ->
     join;
 decode_event(<<"error">>) ->
@@ -106,3 +99,27 @@ decode_event(<<"leave">>) ->
     leave;
 decode_event(<<"delete">>) ->
     delete.
+
+-spec encode_reason(error_reason()) ->
+    binary().
+
+encode_reason(already_exists) ->
+    <<"already_exists">>;
+encode_reason(not_exists) ->
+    <<"not_exists">>;
+encode_reason(already_joined) ->
+    <<"already_joined">>;
+encode_reason(not_joined) ->
+    <<"not_joined">>.
+
+-spec decode_reason(binary()) ->
+    error_reason().
+
+decode_reason(<<"already_exists">>) ->
+    already_exists;
+decode_reason(<<"not_exists">>) ->
+    not_exists;
+decode_reason(<<"already_joined">>) ->
+    already_joined;
+decode_reason(<<"not_joined">>) ->
+    not_joined.
