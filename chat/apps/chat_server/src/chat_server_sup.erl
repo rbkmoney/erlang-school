@@ -37,20 +37,18 @@ init(undefined) ->
             {"/static/[...]", cowboy_static, {priv_dir, chat_server, "static"}}
         ]}
     ]),
-    Host = application:get_env(chat_server, host, "localhost"),
-    Port = application:get_env(chat_server, port, 8080),
-    ok = lager:debug("Host received: ~p~nPort received ~p", [Host, Port]),
+    {Host, Port} = get_host_and_port(),
     {ok, HostRec} = inet:gethostbyname(Host),
     IpList = HostRec#hostent.h_addr_list,
     [Ip | _] = IpList, % Assume that needed IP is first, idk how we should behave with multiple IPs
-    ok = lager:debug("Application will run on ~p, port ~p", [IpList, Port]),
+    ok = lager:debug("Application will run on ~p, port ~p", [Ip, Port]),
     Connection = ranch:child_spec(
-                                    http,
-                                    ranch_tcp,
-                                    [{port, Port}, {ip, Ip}],
-                                    cowboy_clear,
-                                    #{env => #{dispatch => Dispatch}}
-                                ),
+                    http,
+                    ranch_tcp,
+                    [{port, Port}, {ip, Ip}],
+                    cowboy_clear,
+                    #{env => #{dispatch => Dispatch}}
+    ),
     ok = lager:notice("Launched cowboy on ~p:~p", [Host, Port]),
     RoomManager = #{
         id => manager,
@@ -58,3 +56,11 @@ init(undefined) ->
         start => {chat_server_room_manager, start_link, []}
     },
     {ok, {#{}, [RoomManager, Connection]}}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_host_and_port() ->
+    Host = application:get_env(chat_server, host, "localhost"),
+    Port = application:get_env(chat_server, port, 8080),
+    ok = lager:debug("Host received: ~p; Port received ~p", [Host, Port]),
+    {Host, Port}.

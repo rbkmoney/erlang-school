@@ -6,7 +6,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type error() :: not_exists | not_subscribed | already_joined | already_exists.
+-type error_reason() :: library_protocol:error_reason().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -34,7 +34,7 @@ handle_message(Message = {{message, _}, Username, Room}, Subs) ->
             gproc_ps:publish(l, Room, Message),
             ok = lager:info("User ~p sent message ~p to room ~p",[Username, Message, Room]);
         false ->
-            send_error_message(not_subscribed)
+            send_error_message(not_joined)
     end,
     Subs;
 
@@ -49,7 +49,7 @@ handle_message(Message = {leave, Username, Room}, Subs) ->
             ok = lager:info("User ~p left room ~p, he is in rooms ~p now", [Username, Room, NewSubs]),
             NewSubs;
         false ->
-            send_error_message(not_subscribed),
+            send_error_message(not_joined),
             Subs
     end;
 
@@ -76,7 +76,7 @@ handle_message(Message = {delete, Username, Room}, Subs) ->
             ok = chat_server_room_manager:delete_room(Room),
             lists:delete(Room, Subs);
         false ->
-            send_error_message(not_subscribed),
+            send_error_message(not_joined),
             Subs
     end;
 
@@ -85,20 +85,11 @@ handle_message(_, Subs) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec send_error_message(error()) ->
+-spec send_error_message(error_reason()) ->
     ok.
 
-send_error_message(not_exists) ->
-    chat_server_ws_handler:send({error, not_exists}, self());
-
-send_error_message(already_joined) ->
-    chat_server_ws_handler:send({error, already_joined}, self());
-
-send_error_message(not_subscribed) ->
-    chat_server_ws_handler:send({error, not_joined}, self());
-
-send_error_message(already_exists) ->
-    chat_server_ws_handler:send({error, already_exists}, self()).
+send_error_message(Reason) ->
+    chat_server_ws_handler:send({error, Reason}, self()).
 
 -spec resolve_join_room(Room :: binary(), Subscriptions :: [binary()]) ->
     ok | not_exists | already_joined.

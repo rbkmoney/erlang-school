@@ -6,13 +6,13 @@
 -export([decode/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
--export_type([decoded/0]).
--export_type([event  /0]).
--export_type([error  /0]).
--export_type([text   /0]).
--export_type([room   /0]).
--export_type([user   /0]).
+-export_type([error_reason/0]).
+-export_type([decoded     /0]).
+-export_type([event       /0]).
+-export_type([error       /0]).
+-export_type([text        /0]).
+-export_type([room        /0]).
+-export_type([user        /0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -20,10 +20,10 @@
 -type room() :: binary().
 -type user() :: binary().
 -type event() :: join | leave | create | delete | {message, text()}.
--type succ_message() :: {event(), user(), room()}.
+-type success_message() :: {event(), user(), room()}.
 -type error_reason() :: already_exists | not_exists | already_joined | not_joined.
 -type error() :: {error, error_reason()}.
--type decoded() :: succ_message() | error().
+-type decoded() :: success_message() | error().
 -type mapped_json() :: #{binary() => binary()}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
