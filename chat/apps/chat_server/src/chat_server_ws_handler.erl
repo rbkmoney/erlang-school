@@ -22,7 +22,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec send(Message :: library_protocol:decoded(), Recipient :: pid()) ->
+-spec send(Message :: library_protocol:message(), Recipient :: pid()) ->
     ok.
 
 send(Message, Recipient) -> % Very bad piece of code
@@ -57,9 +57,9 @@ websocket_handle(_Data, Subs) ->
     {ok, Subs}.
 
 -spec websocket_info
-    ({send, library_protocol:decoded()}, Subs :: state()) ->
+    ({send, library_protocol:message()}, Subs :: state()) ->
         {reply, {text, jiffy:json_value()}, term()};
-    ({gproc_ps_event, Event :: binary(), Message :: library_protocol:decoded()}, Subs :: state()) ->
+    ({gproc_ps_event, Event :: binary(), Message :: library_protocol:message()}, Subs :: state()) ->
         {reply, {text, jiffy:json_value()}, term()}.
 
 websocket_info({gproc_ps_event, _, Message}, Subs) ->

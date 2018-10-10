@@ -7,7 +7,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -export_type([error_reason/0]).
--export_type([decoded     /0]).
+-export_type([message     /0]).
 -export_type([event       /0]).
 -export_type([error       /0]).
 -export_type([text        /0]).
@@ -23,12 +23,12 @@
 -type success_message() :: {event(), user(), room()}.
 -type error_reason() :: already_exists | not_exists | already_joined | not_joined.
 -type error() :: {error, error_reason()}.
--type decoded() :: success_message() | error().
+-type message() :: success_message() | error().
 -type mapped_json() :: #{binary() => binary()}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec encode(Message :: decoded()) ->
+-spec encode(Message :: message()) ->
     jiffy:json_value().
 
 encode(Message) ->
@@ -36,7 +36,7 @@ encode(Message) ->
     jiffy:encode(Map).
 
 -spec decode(Json :: jiffy:json_value()) ->
-    decoded().
+    message().
 
 decode(Json) ->
     Map = jiffy:decode(Json, [return_maps]),
@@ -44,7 +44,7 @@ decode(Json) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec to_map(decoded()) ->
+-spec to_map(message()) ->
     mapped_json().
 
 to_map({{message, Text}, User, Room}) ->
@@ -57,7 +57,7 @@ to_map({Event, User, Room}) ->
     #{<<"event">> => encode_event(Event), <<"text">> => <<>>, <<"user">> => User, <<"room">> => Room}.
 
 -spec from_map(mapped_json()) ->
-    decoded().
+    message().
 
 from_map(#{<<"event">> := <<"error">>, <<"text">> := Reason}) ->
     {error, decode_reason(Reason)};

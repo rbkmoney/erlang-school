@@ -24,7 +24,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type message_list() :: [library_protocol:decoded()].
+-type message_list() :: [library_protocol:message()].
 -type state() :: #{
     pid := pid(),
     connected := boolean(),
@@ -38,7 +38,7 @@
 -type from() :: {pid(), term()}.
 -type host() :: string().
 -type connection_port() :: non_neg_integer().
--type pending() :: {from(), library_protocol:decoded()}.
+-type pending() :: {from(), library_protocol:message()}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -85,7 +85,7 @@ delete(PID, RoomId) ->
     gen_server:call(PID, {delete, RoomId}).
 
 -spec get_last_message(PID :: pid()) ->
-    library_protocol:decoded().
+    library_protocol:message().
 
 get_last_message(PID) ->
     ok = lager:debug("Process ~p called get_last_message", [PID]),
@@ -112,7 +112,7 @@ init({Host, Port}) ->
     ({library_protocol:event() | set_username, RoomId :: library_protocol:room()}, From :: from(), State :: state()) ->
         {reply, ok, state()};
     (pop_message, From :: from(), State :: state()) ->
-        {reply, library_protocol:decoded() | undefined, state()}.
+        {reply, library_protocol:message() | undefined, state()}.
 
 
 handle_call({set_username, Username}, _From, State) ->
@@ -193,7 +193,7 @@ ensure_connected(#{connected := Connected} = State) ->
             ws_connect(State)
     end.
 
--spec send_message(Message :: library_protocol:decoded(), PID :: pid()) ->
+-spec send_message(Message :: library_protocol:message(), PID :: pid()) ->
     ok.
 
 send_message(Message, PID) ->
@@ -201,15 +201,15 @@ send_message(Message, PID) ->
     ok = lager:info("Sending message ~p throught websocket", [Json]),
     ok = gun:ws_send(PID, {text, Json}).
 
--spec push_message(Message :: library_protocol:decoded(), State :: state()) ->
+-spec push_message(Message :: library_protocol:message(), State :: state()) ->
     state().
 
 push_message(Message, #{message_list := MessageList} = State) ->
     NewMessageList = [Message | MessageList],
     State#{message_list => NewMessageList}.
 
--spec pop_message([library_protocol:decoded()]) ->
-        {library_protocol:decoded() | undefined, list()}.
+-spec pop_message([library_protocol:message()]) ->
+        {library_protocol:message() | undefined, list()}.
 
 pop_message([]) ->
     {undefined, []};

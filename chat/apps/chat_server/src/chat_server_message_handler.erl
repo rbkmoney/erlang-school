@@ -10,7 +10,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec handle_message(library_protocol:decoded(), Subs :: chat_server_ws_handler:state()) ->
+-spec handle_message(library_protocol:message(), Subs :: chat_server_ws_handler:state()) ->
     chat_server_ws_handler:state().
 
 handle_message(Message = {join, Username, Room}, Subs) ->
