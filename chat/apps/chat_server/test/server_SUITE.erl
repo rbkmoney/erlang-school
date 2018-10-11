@@ -8,7 +8,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type groupName() :: atom().
+-type group_name() :: atom().
 -type config() :: [{atom(), term()}].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -23,22 +23,23 @@
 
 % Commands
 
--define(SEND_MESSAGE,    {{message, ?MESSAGE}, ?USER, ?ROOM}).
+-define(JOIN_ROOM,                      {join, ?USER, ?ROOM}).
 -define(CREATE_ROOM,                  {create, ?USER, ?ROOM}).
 -define(DELETE_ROOM,                  {delete, ?USER, ?ROOM}).
--define(JOIN_ROOM,                      {join, ?USER, ?ROOM}).
+-define(SEND_MESSAGE,    {{message, ?MESSAGE}, ?USER, ?ROOM}).
 
 % Errors
 
--define(ALREADY_IN_ROOM, {error, already_joined}).
--define(NOT_IN_ROOM,  {error, not_joined}).
+-define(NO_ROOM,                {error, no_room}).
+-define(NOT_IN_ROOM,         {error, not_joined}).
 -define(ALREADY_EXISTS,  {error, already_exists}).
--define(NO_ROOM,    {error, no_room}).
+-define(ALREADY_IN_ROOM, {error, already_joined}).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec all() ->
-    [{group, groupName()}].
+    [{group, group_name()}].
 
 all() ->
      [mega_test].

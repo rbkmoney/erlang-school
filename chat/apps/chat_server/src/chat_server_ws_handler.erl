@@ -50,8 +50,14 @@ websocket_init(_) ->
 
 websocket_handle({text, Json}, Subs) ->
     Message = library_protocol:decode(Json),
-    NewSubs = chat_server_message_handler:handle_message(Message, Subs),
-    {ok, NewSubs};
+    case chat_server_message_handler:handle_message(Message, Subs) of
+        {ok, NewSubs} ->
+            {ok, NewSubs};
+        {error, Reason} = ErrorMessage ->
+            send(ErrorMessage, self()),
+            {ok, Subs}
+    end;
+
 
 websocket_handle(_Data, Subs) ->
     {ok, Subs}.
