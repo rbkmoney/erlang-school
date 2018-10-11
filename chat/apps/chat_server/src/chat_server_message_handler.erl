@@ -2,16 +2,18 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-export([force_leave   /2]).
 -export([handle_message/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type error() :: library_protocol:error().
+-type subscribers() :: chat_server_ws_handler:state().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec handle_message(library_protocol:message(), Subs :: chat_server_ws_handler:state()) ->
-    {ok, chat_server_ws_handler:state()} | error().
+-spec handle_message(library_protocol:message(), Subs :: subscribers()) ->
+    {ok, subscribers()} | error().
 
 handle_message(Message = {join, Username, Room}, Subs) ->
     ok = lager:info("User ~p wants to join room ~p", [Username, Room]),
@@ -68,8 +70,8 @@ handle_message(Message = {delete, Username, Room}, Subs) ->
     ok = lager:info("User ~p wants to delete room ~p", [Username, Room]),
     case lists:member(Room, Subs) of
         true ->
-            gproc_ps:publish(l, Room, Message),
-            gproc_ps:unsubscribe(l, Room),
+            gproc_ps:publish(l, Room, Message), % Alerting everyone
+            gproc_ps:publish(l, Room, room_deleted), % Unsubscribe everyone
             ok = chat_server_room_manager:delete_room(Room),
             NewSubs = lists:delete(Room, Subs),
             {ok, NewSubs};
@@ -79,6 +81,13 @@ handle_message(Message = {delete, Username, Room}, Subs) ->
 
 handle_message(_, Subs) ->
     Subs.
+
+-spec force_leave(Room :: library_protocol:room(), Subs :: subscribers()) ->
+    subscribers().
+
+force_leave(Room, Subs) ->
+    gproc_ps:unsubscribe(l, Room),
+    lists:delete(Room, Subs).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
