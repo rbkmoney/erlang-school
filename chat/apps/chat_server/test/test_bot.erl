@@ -20,9 +20,9 @@ start_link(BotName, ActionCapacity, Rooms) ->
 
 -type state() :: #{
     actions_left := non_neg_integer(),
-    rooms := [library_protocol:room()],
-    pid := pid(),
-    action := library_protocol:event()
+    rooms        := [library_protocol:room()],
+    pid          := pid(),
+    action       := library_protocol:event()
 }.
 
 -type markov_node() :: #{
@@ -91,20 +91,21 @@ handle_info(timeout, #{actions_left := ActionsLeft, action := Action} = State) -
 -spec get_node(library_protocol:event()) ->
     markov_node().
 
-get_node(create) ->
-    ?CREATE;
-
-get_node(join) ->
-    ?JOIN;
-
-get_node({message, _}) ->
-    ?MESSAGE;
-
-get_node(leave) ->
-    ?LEAVE;
-
-get_node(delete) ->
-    ?DELETE.
+get_node(Action) ->
+    case Action of
+        create ->
+            ?CREATE;
+        join ->
+            ?JOIN;
+        {message, _} ->
+            ?MESSAGE;
+        leave ->
+            ?LEAVE;
+        delete ->
+            ?DELETE;
+        _ ->
+            error(not_an_action) % never followed this pattern before, but think it enhases readability
+    end.
 
 -spec next_action(MarkovNode :: markov_node()) ->
     library_protocol:event().
@@ -127,25 +128,20 @@ decide(Value, MarkovNode) -> % Picks an action with the greatest key, that is le
 -spec make_action(state()) ->
     ok | library_protocol:error().
 
-make_action(#{pid := PID, rooms := Rooms, action := create}) ->
+make_action(#{pid := PID, rooms := Rooms, action := Action}) ->
     Room = choose_random_room(Rooms),
-    chat_client_client:create(PID, Room);
-
-make_action(#{pid := PID, rooms := Rooms, action := join}) ->
-    Room = choose_random_room(Rooms),
-    chat_client_client:join(PID, Room);
-
-make_action(#{pid := PID, rooms := Rooms, action := {message, Text}}) ->
-    Room = choose_random_room(Rooms),
-    chat_client_client:send(PID, Text, Room);
-
-make_action(#{pid := PID, rooms := Rooms, action := leave}) ->
-    Room = choose_random_room(Rooms),
-    chat_client_client:leave(PID, Room);
-
-make_action(#{pid := PID, rooms := Rooms, action := delete}) ->
-    Room = choose_random_room(Rooms),
-    chat_client_client:delete(PID, Room).
+    case Action of
+        create ->
+            chat_client_client:create(PID, Room);
+        join ->
+            chat_client_client:join(PID, Room);
+        {message, Text} ->
+            chat_client_client:send(PID, Text, Room);
+        leave ->
+            chat_client_client:leave(PID, Room);
+        delete ->
+            chat_client_client:delete(PID, Room)
+    end.
 
 -spec create_noice() ->
     binary().
