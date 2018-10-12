@@ -42,7 +42,7 @@
     [{group, group_name()}].
 
 all() ->
-     [mega_test].
+     [mega_test, randomized_multiclient_test].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% SUITE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -75,3 +75,9 @@ mega_test(_C) ->
     ok = chat_client_client:send(PID, ?MESSAGE, ?ROOM),
     ok = chat_client_client:delete(PID, ?ROOM),
     {error, not_joined} = chat_client_client:send(PID, ?MESSAGE, ?ROOM).
+
+
+randomized_multiclient_test(_C) ->
+    Rooms = [<<"room1">>, <<"room2">>],
+    Names = [<<"Adam">>, <<"Betty">>, <<"Charlie">>, <<"Donald">>, <<"Edna">>],
+    [spawn_link(test_bot, start_link, [Name, 20, Rooms]) || Name <- Names].
