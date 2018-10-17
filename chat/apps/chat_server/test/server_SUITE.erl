@@ -35,6 +35,13 @@
 -define(ALREADY_EXISTS,  {error, already_exists}).
 -define(ALREADY_IN_ROOM, {error, already_joined}).
 
+% Markov nodes
+
+-define(JOIN_NODE,    #{create => 0.2, join => 0.1, message => 0.5, leave => 0.1, delete => 0.1}).
+-define(LEAVE_NODE,   #{create => 0.2, join => 0.3, message => 0.2, leave => 0.1, delete => 0.2}).
+-define(CREATE_NODE,  #{create => 0.1, join => 0.1, message => 0.6, leave => 0.1, delete => 0.1}).
+-define(DELETE_NODE,  #{create => 0.3, join => 0.3, message => 0.2, leave => 0.1, delete => 0.1}).
+-define(MESSAGE_NODE, #{create => 0.1, join => 0.1, message => 0.5, leave => 0.2, delete => 0.1}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -78,6 +85,9 @@ mega_test(_C) ->
 
 
 randomized_multiclient_test(_C) ->
-    Rooms = [<<"room1">>, <<"room2">>],
-    Names = [<<"Adam">>, <<"Betty">>, <<"Charlie">>, <<"Donald">>, <<"Edna">>],
-    [spawn_link(test_bot, start_link, [Name, 20, Rooms]) || Name <- Names].
+    Rooms  = [<<"room1">>, <<"room2">>],
+    Names  = [<<"Adam">>, <<"Betty">>, <<"Charlie">>, <<"Donald">>, <<"Edna">>],
+    Source = [?CREATE_NODE, ?JOIN_NODE, ?MESSAGE_NODE, ?LEAVE_NODE, ?DELETE_NODE],
+    Nodes  = [markov_node:create(Item) || Item <- Source],
+    NodesMap = maps:from_list(lists:zip([create, join, message, leave, delete], Nodes)),
+    [spawn_link(test_bot, start_link, [Name, 20, Rooms, NodesMap]) || Name <- Names].
