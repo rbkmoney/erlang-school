@@ -18,7 +18,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type state() :: [binary()].
+-type state() :: chat_server_message_handler:subscribers().
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -54,8 +54,7 @@ websocket_handle({text, Json}, Subs) ->
         {ok, NewSubs} ->
             {ok, NewSubs};
         {error, _} = ErrorMessage ->
-            send(ErrorMessage, self()),
-            {ok, Subs}
+            {reply, {text, library_protocol:encode(ErrorMessage)}, Subs} % Not sure if it's OK
     end;
 
 
@@ -66,14 +65,13 @@ websocket_handle(_Data, Subs) ->
     ({send, library_protocol:message()}, Subs :: state()) ->
         {reply, {text, jiffy:json_value()}, state()};
     ({gproc_ps_event, Room :: binary(), Message :: library_protocol:message()}, Subs :: state()) ->
-        {reply, {text, jiffy:json_value()}, state()};
-    ({gproc_ps_event, Room :: binary(), room_deleted}, Subs :: state()) ->
-        {ok, state()}.
+        {reply, {text, jiffy:json_value()}, state()}.
 
-websocket_info({gproc_ps_event, Room, room_deleted}, Subs) ->
+websocket_info({gproc_ps_event, Room, {delete, _, _} = Message}, Subs) ->
     NewSubs = chat_server_message_handler:force_leave(Room, Subs),
-    ok = lager:debug("gproc_ps_event, room_deleted"),
-    {ok, NewSubs};
+    ok = lager:debug("gproc_ps_event, Websocket info: ~p", [Message]),
+    Json = library_protocol:encode(Message),
+    {reply, {text, Json}, NewSubs};
 
 websocket_info({gproc_ps_event, _Room, Message}, Subs) ->
     ok = lager:debug("gproc_ps_event, Websocket info: ~p", [Message]),

@@ -89,7 +89,7 @@ randomized_multiclient_test(_C) ->
     Vars = setup_variables(),
     PIDs = spawn_bots(Vars),
     _ = [erlang:monitor(process, Item) || Item <- PIDs],
-    Result = [collect(Item) || Item <- PIDs].
+    [collect(Item) || Item <- PIDs].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 

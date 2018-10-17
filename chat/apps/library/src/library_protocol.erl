@@ -13,7 +13,6 @@
 -export_type([room        /0]).
 -export_type([user        /0]).
 -export_type([message     /0]).
--export_type([error_reason/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

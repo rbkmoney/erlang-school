@@ -5,10 +5,14 @@
 -export([force_leave   /2]).
 -export([handle_message/2]).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-export_type([subscribers/0]).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type error() :: library_protocol:error().
--type subscribers() :: chat_server_ws_handler:state().
+-type subscribers() ::  [library_protocol:room()].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -71,7 +75,6 @@ handle_message(Message = {delete, Username, Room}, Subs) ->
     case lists:member(Room, Subs) of
         true ->
             gproc_ps:publish(l, Room, Message), % Alerting everyone
-            gproc_ps:publish(l, Room, room_deleted), % Unsubscribe everyone
             ok = chat_server_room_manager:delete_room(Room),
             NewSubs = lists:delete(Room, Subs),
             {ok, NewSubs};
