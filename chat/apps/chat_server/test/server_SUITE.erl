@@ -20,6 +20,7 @@
 -define(ROOM,     <<"room1">>).
 -define(HOST,     "localhost").
 -define(PORT,            8080).
+-define(ACTIONS_NUMBER, 20).
 
 % Commands
 
@@ -85,9 +86,28 @@ mega_test(_C) ->
 
 
 randomized_multiclient_test(_C) ->
+    Vars = setup_variables(),
+    PIDs = spawn_bots(Vars),
+    _ = [erlang:monitor(process, Item) || Item <- PIDs],
+    Result = [collect(Item) || Item <- PIDs].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+setup_variables() ->
     Rooms  = [<<"room1">>, <<"room2">>],
     Names  = [<<"Adam">>, <<"Betty">>, <<"Charlie">>, <<"Donald">>, <<"Edna">>],
     Source = [?CREATE_NODE, ?JOIN_NODE, ?MESSAGE_NODE, ?LEAVE_NODE, ?DELETE_NODE],
     Nodes  = [markov_node:create(Item) || Item <- Source],
     NodesMap = maps:from_list(lists:zip([create, join, message, leave, delete], Nodes)),
-    [spawn_link(test_bot, start_link, [Name, 20, Rooms, NodesMap]) || Name <- Names].
+    {Names, ?ACTIONS_NUMBER, Rooms, NodesMap}.
+
+spawn_bots({Names, ActionCapacity, Rooms, NodesMap}) ->
+    [spawn_link(test_bot, start_link, [Name, ActionCapacity, Rooms, NodesMap]) || Name <- Names].
+
+collect(PID) ->
+    receive
+        {'DOWN', _, process, PID, normal} ->
+            ok
+    after 5000 -> % Как лучше разрулить таймауты?
+        error(timeout)
+    end.

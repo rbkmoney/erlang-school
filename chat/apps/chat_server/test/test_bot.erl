@@ -81,7 +81,7 @@ handle_cast(_, State) ->
 
 handle_info(timeout, #{actions_left := 0}) ->
     ok = lager:debug("Bot with PID ~p expired his action limit, terminating"),
-    {stop, normal};
+    {stop, normal, #{}};
 
 handle_info(timeout, #{actions_left := ActionsLeft, action := Action} = State) ->
     ok = lager:debug("PID ~p Current action is ~p, actions left: ~p", [self(), Action, ActionsLeft]),
