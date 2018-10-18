@@ -20,7 +20,9 @@
 -define(ROOM,     <<"room1">>).
 -define(HOST,     "localhost").
 -define(PORT,            8080).
--define(ACTIONS_NUMBER, 20).
+-define(TIMEOUT,           20).
+-define(ACTIONS_NUMBER,    20).
+-define(CRITICAL_TIMEOUT, ?TIMEOUT * ?ACTIONS_NUMBER * 2).
 
 % Commands
 
@@ -43,6 +45,16 @@
 -define(CREATE_NODE,  #{create => 0.1, join => 0.1, message => 0.6, leave => 0.1, delete => 0.1}).
 -define(DELETE_NODE,  #{create => 0.3, join => 0.3, message => 0.2, leave => 0.1, delete => 0.1}).
 -define(MESSAGE_NODE, #{create => 0.1, join => 0.1, message => 0.5, leave => 0.2, delete => 0.1}).
+
+% Markov chain
+
+-define(NODE_MAP, #{
+    join => markov_node:create(?JOIN_NODE),
+    leave => markov_node:create(?LEAVE_NODE),
+    create => markov_node:create(?CREATE_NODE),
+    delete => markov_node:create(?DELETE_NODE),
+    message => markov_node:create(?MESSAGE_NODE)
+}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -87,27 +99,31 @@ mega_test(_C) ->
 
 randomized_multiclient_test(_C) ->
     Vars = setup_variables(),
-    PIDs = spawn_bots(Vars),
-    _ = [erlang:monitor(process, Item) || Item <- PIDs],
-    [collect(Item) || Item <- PIDs].
+    PIDs = monitor(Vars),
+    ct:log("Created processes ~p", [PIDs]),
+    collect(PIDs).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 setup_variables() ->
     Rooms  = [<<"room1">>, <<"room2">>],
     Names  = [<<"Adam">>, <<"Betty">>, <<"Charlie">>, <<"Donald">>, <<"Edna">>],
-    Source = [?CREATE_NODE, ?JOIN_NODE, ?MESSAGE_NODE, ?LEAVE_NODE, ?DELETE_NODE],
-    Nodes  = [markov_node:create(Item) || Item <- Source],
-    NodesMap = maps:from_list(lists:zip([create, join, message, leave, delete], Nodes)),
-    {Names, ?ACTIONS_NUMBER, Rooms, NodesMap}.
+    ConOpts = {?HOST, ?PORT},
+    [#{rooms => Rooms, name => Item, timeout => ?TIMEOUT, nodes => ?NODE_MAP, actions_left => ?ACTIONS_NUMBER, initial_action => create, con_opts => ConOpts} || Item <- Names].
 
-spawn_bots({Names, ActionCapacity, Rooms, NodesMap}) ->
-    [spawn_link(test_bot, start_link, [Name, ActionCapacity, Rooms, NodesMap]) || Name <- Names].
+monitor(Vars) ->
+    OkPIds = [test_bot:start_link(Item) || Item <- Vars],
+    PIDs = [Item || {ok, Item} <- OkPIds],
+    [erlang:monitor(process, Item) || Item <- PIDs],
+    PIDs.
 
-collect(PID) ->
+collect([]) -> ok;
+
+collect([PID | Tail]) ->
     receive
         {'DOWN', _, process, PID, normal} ->
-            ok
-    after 5000 -> % Как лучше разрулить таймауты?
+            ct:log("Collected process ~p", [PID]),
+            collect(Tail)
+    after ?CRITICAL_TIMEOUT ->
         error(timeout)
     end.

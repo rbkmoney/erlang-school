@@ -7,25 +7,25 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export_type([markov_node/0]).
--export_type([event_possibility_map/0]).
+-export_type([markov_node/1]).
+-export_type([event_possibility_map/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type event_possibility_map() :: #{
-    term() := float(),
-    term() => float()
+-type event_possibility_map(T) :: #{
+    T := float(),
+    T => float()
 }.
 
--type markov_node() :: #{
-    0       := term(),
-    float() => term()
+-type markov_node(T) :: #{
+    0       := T,
+    float() => T
 }.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec create(EventMap :: event_possibility_map()) ->
-    markov_node() | {error, sum_is_not_1}.
+-spec create(EventMap :: event_possibility_map(T)) ->
+    markov_node(T) | {error, sum_is_not_1}.
 
 create(EventMap) ->
     Possibilities = maps:values(EventMap),
@@ -36,12 +36,13 @@ create(EventMap) ->
             {error, sum_is_not_1}
     end.
 
--spec get_random(MarkovNode :: markov_node()) ->
-    term().
+-spec get_random(MarkovNode :: markov_node(T)) ->
+    T.
 
 get_random(MarkovNode) ->
     Value = rand:uniform(),
     Keys = maps:keys(MarkovNode),
+    ok = lager:debug("Keys: ~p, Value: ~p", [Keys, Value]),
     maps:get(lists:max([Item || Item <- Keys, Item =< Value]), MarkovNode).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -54,8 +55,4 @@ create_node([], _, _, Result) ->
 
 create_node([Event | Rest] = _Events, EventMap, Acc, Result) ->
     Possibility = maps:get(Event, EventMap),
-    create_node(Rest, EventMap, round(Acc + Possibility, 5), Result#{Acc => Event}).
-
-round(Number, Precision) ->
-    P = math:pow(10, Precision),
-    round(Number * P) / P.
+    create_node(Rest, EventMap, Acc + Possibility, Result#{Acc => Event}).

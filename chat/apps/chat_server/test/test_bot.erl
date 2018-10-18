@@ -11,7 +11,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([start_link/4]).
+-export([start_link/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -19,7 +19,8 @@
     pid    := pid(),
     rooms  := rooms(),
     action := library_protocol:event(),
-    actions_left := action_counter()
+    actions_left := action_counter(),
+    timeout := non_neg_integer()
 }.
 
 -type req_nodes() :: #{
@@ -30,6 +31,19 @@
     message := markov_node()
 }.
 
+-type bot_opts() :: #{
+    name := user(),
+    actions := action_counter(),
+    rooms := rooms(),
+    nodes := req_nodes(),
+    con_opts := con_opts(),
+    timeout := non_neg_integer()
+}.
+
+-type con_opts() :: {host(), connection_port()}.
+
+-type host() :: string().
+-type connection_port() :: non_neg_integer().
 -type user()  :: library_protocol:user().
 -type rooms() :: [library_protocol:room()].
 -type action_counter() :: non_neg_integer().
@@ -37,29 +51,28 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec start_link
-    (Name :: user(), ActionCapacity :: action_counter(), Rooms :: rooms(), Nodes :: req_nodes()) ->
-        {ok, pid()}.
+-spec start_link(bot_opts()) ->
+    {ok, pid()}.
 
-start_link(Name, ActionCapacity, Rooms, Nodes) ->
-    gen_server:start_link(?MODULE, {Name, ActionCapacity, Rooms, Nodes}, []).
+start_link(BotOpts) ->
+    gen_server:start_link(?MODULE, BotOpts, []).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec init({Name :: user(), ActionsLeft :: action_counter(), Rooms :: rooms()}) ->
+-spec init(bot_opts()) ->
     {ok, state(), non_neg_integer()}.
 
-init({Name, ActionsLeft, Rooms, Nodes}) ->
-    {ok, PID} = chat_client_client:start("localhost", 8080),
+init(#{name := Name, actions_left := Actions, rooms := Rooms, nodes := Nodes, con_opts := {Host, Port}, timeout := Timeout, initial_action := InitialAction}) ->
+    {ok, PID} = chat_client_client:start_link(Host, Port),
     ok = chat_client_client:set_username(PID, Name),
     State = #{
-        actions_left => ActionsLeft,
+        actions_left => Actions,
         rooms => Rooms,
         pid => PID,
-        nodes => Nodes,
-        action => create
+        chain => markov_chain:create(Nodes, InitialAction),
+        timeout => Timeout
     },
-    {ok, State, generate_timeout()}.
+    {ok, State, Timeout}.
 
 -spec handle_call(term(), term(), state()) ->
     {reply, ok, state()}.
@@ -80,62 +93,47 @@ handle_cast(_, State) ->
         {noreply, state(), non_neg_integer()}.
 
 handle_info(timeout, #{actions_left := 0}) ->
-    ok = lager:debug("Bot with PID ~p expired his action limit, terminating"),
     {stop, normal, #{}};
 
-handle_info(timeout, #{actions_left := ActionsLeft, action := Action} = State) ->
-    ok = lager:debug("PID ~p Current action is ~p, actions left: ~p", [self(), Action, ActionsLeft]),
-    make_action(Action),
-    Node = get_node(Action, State),
-    NextAction = next_action(Node),
-    {noreply, State#{actions_left => ActionsLeft - 1, action => NextAction}, generate_timeout()}.
+handle_info(timeout, #{actions_left := ActionsLeft, chain := MarkovChain, timeout := Timeout} = State) ->
+    NewChain = markov_chain:next_step(MarkovChain),
+    Action = decide(NewChain),
+    make_action(Action, State),
+    {noreply, State#{actions_left => ActionsLeft - 1, chain => NewChain}, Timeout}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
-
--spec get_node(library_protocol:event(), state()) ->
-    markov_node().
-
-get_node(Node, State) ->
-    Nodes = maps:get(nodes, State),
-    maps:get(Node, Nodes).
-
--spec next_action(MarkovNode :: markov_node()) ->
-    library_protocol:event().
-
-next_action(MarkovNode) ->
-    decide(MarkovNode).
 
 -spec decide(MarkovNode :: markov_node()) ->
     library_protocol:event().
 
-decide(MarkovNode) -> % Picks an action with the greatest key, that is less then Value
-    case markov_node:get_random(MarkovNode) of
+decide(MarkovChain) -> % Picks an action with the greatest key, that is less then Value
+    case markov_chain:curr_step(MarkovChain) of
         message ->
             {message, create_noise()};
         Action ->
             Action
     end.
 
--spec make_action(state()) ->
+-spec make_action(library_protocol:event(), state()) ->
     ok | library_protocol:error().
 
-make_action(#{pid := PID, rooms := Rooms, action := create}) ->
+make_action(create, #{pid := PID, rooms := Rooms}) ->
     Room = choose_random_room(Rooms),
     chat_client_client:create(PID, Room);
 
-make_action(#{pid := PID, rooms := Rooms, action := join}) ->
+make_action(join, #{pid := PID, rooms := Rooms}) ->
     Room = choose_random_room(Rooms),
     chat_client_client:join(PID, Room);
 
-make_action(#{pid := PID, rooms := Rooms, action := {message, Text}}) ->
+make_action({message, Text}, #{pid := PID, rooms := Rooms}) ->
     Room = choose_random_room(Rooms),
     chat_client_client:send(PID, Text, Room);
 
-make_action(#{pid := PID, rooms := Rooms, action := leave}) ->
+make_action(leave, #{pid := PID, rooms := Rooms}) ->
     Room = choose_random_room(Rooms),
     chat_client_client:leave(PID, Room);
 
-make_action(#{pid := PID, rooms := Rooms, action := delete}) ->
+make_action(delete, #{pid := PID, rooms := Rooms}) ->
     Room = choose_random_room(Rooms),
     chat_client_client:delete(PID, Room).
 
@@ -152,9 +150,3 @@ create_noise() ->
 choose_random_room(Rooms) ->
     Index = rand:uniform(length(Rooms)),
     lists:nth(Index, Rooms).
-
--spec generate_timeout() ->
-    non_neg_integer().
-
-generate_timeout() ->
-    20 + rand:uniform(20). % 20-40ms delay between actions
