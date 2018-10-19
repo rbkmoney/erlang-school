@@ -4,7 +4,7 @@
 
 -export([create      /2]).
 -export([next_step   /1]).
--export([curr_step/1]).
+-export([curr_step   /1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

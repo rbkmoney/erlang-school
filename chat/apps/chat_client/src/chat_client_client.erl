@@ -20,6 +20,8 @@
 -export([set_username    /2]).
 -export([get_last_message/1]).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 -define(DEFAULT_USERNAME, <<"Incognito">>).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -97,16 +99,14 @@ get_last_message(PID) ->
     {ok, state()}.
 
 init({Host, Port}) ->
-    {ok,
-        #{
-            connected => false,
-            host => Host,
-            port => Port,
-            username => ?DEFAULT_USERNAME,
-            message_list => [],
-            pending => undefined
-        }
-    }.
+    State = #{
+        host => Host,
+        port => Port,
+        username => ?DEFAULT_USERNAME,
+        message_list => [],
+        pending => undefined
+    },
+    {ok, ws_connect(State)}.
 
 -spec handle_call
     ({library_protocol:event() | set_username, RoomId :: library_protocol:room()}, From :: from(), State :: state()) ->
@@ -174,24 +174,12 @@ handle_info(_, State) ->
     state().
 
 handle_request(Event, RoomId, From, #{username := Username} = State) ->
-    NewState = ensure_connected(State),
     ok = lager:info("User ~p wants to send message to room ~p", [Username, RoomId]),
     Message = {Event, Username, RoomId},
     ok = lager:debug("Message being sent: ~p", [Message]),
-    #{pid := PID} = NewState,
+    #{pid := PID} = State,
     ok = send_message(Message, PID),
-    NewState#{pending => {From, Message}}.
-
--spec ensure_connected(State :: state()) ->
-    state().
-
-ensure_connected(#{connected := Connected} = State) ->
-    case Connected of
-        true ->
-            State;
-        false ->
-            ws_connect(State)
-    end.
+    State#{pending => {From, Message}}.
 
 -spec send_message(Message :: library_protocol:message(), PID :: pid()) ->
     ok.
@@ -220,8 +208,8 @@ pop_message([Head | Tail]) ->
 -spec ws_connect(State :: state()) ->
     state().
 
-ws_connect(#{connected := false, host := Host, port := Port} = State) ->
-    {ok, Pid} = gun:open(Host, Port),
+ws_connect(#{host := Host, port := Port} = State) ->
+    {ok, Pid} = gun:open(Host, Port, #{retry => 0}),
     {ok, _} = gun:await_up(Pid),
     ok = lager:info("Connection to ~p:~p established, perfoming upgrade", [Host, Port]),
     _ = gun:ws_upgrade(Pid, "/websocket"),
@@ -235,4 +223,5 @@ ws_connect(#{connected := false, host := Host, port := Port} = State) ->
     after 1000 ->
         exit(timeout)
     end,
-    State#{pid => Pid, connected => true}.
+    link(Pid),
+    State#{pid => Pid}.
