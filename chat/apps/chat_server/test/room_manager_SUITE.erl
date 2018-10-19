@@ -12,7 +12,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--define(FIRST_ROOM, <<"room1">>).
+-define(FIRST_ROOM,  <<"room1">>).
 -define(SECOND_ROOM, <<"room2">>).
 
 %%%%%%%%%%%%%%%%%%%%%%%%% TEST INITIALIZATION %%%%%%%%%%%%%%%%%%%%%%%%%

@@ -24,21 +24,7 @@
 -define(ACTIONS_NUMBER,    20).
 -define(CRITICAL_TIMEOUT, ?TIMEOUT * ?ACTIONS_NUMBER * 2).
 
-% Commands
-
--define(JOIN_ROOM,                      {join, ?USER, ?ROOM}).
--define(CREATE_ROOM,                  {create, ?USER, ?ROOM}).
--define(DELETE_ROOM,                  {delete, ?USER, ?ROOM}).
--define(SEND_MESSAGE,    {{message, ?MESSAGE}, ?USER, ?ROOM}).
-
-% Errors
-
--define(NO_ROOM,                {error, no_room}).
--define(NOT_IN_ROOM,         {error, not_joined}).
--define(ALREADY_EXISTS,  {error, already_exists}).
--define(ALREADY_IN_ROOM, {error, already_joined}).
-
-% Markov nodes
+% Probability maps
 
 -define(JOIN_NODE,    #{create => 0.2, join => 0.1, message => 0.5, leave => 0.1, delete => 0.1}).
 -define(LEAVE_NODE,   #{create => 0.2, join => 0.3, message => 0.2, leave => 0.1, delete => 0.2}).
@@ -46,7 +32,7 @@
 -define(DELETE_NODE,  #{create => 0.3, join => 0.3, message => 0.2, leave => 0.1, delete => 0.1}).
 -define(MESSAGE_NODE, #{create => 0.1, join => 0.1, message => 0.5, leave => 0.2, delete => 0.1}).
 
-% Markov chain
+% Node map
 
 -define(NODE_MAP, #{
     join => markov_node:create(?JOIN_NODE),

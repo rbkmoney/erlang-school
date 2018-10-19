@@ -2,11 +2,11 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% BEHAVIOUR EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([init/2]).
--export([websocket_init/1]).
+-export([init            /2]).
+-export([terminate       /3]).
+-export([websocket_init  /1]).
+-export([websocket_info  /2]).
 -export([websocket_handle/2]).
--export([websocket_info/2]).
--export([terminate/3]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
