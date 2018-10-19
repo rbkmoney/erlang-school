@@ -26,20 +26,19 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--type message_list() :: [library_protocol:message()].
 -type state() :: #{
-    pid := pid(),
-    connected := boolean(),
+    pid => pid(),
     username := binary(),
     message_list := message_list(),
     host := host(),
     port := connection_port(),
-    pending => pending() % 'From' to send reply to and Message that is expected
+    pending => pending() | undefined % 'From' to send reply to and Message that is expected
 }.
 
--type from() :: {pid(), term()}.
 -type host() :: string().
+-type from() :: {pid(), term()}.
 -type connection_port() :: non_neg_integer().
+-type message_list() :: [library_protocol:message()].
 -type pending() :: {from(), library_protocol:message()}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -96,17 +95,17 @@ get_last_message(PID) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec init({Host :: host(), Port :: connection_port()}) ->
-    {ok, state()}.
+    no_return().
 
 init({Host, Port}) ->
-    State = #{
+    State = ws_connect(#{
         host => Host,
         port => Port,
         username => ?DEFAULT_USERNAME,
         message_list => [],
         pending => undefined
-    },
-    {ok, ws_connect(State)}.
+    }),
+    {ok, State}.
 
 -spec handle_call
     ({library_protocol:event() | set_username, RoomId :: library_protocol:room()}, From :: from(), State :: state()) ->

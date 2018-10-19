@@ -62,7 +62,15 @@ start_link(BotOpts) ->
 -spec init(bot_opts()) ->
     {ok, state(), non_neg_integer()}.
 
-init(#{name := Name, actions_left := Actions, rooms := Rooms, nodes := Nodes, con_opts := {Host, Port}, timeout := Timeout, initial_action := InitialAction}) ->
+init(#{
+        name := Name,
+        actions_left := Actions,
+        rooms := Rooms,
+        nodes := Nodes,
+        con_opts := {Host, Port},
+        timeout := Timeout,
+        initial_action := InitialAction
+    }) ->
     {ok, PID} = chat_client_client:start_link(Host, Port),
     ok = chat_client_client:set_username(PID, Name),
     State = #{

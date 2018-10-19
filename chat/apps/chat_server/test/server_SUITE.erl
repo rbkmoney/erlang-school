@@ -109,7 +109,15 @@ setup_variables() ->
     Rooms  = [<<"room1">>, <<"room2">>],
     Names  = [<<"Adam">>, <<"Betty">>, <<"Charlie">>, <<"Donald">>, <<"Edna">>],
     ConOpts = {?HOST, ?PORT},
-    [#{rooms => Rooms, name => Item, timeout => ?TIMEOUT, nodes => ?NODE_MAP, actions_left => ?ACTIONS_NUMBER, initial_action => create, con_opts => ConOpts} || Item <- Names].
+    [#{
+            rooms => Rooms,
+            name => Item,
+            timeout => ?TIMEOUT,
+            nodes => ?NODE_MAP,
+            actions_left => ?ACTIONS_NUMBER,
+            initial_action => create,
+            con_opts => ConOpts
+        } || Item <- Names].
 
 monitor(Vars) ->
     OkPIds = [test_bot:start_link(Item) || Item <- Vars],
