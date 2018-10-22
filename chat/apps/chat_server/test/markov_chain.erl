@@ -32,7 +32,6 @@
 create(NodesMap, InitialNode) ->
     case maps:is_key(InitialNode, NodesMap) of
         true ->
-            ok = lager:debug("Created Markov's chain ~p", [#{nodes => NodesMap, curr_step => InitialNode}]),
             #{nodes => NodesMap, curr_step => InitialNode};
         false ->
             {error, node_undefined}
@@ -42,9 +41,7 @@ create(NodesMap, InitialNode) ->
     markov_chain(T) | node_undef_error().
 
 next_step(#{nodes := Nodes, curr_step := Curr} = MarkovChain) ->
-    ok = lager:debug("Called next_step, chain is ~p", [MarkovChain]),
     CurrNode = maps:get(Curr, Nodes),
-    ok = lager:debug("Next_step, CurrNode is ~p", [CurrNode]),
     NewNode = markov_node:get_random(CurrNode),
     case maps:is_key(NewNode, Nodes) of
         true ->

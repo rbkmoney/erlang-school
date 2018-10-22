@@ -8,10 +8,6 @@
 -export([websocket_info  /2]).
 -export([websocket_handle/2]).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
--export([send/2]).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export_type([state/0]).
@@ -19,16 +15,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type state() :: chat_server_message_handler:subscribers().
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
--spec send(Message :: library_protocol:message(), Recipient :: pid()) ->
-    ok.
-
-send(Message, Recipient) -> % Very bad piece of code
-    ok = lager:info("Sending ~p to process ~p", [Message, Recipient]),
-    Recipient ! {send, Message},
-    ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -67,16 +53,11 @@ websocket_handle(_Data, Subs) ->
     ({gproc_ps_event, Room :: binary(), Message :: library_protocol:message()}, Subs :: state()) ->
         {reply, {text, jiffy:json_value()}, state()}.
 
-websocket_info({gproc_ps_event, Room, {delete, _, _} = Message}, Subs) ->
-    NewSubs = chat_server_message_handler:force_leave(Room, Subs),
+websocket_info({gproc_ps_event, _Room, Message} = GprocEvent, Subs) ->
     ok = lager:debug("gproc_ps_event, Websocket info: ~p", [Message]),
+    NewSubs = chat_server_message_handler:handle_gproc_event(GprocEvent, Subs),
     Json = library_protocol:encode(Message),
     {reply, {text, Json}, NewSubs};
-
-websocket_info({gproc_ps_event, _Room, Message}, Subs) ->
-    ok = lager:debug("gproc_ps_event, Websocket info: ~p", [Message]),
-    Json = library_protocol:encode(Message),
-    {reply, {text, Json}, Subs};
 
 websocket_info({send, Message}, Subs) ->
     ok = lager:debug("send, Websocket info: ~p", [Message]),

@@ -2,8 +2,8 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([force_leave   /2]).
--export([handle_message/2]).
+-export([handle_message    /2]).
+-export([handle_gproc_event/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -85,12 +85,14 @@ handle_message(Message = {delete, Username, Room}, Subs) ->
 handle_message(_, Subs) ->
     Subs.
 
--spec force_leave(Room :: library_protocol:room(), Subs :: subscribers()) ->
-    subscribers().
-
-force_leave(Room, Subs) ->
+handle_gproc_event({gproc_ps_event, Room, Message = {delete, _, _}}, Subs) ->
+    ok = lager:debug("gproc_ps_event: ~p", [Message]),
     gproc_ps:unsubscribe(l, Room),
-    lists:delete(Room, Subs).
+    lists:delete(Room, Subs);
+
+handle_gproc_event({gproc_ps_event, _Room, Message}, Subs) ->
+    ok = lager:debug("gproc_ps_event: ~p", [Message]),
+    Subs.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
