@@ -32,7 +32,7 @@
     message_list := message_list(),
     host := host(),
     port := connection_port(),
-    pending => pending() | undefined % 'From' to send reply to and Message that is expected
+    pending => pending() % 'From' to send reply to and Message that is expected
 }.
 
 -type host() :: string().
@@ -102,8 +102,7 @@ init({Host, Port}) ->
         host => Host,
         port => Port,
         username => ?DEFAULT_USERNAME,
-        message_list => [],
-        pending => undefined
+        message_list => []
     }),
     {ok, State}.
 
@@ -147,14 +146,16 @@ handle_info({gun_ws, _, _, {text, Json}}, #{pending := {From, ExpectedMessage}} 
     Message = library_protocol:decode(Json),
     ok = lager:info("Caught a message: ~p", [Message]),
     ok = lager:info("Message ~p is currently pending", [ExpectedMessage]),
-    case Message of
+    NewState = case Message of
         ExpectedMessage ->
             NewState0 = push_message(Message, State),
-            NewState = maps:remove(pending, NewState0),
-            gen_server:reply(From, ok);
-        Error ->
-            NewState = maps:remove(pending, State),
-            gen_server:reply(From, Error)
+            gen_server:reply(From, ok),
+            maps:remove(pending, NewState0);
+        Error = {error, _} ->
+            gen_server:reply(From, Error),
+            maps:remove(pending, State);
+        _ ->
+            State
     end,
     {noreply, NewState};
 

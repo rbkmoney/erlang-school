@@ -13,6 +13,10 @@
 
 -export([start_link/1]).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-export_type([bot_opts/0]).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type state() :: #{
@@ -70,7 +74,7 @@ init(#{
         con_opts := {Host, Port},
         timeout := Timeout,
         initial_action := InitialAction
-    }) ->
+}) ->
     {ok, PID} = chat_client_client:start_link(Host, Port),
     ok = chat_client_client:set_username(PID, Name),
     State = #{

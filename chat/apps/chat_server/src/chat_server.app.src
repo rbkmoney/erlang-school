@@ -10,6 +10,7 @@
                 library,
                 lager,
                 cowboy,
+                ranch,
                 gproc
            ]
         },

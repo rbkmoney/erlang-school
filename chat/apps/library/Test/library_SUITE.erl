@@ -4,7 +4,17 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--compile([export_all]).
+%% tests descriptions
+
+-export([all           /0]).
+-export([init_per_suite/1]).
+-export([end_per_suite /1]).
+
+%% tests
+
+-export([symmetry   /1]).
+-export([encode_json/1]).
+-export([decode_json/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

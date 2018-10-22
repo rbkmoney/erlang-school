@@ -4,11 +4,21 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--compile([export_all]).
+%% tests descriptions
+
+-export([all           /0]).
+-export([init_per_suite/1]).
+-export([end_per_suite /1]).
+
+%% tests
+
+-export([mega_test                  /1]).
+-export([randomized_multiclient_test/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type group_name() :: atom().
+-type bot_opts() ::test_bot:bot_opts().
 -type config() :: [{atom(), term()}].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -35,10 +45,10 @@
 % Node map
 
 -define(NODE_MAP, #{
-    join => markov_node:create(?JOIN_NODE),
-    leave => markov_node:create(?LEAVE_NODE),
-    create => markov_node:create(?CREATE_NODE),
-    delete => markov_node:create(?DELETE_NODE),
+    join    => markov_node:create(?JOIN_NODE),
+    leave   => markov_node:create(?LEAVE_NODE),
+    create  => markov_node:create(?CREATE_NODE),
+    delete  => markov_node:create(?DELETE_NODE),
     message => markov_node:create(?MESSAGE_NODE)
 }).
 
@@ -82,6 +92,8 @@ mega_test(_C) ->
     ok = chat_client_client:delete(PID, ?ROOM),
     {error, not_joined} = chat_client_client:send(PID, ?MESSAGE, ?ROOM).
 
+-spec randomized_multiclient_test(C :: config()) ->
+    term().
 
 randomized_multiclient_test(_C) ->
     Vars = setup_variables(),
@@ -91,11 +103,15 @@ randomized_multiclient_test(_C) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec setup_variables() ->
+    [bot_opts()].
+
 setup_variables() ->
     Rooms  = [<<"room1">>, <<"room2">>],
     Names  = [<<"Adam">>, <<"Betty">>, <<"Charlie">>, <<"Donald">>, <<"Edna">>],
     ConOpts = {?HOST, ?PORT},
-    [#{
+    [
+        #{
             rooms => Rooms,
             name => Item,
             timeout => ?TIMEOUT,
@@ -103,13 +119,20 @@ setup_variables() ->
             actions_left => ?ACTIONS_NUMBER,
             initial_action => create,
             con_opts => ConOpts
-        } || Item <- Names].
+        } || Item <- Names
+    ].
+
+-spec monitor(bot_opts()) ->
+    [pid()].
 
 monitor(Vars) ->
     OkPIds = [test_bot:start_link(Item) || Item <- Vars],
     PIDs = [Item || {ok, Item} <- OkPIds],
     [erlang:monitor(process, Item) || Item <- PIDs],
     PIDs.
+
+-spec collect([pid()]) ->
+        ok.
 
 collect([]) -> ok;
 
