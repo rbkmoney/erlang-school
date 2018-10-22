@@ -7,12 +7,12 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export_type([event       /0]).
--export_type([error       /0]).
--export_type([text        /0]).
--export_type([room        /0]).
--export_type([user        /0]).
--export_type([message     /0]).
+-export_type([event  /0]).
+-export_type([error  /0]).
+-export_type([text   /0]).
+-export_type([room   /0]).
+-export_type([user   /0]).
+-export_type([message/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

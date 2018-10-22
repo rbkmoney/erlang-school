@@ -11,8 +11,9 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-type room()  ::  library_protocol:room().
 -type error() :: library_protocol:error().
--type subscribers() ::  [library_protocol:room()].
+-type subscribers() ::  [room()].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -84,6 +85,9 @@ handle_message(Message = {delete, Username, Room}, Subs) ->
 
 handle_message(_, Subs) ->
     Subs.
+
+-spec handle_gproc_event({gproc_ps_event, room(), library_protocol:message()}, subscribers()) ->
+    subscribers().
 
 handle_gproc_event({gproc_ps_event, Room, Message = {delete, _, _}}, Subs) ->
     ok = lager:debug("gproc_ps_event: ~p", [Message]),
