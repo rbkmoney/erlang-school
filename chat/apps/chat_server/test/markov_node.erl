@@ -17,7 +17,7 @@
     T => float()
 }.
 
--type markov_node(T) :: #{
+-opaque markov_node(T) :: #{
     0       := T,
     float() => T
 }.
@@ -42,7 +42,6 @@ create(EventMap) ->
 get_random(MarkovNode) ->
     Value = rand:uniform(),
     Keys = maps:keys(MarkovNode),
-    ok = lager:debug("Keys: ~p, Value: ~p", [Keys, Value]),
     maps:get(lists:max([Item || Item <- Keys, Item =< Value]), MarkovNode).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%

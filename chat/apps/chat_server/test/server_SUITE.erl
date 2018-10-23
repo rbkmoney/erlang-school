@@ -30,9 +30,9 @@
 -define(ROOM,     <<"room1">>).
 -define(HOST,     "localhost").
 -define(PORT,            8080).
--define(TIMEOUT,           20).
+-define(DELAY,             20).
 -define(ACTIONS_NUMBER,    20).
--define(CRITICAL_TIMEOUT, ?TIMEOUT * ?ACTIONS_NUMBER * 2).
+-define(CRITICAL_TIMEOUT, ?DELAY * ?ACTIONS_NUMBER * 2).
 
 % Probability maps
 
@@ -58,7 +58,7 @@
     [{group, group_name()}].
 
 all() ->
-     [mega_test, randomized_multiclient_test].
+    [mega_test, randomized_multiclient_test].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% SUITE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -114,7 +114,7 @@ setup_variables() ->
         #{
             rooms => Rooms,
             name => Item,
-            timeout => ?TIMEOUT,
+            delay => ?DELAY,
             nodes => ?NODE_MAP,
             actions_left => ?ACTIONS_NUMBER,
             initial_action => create,
@@ -139,7 +139,6 @@ collect([]) -> ok;
 collect([PID | Tail]) ->
     receive
         {'DOWN', _, process, PID, normal} ->
-            ct:log("Collected process ~p", [PID]),
             collect(Tail)
     after ?CRITICAL_TIMEOUT ->
         error(timeout)

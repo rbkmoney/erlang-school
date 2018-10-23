@@ -30,6 +30,7 @@
     markov_chain(T) | node_undef_error().
 
 create(NodesMap, InitialNode) ->
+    ok = check_correctness(NodesMap),
     case maps:is_key(InitialNode, NodesMap) of
         true ->
             #{nodes => NodesMap, curr_step => InitialNode};
@@ -55,3 +56,21 @@ next_step(#{nodes := Nodes, curr_step := Curr} = MarkovChain) ->
 
 curr_step(#{curr_step := Curr}) ->
     Curr.
+
+-spec check_correctness(node_map(_)) ->
+    ok | no_return().
+
+check_correctness(NodeMap) -> % Пока совершено монструозная конструкция, подумаю над тем, как улучшить ее
+    % Если входные данные невалидны, эта функция просто кинет ошибку
+    Nodes = maps:values(NodeMap),
+    Keys = sets:to_list(sets:from_list(lists:umerge(lists:map(fun maps:values/1, Nodes)))), % Уникальные ключи
+    F = fun(Item, Map) ->
+        case maps:is_key(Item, Map) of
+            true ->
+                Map;
+            false ->
+                error(invalid_node_map)
+        end
+    end,
+    lists:foldl(F, NodeMap, Keys),
+    ok.

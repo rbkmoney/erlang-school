@@ -27,7 +27,7 @@
     timeout := non_neg_integer()
 }.
 
--type req_nodes() :: #{
+-type chat_client_nodes() :: #{
     join    := markov_node(),
     leave   := markov_node(),
     create  := markov_node(),
@@ -39,9 +39,9 @@
     name := user(),
     actions := action_counter(),
     rooms := rooms(),
-    nodes := req_nodes(),
+    nodes := chat_client_nodes(),
     con_opts := con_opts(),
-    timeout := non_neg_integer()
+    delay := non_neg_integer()
 }.
 
 -type con_opts() :: {host(), connection_port()}.
@@ -72,7 +72,7 @@ init(#{
         rooms := Rooms,
         nodes := Nodes,
         con_opts := {Host, Port},
-        timeout := Timeout,
+        delay := Delay,
         initial_action := InitialAction
 }) ->
     {ok, PID} = chat_client_client:start_link(Host, Port),
@@ -82,9 +82,9 @@ init(#{
         rooms => Rooms,
         pid => PID,
         chain => markov_chain:create(Nodes, InitialAction),
-        timeout => Timeout
+        delay => Delay
     },
-    {ok, State, Timeout}.
+    {ok, State, Delay}.
 
 -spec handle_call(term(), term(), state()) ->
     {reply, ok, state()}.
@@ -107,18 +107,18 @@ handle_cast(_, State) ->
 handle_info(timeout, #{actions_left := 0}) ->
     {stop, normal, #{}};
 
-handle_info(timeout, #{actions_left := ActionsLeft, chain := MarkovChain, timeout := Timeout} = State) ->
+handle_info(timeout, #{actions_left := ActionsLeft, chain := MarkovChain, delay := Delay} = State) ->
     NewChain = markov_chain:next_step(MarkovChain),
     Action = decide(NewChain),
     make_action(Action, State),
-    {noreply, State#{actions_left => ActionsLeft - 1, chain => NewChain}, Timeout}.
+    {noreply, State#{actions_left => ActionsLeft - 1, chain => NewChain}, Delay}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec decide(MarkovNode :: markov_node()) ->
     library_protocol:event().
 
-decide(MarkovChain) -> % Picks an action with the greatest key, that is less then Value
+decide(MarkovChain) ->
     case markov_chain:curr_step(MarkovChain) of
         message ->
             {message, create_noise()};

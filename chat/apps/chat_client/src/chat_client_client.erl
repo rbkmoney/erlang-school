@@ -116,8 +116,8 @@ init({Host, Port}) ->
 handle_call({set_username, Username}, _From, State) ->
     {reply, ok, State#{username => Username}};
 
-handle_call({Event, RoomId}, From, State) ->
-    ok = lager:debug("Client triggered {~p, ~p}", [Event, RoomId]),
+handle_call({Event, RoomId}, From, #{username := Username} = State) ->
+    ok = lager:debug("Client ~p triggered {~p, ~p}", [Username, Event, RoomId]),
     NewState = handle_request(Event, RoomId, From, State),
     {noreply, NewState};
 
@@ -126,7 +126,7 @@ handle_call({send_message, Message, RoomId}, From, State) ->
     {noreply, NewState};
 
 handle_call(pop_message, _From, #{username := Username, message_list := MessageList} = State) ->
-    ok = lager:debug("User ~p asked for received messages", [Username]),
+    ok = lager:debug("Client ~p asked for received messages", [Username]),
     {Message, Tail} = pop_message(MessageList),
     {reply, Message, State#{message_list => Tail}};
 
@@ -142,9 +142,9 @@ handle_cast(_, State) ->
 -spec handle_info({gun_ws, _, _, {text, Message :: jiffy:json_value()}}, state()) ->
     {noreply, state()}.
 
-handle_info({gun_ws, _, _, {text, Json}}, #{pending := {From, ExpectedMessage}} = State) ->
+handle_info({gun_ws, _, _, {text, Json}}, #{pending := {From, ExpectedMessage}, username := Username} = State) ->
     Message = library_protocol:decode(Json),
-    ok = lager:info("Caught a message: ~p", [Message]),
+    ok = lager:info("Client ~p Caught a message: ~p", [Username, Message]),
     ok = lager:info("Message ~p is currently pending", [ExpectedMessage]),
     NewState = case Message of
         ExpectedMessage ->
@@ -159,9 +159,9 @@ handle_info({gun_ws, _, _, {text, Json}}, #{pending := {From, ExpectedMessage}} 
     end,
     {noreply, NewState};
 
-handle_info({gun_ws, _, _, {text, Json}}, State) ->
+handle_info({gun_ws, _, _, {text, Json}}, #{username := Username} = State) ->
     Message = library_protocol:decode(Json),
-    ok = lager:info("Caught a message: ~p", [Message]),
+    ok = lager:info("Client ~p Caught a message: ~p", [Username, Message]),
     NewState = push_message(Message, State),
     {noreply, NewState};
 

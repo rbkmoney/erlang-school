@@ -2,8 +2,8 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([handle_message    /2]).
--export([handle_gproc_event/2]).
+-export([handle_event  /2]).
+-export([handle_message/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -49,6 +49,7 @@ handle_message(Message = {leave, Username, Room}, Subs) ->
     ok = lager:info("User ~p wants to leave room ~p", [Username, Room]),
     case lists:member(Room, Subs) of
         true ->
+            ok = lager:info("Unsubscribing ~p from room ~p", [Username, Room]),
             gproc_ps:publish(l, Room, Message),
             gproc_ps:unsubscribe(l, Room),
             NewSubs = lists:delete(Room, Subs),
@@ -62,6 +63,7 @@ handle_message(Message = {create, Username, Room}, Subs) ->
     ok = lager:info("User ~p wants to create room ~p", [Username, Room]),
     case chat_server_room_manager:create_room(Room) of
         ok ->
+            ok = lager:info("Subscribing ~p to room ~p", [Username, Room]),
             gproc_ps:subscribe(l, Room),
             gproc_ps:publish(l, Room, Message),
             NewSubs = [Room | Subs],
@@ -86,17 +88,20 @@ handle_message(Message = {delete, Username, Room}, Subs) ->
 handle_message(_, Subs) ->
     Subs.
 
--spec handle_gproc_event({gproc_ps_event, room(), library_protocol:message()}, subscribers()) ->
-    subscribers().
+-spec handle_event(term(), subscribers()) ->
+    {subscribers(), library_protocol:message() | undefined}.
 
-handle_gproc_event({gproc_ps_event, Room, Message = {delete, _, _}}, Subs) ->
+handle_event({gproc_ps_event, Room, Message = {delete, _, _}}, Subs) ->
     ok = lager:debug("gproc_ps_event: ~p", [Message]),
     gproc_ps:unsubscribe(l, Room),
-    lists:delete(Room, Subs);
+    {lists:delete(Room, Subs), Message};
 
-handle_gproc_event({gproc_ps_event, _Room, Message}, Subs) ->
+handle_event({gproc_ps_event, _Room, Message}, Subs) ->
     ok = lager:debug("gproc_ps_event: ~p", [Message]),
-    Subs.
+    {Subs, Message};
+
+handle_event(_, Subs) ->
+    {Subs, undefined}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
