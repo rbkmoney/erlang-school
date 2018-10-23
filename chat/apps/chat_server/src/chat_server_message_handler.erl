@@ -89,19 +89,19 @@ handle_message(_, Subs) ->
     Subs.
 
 -spec handle_event(term(), subscribers()) ->
-    {subscribers(), library_protocol:message() | undefined}.
+    {library_protocol:message() | undefined, subscribers()}.
 
 handle_event({gproc_ps_event, Room, Message = {delete, _, _}}, Subs) ->
     ok = lager:debug("gproc_ps_event: ~p", [Message]),
     gproc_ps:unsubscribe(l, Room),
-    {lists:delete(Room, Subs), Message};
+    {Message, lists:delete(Room, Subs)};
 
 handle_event({gproc_ps_event, _Room, Message}, Subs) ->
     ok = lager:debug("gproc_ps_event: ~p", [Message]),
-    {Subs, Message};
+    {Message, Subs};
 
 handle_event(_, Subs) ->
-    {Subs, undefined}.
+    {undefined, Subs}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 

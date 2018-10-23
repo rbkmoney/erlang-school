@@ -43,19 +43,18 @@ websocket_handle({text, Json}, Subs) ->
             {reply, {text, library_protocol:encode(ErrorMessage)}, Subs} % Not sure if it's OK
     end;
 
-
 websocket_handle(_Data, Subs) ->
     {ok, Subs}.
 
--spec websocket_info({gproc_ps_event, Room :: binary(), Message :: library_protocol:message()}, Subs :: state()) ->
-    {reply, {text, jiffy:json_value()}, state()}.
+-spec websocket_info(term(), Subs :: state()) ->
+    {reply, {text, jiffy:json_value()}, state()} | no_return().
 
 websocket_info(Event, Subs) ->
     ok = lager:debug("ws_handler caught an event ~p", [Event]),
-    {NewSubs, RawEvent} = chat_server_message_handler:handle_event(Event, Subs),
-    case RawEvent of
+    {EventBody, NewSubs} = chat_server_message_handler:handle_event(Event, Subs),
+    case EventBody of
         {_, _, _} ->
-            Json = library_protocol:encode(RawEvent),
+            Json = library_protocol:encode(EventBody),
             {reply, {text, Json}, NewSubs};
         undefined ->
             error(unknown_message)
