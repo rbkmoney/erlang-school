@@ -22,9 +22,9 @@
 -type state() :: #{
     pid    := pid(),
     rooms  := rooms(),
-    action := library_protocol:event(),
+    chain  := markov_chain:markov_chain(_),
     actions_left := action_counter(),
-    timeout := non_neg_integer()
+    delay := {non_neg_integer(), non_neg_integer()}
 }.
 
 -type chat_client_nodes() :: #{
@@ -37,21 +37,22 @@
 
 -type bot_opts() :: #{
     name := user(),
-    actions := action_counter(),
+    actions_left := action_counter(),
     rooms := rooms(),
     nodes := chat_client_nodes(),
     con_opts := con_opts(),
-    delay := non_neg_integer()
+    initial_action := bot_actions(),
+    delay := {non_neg_integer(), non_neg_integer()}
 }.
 
 -type con_opts() :: {host(), connection_port()}.
-
+-type bot_actions() :: join | leave | create | delete | message.
 -type host() :: string().
 -type connection_port() :: non_neg_integer().
 -type user()  :: library_protocol:user().
 -type rooms() :: [library_protocol:room()].
 -type action_counter() :: non_neg_integer().
--type markov_node() :: markov_node:markov_node().
+-type markov_node() :: markov_node:markov_node(_).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -72,7 +73,7 @@ init(#{
         rooms := Rooms,
         nodes := Nodes,
         con_opts := {Host, Port},
-        delay := Delay,
+        delay := {Delay, Spread},
         initial_action := InitialAction
 }) ->
     {ok, PID} = chat_client_client:start_link(Host, Port),
@@ -82,9 +83,9 @@ init(#{
         rooms => Rooms,
         pid => PID,
         chain => markov_chain:create(Nodes, InitialAction),
-        delay => Delay
+        delay => {Delay, Spread}
     },
-    {ok, State, Delay}.
+    {ok, State, generate_timeout(State)}.
 
 -spec handle_call(term(), term(), state()) ->
     {reply, ok, state()}.
@@ -100,18 +101,18 @@ handle_cast(_, State) ->
 
 -spec handle_info
     (timeout, #{actions_left := 0}) ->
-        {stop, normal};
+        {stop, normal, term()};
     (timeout, state()) ->
         {noreply, state(), non_neg_integer()}.
 
 handle_info(timeout, #{actions_left := 0}) ->
     {stop, normal, #{}};
 
-handle_info(timeout, #{actions_left := ActionsLeft, chain := MarkovChain, delay := Delay} = State) ->
+handle_info(timeout, #{actions_left := ActionsLeft, chain := MarkovChain} = State) ->
     NewChain = markov_chain:next_step(MarkovChain),
     Action = decide(NewChain),
-    make_action(Action, State),
-    {noreply, State#{actions_left => ActionsLeft - 1, chain => NewChain}, Delay}.
+    _ = make_action(Action, State),
+    {noreply, State#{actions_left => ActionsLeft - 1, chain => NewChain}, generate_timeout(State)}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -162,3 +163,9 @@ create_noise() ->
 choose_random_room(Rooms) ->
     Index = rand:uniform(length(Rooms)),
     lists:nth(Index, Rooms).
+
+-spec generate_timeout(state()) ->
+    non_neg_integer().
+
+generate_timeout(#{delay := {Delay, Spread}}) ->
+    Delay + rand:uniform(Spread).

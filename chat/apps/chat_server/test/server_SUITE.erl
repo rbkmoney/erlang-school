@@ -31,8 +31,9 @@
 -define(HOST,     "localhost").
 -define(PORT,            8080).
 -define(DELAY,             20).
+-define(SPREAD,            20).
 -define(ACTIONS_NUMBER,    20).
--define(CRITICAL_TIMEOUT, ?DELAY * ?ACTIONS_NUMBER * 2).
+-define(CRITICAL_TIMEOUT, (?DELAY + ?SPREAD) * ?ACTIONS_NUMBER * 2).
 
 % Probability maps
 
@@ -113,7 +114,7 @@ setup_variables() ->
         #{
             name  => Item,
             rooms => Rooms,
-            delay => ?DELAY,
+            delay => {?DELAY, ?SPREAD},
             nodes => ?NODE_MAP,
             con_opts => ConOpts,
             initial_action => create,
