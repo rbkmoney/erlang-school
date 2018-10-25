@@ -25,7 +25,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec create(NodesMap :: node_map(T), InitialNode :: markov_node:markov_node(T)) ->
-    markov_chain(T).
+    markov_chain(T) | no_return().
 
 create(NodesMap, InitialNode) ->
     ok = check_correctness(NodesMap),
@@ -41,7 +41,7 @@ create(NodesMap, InitialNode) ->
 
 next_step(#{nodes := Nodes, curr_step := Curr} = MarkovChain) ->
     CurrNode = maps:get(Curr, Nodes),
-    NewNode = markov_node:get_random(CurrNode),
+    NewNode  = markov_node:get_random(CurrNode),
     MarkovChain#{curr_step => NewNode}.
 
 -spec curr_step(markov_chain(T)) ->
@@ -53,7 +53,7 @@ curr_step(#{curr_step := Curr}) ->
 -spec check_correctness(node_map(_)) ->
     ok | no_return().
 
-check_correctness(NodeMap) -> % Пока совершено монструозная конструкция, подумаю над тем, как улучшить ее
+check_correctness(NodeMap) ->
     % Если входные данные невалидны, эта функция просто кинет ошибку
     Nodes = maps:values(NodeMap),
     AllKeys = lists:umerge(lists:map(fun maps:values/1, Nodes)),

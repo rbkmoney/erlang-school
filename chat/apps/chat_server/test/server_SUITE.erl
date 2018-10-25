@@ -18,7 +18,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -type group_name() :: atom().
--type bot_opts() ::test_bot:bot_opts().
+-type bot_opts() :: test_bot:bot_opts().
 -type config() :: [{atom(), term()}].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MACROSES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -98,7 +98,6 @@ mega_test(_C) ->
 randomized_multiclient_test(_C) ->
     Vars = setup_variables(),
     PIDs = monitor(Vars),
-    ct:log("Created processes ~p", [PIDs]),
     collect(PIDs).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -107,18 +106,18 @@ randomized_multiclient_test(_C) ->
     [bot_opts()].
 
 setup_variables() ->
+    ConOpts = {?HOST, ?PORT},
     Rooms  = [<<"room1">>, <<"room2">>],
     Names  = [<<"Adam">>, <<"Betty">>, <<"Charlie">>, <<"Donald">>, <<"Edna">>],
-    ConOpts = {?HOST, ?PORT},
     [
         #{
+            name  => Item,
             rooms => Rooms,
-            name => Item,
             delay => ?DELAY,
             nodes => ?NODE_MAP,
-            actions_left => ?ACTIONS_NUMBER,
+            con_opts => ConOpts,
             initial_action => create,
-            con_opts => ConOpts
+            actions_left => ?ACTIONS_NUMBER
         } || Item <- Names
     ].
 
