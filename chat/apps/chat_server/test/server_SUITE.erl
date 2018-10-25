@@ -96,9 +96,9 @@ mega_test(_C) ->
     term().
 
 randomized_multiclient_test(_C) ->
-    Vars = setup_variables(),
-    PIDs = monitor(Vars),
-    collect(PIDs).
+    BotOptsList = setup_variables(),
+    PIDs = start_and_monitor_bots(BotOptsList),
+    lists:foreach(fun collect_process/1, PIDs).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -121,26 +121,22 @@ setup_variables() ->
         } || Item <- Names
     ].
 
--spec monitor(bot_opts()) ->
+-spec start_and_monitor_bots([bot_opts()]) ->
     [pid()].
 
-monitor(Vars) ->
-    OkPids = lists:map(fun test_bot:start_link/1, Vars),
+start_and_monitor_bots(BotOptsList) ->
+    OkPids = lists:map(fun test_bot:start_link/1, BotOptsList),
     PIDs = [Item || {ok, Item} <- OkPids],
     [erlang:monitor(process, Item) || Item <- PIDs],
     PIDs.
 
--spec collect([pid()]) ->
+-spec collect_process(pid()) ->
     ok | no_return().
 
-collect(PIDs) ->
-    ColProc = fun(PID) ->
-        receive
-            {'DOWN', _, process, PID, normal} ->
-                ok
-        after ?CRITICAL_TIMEOUT ->
-            error(timeout)
-        end
-    end,
-    lists:map(ColProc, PIDs),
-    ok.
+collect_process(PID) ->
+    receive
+        {'DOWN', _, process, PID, normal} ->
+            ok
+    after ?CRITICAL_TIMEOUT ->
+        error(timeout)
+    end.

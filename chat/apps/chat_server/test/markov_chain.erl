@@ -28,13 +28,8 @@
     markov_chain(T) | no_return().
 
 create(NodesMap, InitialNode) ->
-    ok = check_correctness(NodesMap),
-    case maps:is_key(InitialNode, NodesMap) of
-        true ->
-            #{nodes => NodesMap, curr_step => InitialNode};
-        false ->
-            error(invalid_node_map)
-    end.
+    ok = check_correctness(NodesMap, InitialNode),
+    #{nodes => NodesMap, curr_step => InitialNode}.
 
 -spec next_step(markov_chain(T)) ->
     markov_chain(T).
@@ -50,21 +45,17 @@ next_step(#{nodes := Nodes, curr_step := Curr} = MarkovChain) ->
 curr_step(#{curr_step := Curr}) ->
     Curr.
 
--spec check_correctness(node_map(_)) ->
+-spec check_correctness(node_map(T), T) ->
     ok | no_return().
 
-check_correctness(NodeMap) ->
+check_correctness(NodeMap, InitialNode) ->
     % Если входные данные невалидны, эта функция просто кинет ошибку
     Nodes = maps:values(NodeMap),
-    AllKeys = lists:umerge(lists:map(fun maps:values/1, Nodes)),
-    UniqueKeys = sets:to_list(sets:from_list(AllKeys)),
-    F = fun(Item, Map) ->
-        case maps:is_key(Item, Map) of
-            true ->
-                Map;
-            false ->
-                error(invalid_node_map)
-        end
-    end,
-    lists:foldl(F, NodeMap, UniqueKeys),
-    ok.
+    Keys = lists:umerge(lists:map(fun maps:values/1, Nodes)),
+    % Насколько плохо нарушать скоуп функции ради того, чтобы поместить ее в функцию высшего порядка?
+    case lists:all(fun(Key) -> maps:is_key(Key, NodeMap) end, Keys) and maps:is_key(InitialNode, NodeMap) of
+        true ->
+            ok;
+        false ->
+            error(invalid_node_map)
+    end.

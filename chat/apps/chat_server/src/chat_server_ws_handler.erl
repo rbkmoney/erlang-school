@@ -52,11 +52,8 @@ websocket_handle(_, Subs) ->
 websocket_info(Event, Subs) ->
     ok = lager:debug("ws_handler caught an event ~p", [Event]),
     {EventBody, NewSubs} = chat_server_message_handler:handle_event(Event, Subs),
-    case EventBody of
-        {_, _, _} ->
-            Json = library_protocol:encode(EventBody),
-            {reply, {text, Json}, NewSubs}
-    end.
+    Json = library_protocol:encode(EventBody),
+    {reply, {text, Json}, NewSubs}.
 
 -spec terminate(_Reason :: term(), _Req :: map(), Subs :: state()) ->
     ok.
