@@ -126,20 +126,22 @@ setup_variables() ->
     [pid()].
 
 monitor(Vars) ->
-    OkPIds = [test_bot:start_link(Item) || Item <- Vars],
-    PIDs = [Item || {ok, Item} <- OkPIds],
+    OkPids = lists:map(fun test_bot:start_link/1, Vars),
+    PIDs = [Item || {ok, Item} <- OkPids],
     [erlang:monitor(process, Item) || Item <- PIDs],
     PIDs.
 
 -spec collect([pid()]) ->
-        ok.
+    ok | no_return().
 
-collect([]) -> ok;
-
-collect([PID | Tail]) ->
-    receive
-        {'DOWN', _, process, PID, normal} ->
-            collect(Tail)
-    after ?CRITICAL_TIMEOUT ->
-        error(timeout)
-    end.
+collect(PIDs) ->
+    ColProc = fun(PID) ->
+        receive
+            {'DOWN', _, process, PID, normal} ->
+                ok
+        after ?CRITICAL_TIMEOUT ->
+            error(timeout)
+        end
+    end,
+    lists:map(ColProc, PIDs),
+    ok.

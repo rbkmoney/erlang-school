@@ -43,7 +43,7 @@ websocket_handle({text, Json}, Subs) ->
             {reply, {text, library_protocol:encode(ErrorMessage)}, Subs} % Not sure if it's OK
     end;
 
-websocket_handle(_Data, Subs) ->
+websocket_handle(_, Subs) ->
     {ok, Subs}.
 
 -spec websocket_info(term(), Subs :: state()) ->
@@ -55,9 +55,7 @@ websocket_info(Event, Subs) ->
     case EventBody of
         {_, _, _} ->
             Json = library_protocol:encode(EventBody),
-            {reply, {text, Json}, NewSubs};
-        undefined ->
-            error(unknown_message)
+            {reply, {text, Json}, NewSubs}
     end.
 
 -spec terminate(_Reason :: term(), _Req :: map(), Subs :: state()) ->

@@ -22,12 +22,10 @@
     curr_step := T
 }.
 
--type node_undef_error() :: {error, node_undefined}.
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec create(NodesMap :: node_map(T), InitialNode :: markov_node:markov_node(T)) ->
-    markov_chain(T) | node_undef_error().
+    markov_chain(T).
 
 create(NodesMap, InitialNode) ->
     ok = check_correctness(NodesMap),
@@ -35,21 +33,16 @@ create(NodesMap, InitialNode) ->
         true ->
             #{nodes => NodesMap, curr_step => InitialNode};
         false ->
-            {error, node_undefined}
+            error(invalid_node_map)
     end.
 
 -spec next_step(markov_chain(T)) ->
-    markov_chain(T) | node_undef_error().
+    markov_chain(T).
 
 next_step(#{nodes := Nodes, curr_step := Curr} = MarkovChain) ->
     CurrNode = maps:get(Curr, Nodes),
     NewNode = markov_node:get_random(CurrNode),
-    case maps:is_key(NewNode, Nodes) of
-        true ->
-            MarkovChain#{curr_step => NewNode};
-        false ->
-            {error, node_undefined} % Maybe it's better to call error(node_undefined)
-    end.
+    MarkovChain#{curr_step => NewNode}.
 
 -spec curr_step(markov_chain(T)) ->
     T.
@@ -63,7 +56,8 @@ curr_step(#{curr_step := Curr}) ->
 check_correctness(NodeMap) -> % Пока совершено монструозная конструкция, подумаю над тем, как улучшить ее
     % Если входные данные невалидны, эта функция просто кинет ошибку
     Nodes = maps:values(NodeMap),
-    Keys = sets:to_list(sets:from_list(lists:umerge(lists:map(fun maps:values/1, Nodes)))), % Уникальные ключи
+    AllKeys = lists:umerge(lists:map(fun maps:values/1, Nodes)),
+    UniqueKeys = sets:to_list(sets:from_list(AllKeys)),
     F = fun(Item, Map) ->
         case maps:is_key(Item, Map) of
             true ->
@@ -72,5 +66,5 @@ check_correctness(NodeMap) -> % Пока совершено монструозн
                 error(invalid_node_map)
         end
     end,
-    lists:foldl(F, NodeMap, Keys),
+    lists:foldl(F, NodeMap, UniqueKeys),
     ok.
