@@ -24,8 +24,8 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec create(NodesMap :: node_map(T), InitialNode :: markov_node:markov_node(T)) ->
-    markov_chain(T) | no_return().
+-spec create(NodesMap :: node_map(T), InitialNode :: T) ->
+    markov_chain(T).
 
 create(NodesMap, InitialNode) ->
     ok = check_correctness(NodesMap, InitialNode),
@@ -46,14 +46,13 @@ curr_step(#{curr_step := Curr}) ->
     Curr.
 
 -spec check_correctness(node_map(T), T) ->
-    ok | no_return().
+    ok.
 
 check_correctness(NodeMap, InitialNode) ->
-    % Если входные данные невалидны, эта функция просто кинет ошибку
     Nodes = maps:values(NodeMap),
-    Keys = lists:umerge(lists:map(fun maps:values/1, Nodes)),
-    % Насколько плохо нарушать скоуп функции ради того, чтобы поместить ее в функцию высшего порядка?
-    case lists:all(fun(Key) -> maps:is_key(Key, NodeMap) end, Keys) and maps:is_key(InitialNode, NodeMap) of
+    AllKeys = lists:map(fun markov_node:get_events/1, Nodes),
+    UnKeys = lists:umerge(lists:map(fun lists:sort/1, AllKeys)),
+    case lists:all(fun(Key) -> maps:is_key(Key, NodeMap) end, UnKeys) and maps:is_key(InitialNode, NodeMap) of
         true ->
             ok;
         false ->

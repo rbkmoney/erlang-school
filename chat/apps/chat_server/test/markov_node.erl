@@ -3,6 +3,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -export([create    /1]).
+-export([get_events/1]).
 -export([get_random/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPE EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -25,7 +26,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec create(EventMap :: event_possibility_map(T)) ->
-    markov_node(T) | {error, sum_is_not_1}.
+    markov_node(T).
 
 create(EventMap) ->
     Possibilities = maps:values(EventMap),
@@ -33,7 +34,7 @@ create(EventMap) ->
         1.0 ->
             create_node(EventMap);
         _ ->
-            {error, sum_is_not_1}
+            error(invalid_possibilities)
     end.
 
 -spec get_random(MarkovNode :: markov_node(T)) ->
@@ -43,6 +44,12 @@ get_random(MarkovNode) ->
     Value = rand:uniform(),
     Keys = maps:keys(MarkovNode),
     maps:get(lists:max([Item || Item <- Keys, Item =< Value]), MarkovNode).
+
+-spec get_events(MarkovNode :: markov_node(T)) ->
+    [T].
+
+get_events(MarkovNode) ->
+    maps:values(MarkovNode).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 

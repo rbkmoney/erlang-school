@@ -95,7 +95,7 @@ get_last_message(PID) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%% CALLBACK FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec init({Host :: host(), Port :: connection_port()}) ->
-    no_return().
+    {ok, state()}.
 
 init({Host, Port}) ->
     State = ws_connect(#{

@@ -131,7 +131,7 @@ start_and_monitor_bots(BotOptsList) ->
     PIDs.
 
 -spec collect_process(pid()) ->
-    ok | no_return().
+    ok.
 
 collect_process(PID) ->
     receive

@@ -47,7 +47,7 @@ websocket_handle(_, Subs) ->
     {ok, Subs}.
 
 -spec websocket_info(term(), Subs :: state()) ->
-    {reply, {text, jiffy:json_value()}, state()} | no_return().
+    {reply, {text, jiffy:json_value()}, state()}.
 
 websocket_info(Event, Subs) ->
     ok = lager:debug("ws_handler caught an event ~p", [Event]),
