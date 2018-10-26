@@ -21,7 +21,6 @@
     {ok, subscribers()} | error().
 
 handle_message(Message = {join, Username, Room}, Subs) ->
-    ok = lager:info("User ~p wants to join room ~p", [Username, Room]),
     case resolve_join_room(Room, Subs) of
         ok ->
             gproc_ps:subscribe(l, Room),
@@ -34,7 +33,6 @@ handle_message(Message = {join, Username, Room}, Subs) ->
     end;
 
 handle_message(Message = {{message, _}, Username, Room}, Subs) ->
-    ok = lager:info("User ~p wants to send ~p to room ~p", [Username, Message, Room]),
     case lists:member(Room, Subs) of
         true ->
             gproc_ps:publish(l, Room, Message),
@@ -46,10 +44,9 @@ handle_message(Message = {{message, _}, Username, Room}, Subs) ->
 
 
 handle_message(Message = {leave, Username, Room}, Subs) ->
-    ok = lager:info("User ~p wants to leave room ~p", [Username, Room]),
     case lists:member(Room, Subs) of
         true ->
-            ok = lager:info("Unsubscribing ~p from room ~p", [Username, Room]),
+            ok = lager:debug("Unsubscribing ~p from room ~p", [Username, Room]),
             gproc_ps:publish(l, Room, Message),
             gproc_ps:unsubscribe(l, Room),
             NewSubs = lists:delete(Room, Subs),
@@ -60,27 +57,29 @@ handle_message(Message = {leave, Username, Room}, Subs) ->
     end;
 
 handle_message(Message = {create, Username, Room}, Subs) ->
-    ok = lager:info("User ~p wants to create room ~p", [Username, Room]),
-    case chat_server_room_manager:create_room(Room) of
-        ok ->
-            ok = lager:info("Subscribing ~p to room ~p", [Username, Room]),
-            gproc_ps:subscribe(l, Room),
-            gproc_ps:publish(l, Room, Message),
-            NewSubs = [Room | Subs],
-            ok = lager:info("User ~p joined room ~p, he is in rooms ~p now", [Username, Room, NewSubs]),
-            {ok, NewSubs};
-        already_exists ->
+    case lists:member(Room, Subs) of
+        false ->
+            case chat_server_room_manager:create_room(Room) of
+                ok ->
+                    ok = lager:info("Created room ~p, subscribing ~p to it", [Room, Username]),
+                    gproc_ps:subscribe(l, Room),
+                    gproc_ps:publish(l, Room, Message),
+                    NewSubs = [Room | Subs],
+                    {ok, NewSubs};
+                already_exists ->
+                    {error, already_exists}
+            end;
+        true ->
             {error, already_exists}
     end;
 
 handle_message(Message = {delete, Username, Room}, Subs) ->
-    ok = lager:info("User ~p wants to delete room ~p", [Username, Room]),
     case lists:member(Room, Subs) of
         true ->
+            ok = lager:debug("Publishing delete room ~p message, origin: ~p", [Room, Username]),
             gproc_ps:publish(l, Room, Message), % Alerting everyone
-            ok = chat_server_room_manager:delete_room(Room),
-            NewSubs = lists:delete(Room, Subs),
-            {ok, NewSubs};
+            _ = chat_server_room_manager:delete_room(Room), % Don't we care?
+            {ok, Subs};
         false ->
             {error, not_joined}
     end;
@@ -92,12 +91,15 @@ handle_message(_, Subs) ->
     {library_protocol:message() | undefined, subscribers()}.
 
 handle_event({gproc_ps_event, Room, Message = {delete, _, _}}, Subs) ->
-    ok = lager:debug("gproc_ps_event: ~p", [Message]),
-    gproc_ps:unsubscribe(l, Room),
-    {Message, lists:delete(Room, Subs)};
+    case lists:member(Room, Subs) of
+        true ->
+            gproc_ps:unsubscribe(l, Room),
+            {Message, lists:delete(Room, Subs)};
+        false ->
+            {Message, Subs}
+    end;
 
 handle_event({gproc_ps_event, _Room, Message}, Subs) ->
-    ok = lager:debug("gproc_ps_event: ~p", [Message]),
     {Message, Subs};
 
 handle_event(_, Subs) ->
