@@ -4,7 +4,20 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% API EXPORT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--compile([export_all]).
+%% tests descriptions
+
+-export([all           /0]).
+-export([init_per_suite/1]).
+-export([end_per_suite /1]).
+
+%% tests
+
+-export([create_room                 /1]).
+-export([delete_room                 /1]).
+-export([get_room_list               /1]).
+-export([cant_create_existing_room   /1]).
+-export([cant_find_nonexistent_room  /1]).
+-export([cant_delete_nonexistent_room/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
